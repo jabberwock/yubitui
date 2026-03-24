@@ -18,6 +18,7 @@ pub struct KeyState {
     pub screen: KeyScreen,
     pub message: Option<String>,
     pub available_keys: Vec<String>,
+    pub selected_key_index: usize,
 }
 
 impl Default for KeyState {
@@ -26,6 +27,7 @@ impl Default for KeyState {
             screen: KeyScreen::Main,
             message: None,
             available_keys: Vec::new(),
+            selected_key_index: 0,
         }
     }
 }
