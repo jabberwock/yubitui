@@ -37,8 +37,8 @@ pub fn gnupg_home() -> Result<PathBuf> {
     }
 
     // 4. Unix fallback
-    let home = dirs::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
+    let home =
+        dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
     Ok(home.join(".gnupg"))
 }
 

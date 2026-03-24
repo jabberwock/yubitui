@@ -70,9 +70,7 @@ pub fn render_confirm_dialog(
     };
 
     let title_style = if destructive {
-        Style::default()
-            .fg(Color::Red)
-            .add_modifier(Modifier::BOLD)
+        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
@@ -107,8 +105,11 @@ pub fn render_context_menu(
         .enumerate()
         .map(|(i, item)| {
             if i == selected_index {
-                ListItem::new(format!("> {}", item))
-                    .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                ListItem::new(format!("> {}", item)).style(
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                )
             } else {
                 ListItem::new(format!("  {}", item))
             }

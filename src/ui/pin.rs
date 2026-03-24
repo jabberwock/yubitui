@@ -15,9 +15,9 @@ pub enum PinScreen {
     #[allow(dead_code)]
     UnblockUserPin,
     // Wizard screens:
-    UnblockWizardCheck,      // Shows retry counters, determines available path
-    UnblockWizardWithReset,  // Confirm: use reset code to unblock
-    UnblockWizardWithAdmin,  // Confirm: use admin PIN to unblock
+    UnblockWizardCheck,        // Shows retry counters, determines available path
+    UnblockWizardWithReset,    // Confirm: use reset code to unblock
+    UnblockWizardWithAdmin,    // Confirm: use admin PIN to unblock
     UnblockWizardFactoryReset, // WARNING: factory reset destroys all keys
 }
 
@@ -163,8 +163,8 @@ fn render_main(
             Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title("Status"));
         frame.render_widget(paragraph, chunks[1]);
     } else {
-        let paragraph = Paragraph::new(content)
-            .block(Block::default().borders(Borders::ALL).title("Status"));
+        let paragraph =
+            Paragraph::new(content).block(Block::default().borders(Borders::ALL).title("Status"));
         frame.render_widget(paragraph, chunks[1]);
     }
 
@@ -351,9 +351,7 @@ fn render_unblock_wizard_check(
             if state.ykman_available {
                 lines.push(Line::from(Span::styled(
                     "[3] Factory Reset (DESTROYS ALL KEYS)",
-                    Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 )));
             } else {
                 lines.push(Line::from(Span::styled(
@@ -369,8 +367,11 @@ fn render_unblock_wizard_check(
         vec![Line::from("[ESC] Cancel")]
     };
 
-    let actions_paragraph = Paragraph::new(action_lines)
-        .block(Block::default().borders(Borders::ALL).title("Recovery Options"));
+    let actions_paragraph = Paragraph::new(action_lines).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Recovery Options"),
+    );
     frame.render_widget(actions_paragraph, chunks[2]);
 }
 
@@ -424,34 +425,22 @@ fn render_unblock_wizard_factory_reset(frame: &mut Frame, area: Rect, state: &Pi
 
     // Title in RED BOLD
     let title = Paragraph::new("Factory Reset")
-        .style(
-            Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD),
-        )
+        .style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(title, chunks[0]);
 
     let warning_lines = vec![
         Line::from(Span::styled(
             "[WARNING] DESTRUCTIVE OPERATION",
-            Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
-        Line::from(
-            "Both your Admin PIN and Reset Code are exhausted.",
-        ),
-        Line::from(
-            "The only way to recover this YubiKey is a full factory reset.",
-        ),
+        Line::from("Both your Admin PIN and Reset Code are exhausted."),
+        Line::from("The only way to recover this YubiKey is a full factory reset."),
         Line::from(""),
         Line::from(Span::styled(
             "THIS WILL PERMANENTLY DELETE:",
-            Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )),
         Line::from(Span::styled(
             "  - All GPG keys stored on the card",

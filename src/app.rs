@@ -71,7 +71,11 @@ impl App {
 
         // Restore terminal
         disable_raw_mode()?;
-        execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+        execute!(
+            terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )?;
         terminal.show_cursor()?;
 
         result
@@ -93,7 +97,9 @@ impl App {
 
         // Render current screen
         match self.current_screen {
-            Screen::Dashboard => ui::dashboard::render(frame, chunks[0], self, &self.dashboard_state),
+            Screen::Dashboard => {
+                ui::dashboard::render(frame, chunks[0], self, &self.dashboard_state)
+            }
             Screen::Diagnostics => ui::diagnostics::render(frame, chunks[0], &self.diagnostics),
             Screen::Help => ui::help::render(frame, chunks[0]),
             Screen::Keys => {
@@ -344,46 +350,42 @@ impl App {
                     }
                     _ => {}
                 },
-                PinScreen::UnblockWizardCheck => {
-                    match key.code {
-                        KeyCode::Char('1') => {
-                            if let Some(yk) = &self.yubikey_state {
-                                if yk.pin_status.reset_code_retries > 0 {
-                                    self.pin_state.screen = PinScreen::UnblockWizardWithReset;
-                                    self.pin_state.unblock_path =
-                                        Some(ui::pin::UnblockPath::ResetCode);
-                                }
+                PinScreen::UnblockWizardCheck => match key.code {
+                    KeyCode::Char('1') => {
+                        if let Some(yk) = &self.yubikey_state {
+                            if yk.pin_status.reset_code_retries > 0 {
+                                self.pin_state.screen = PinScreen::UnblockWizardWithReset;
+                                self.pin_state.unblock_path = Some(ui::pin::UnblockPath::ResetCode);
                             }
                         }
-                        KeyCode::Char('2') => {
-                            if let Some(yk) = &self.yubikey_state {
-                                if yk.pin_status.admin_pin_retries > 0 {
-                                    self.pin_state.screen = PinScreen::UnblockWizardWithAdmin;
-                                    self.pin_state.unblock_path =
-                                        Some(ui::pin::UnblockPath::AdminPin);
-                                }
-                            }
-                        }
-                        KeyCode::Char('3') => {
-                            if let Some(yk) = &self.yubikey_state {
-                                if yk.pin_status.reset_code_retries == 0
-                                    && yk.pin_status.admin_pin_retries == 0
-                                    && self.pin_state.ykman_available
-                                {
-                                    self.pin_state.screen = PinScreen::UnblockWizardFactoryReset;
-                                    self.pin_state.unblock_path =
-                                        Some(ui::pin::UnblockPath::FactoryReset);
-                                }
-                            }
-                        }
-                        KeyCode::Esc => {
-                            self.pin_state.screen = PinScreen::Main;
-                            self.pin_state.message = None;
-                            self.pin_state.unblock_path = None;
-                        }
-                        _ => {}
                     }
-                }
+                    KeyCode::Char('2') => {
+                        if let Some(yk) = &self.yubikey_state {
+                            if yk.pin_status.admin_pin_retries > 0 {
+                                self.pin_state.screen = PinScreen::UnblockWizardWithAdmin;
+                                self.pin_state.unblock_path = Some(ui::pin::UnblockPath::AdminPin);
+                            }
+                        }
+                    }
+                    KeyCode::Char('3') => {
+                        if let Some(yk) = &self.yubikey_state {
+                            if yk.pin_status.reset_code_retries == 0
+                                && yk.pin_status.admin_pin_retries == 0
+                                && self.pin_state.ykman_available
+                            {
+                                self.pin_state.screen = PinScreen::UnblockWizardFactoryReset;
+                                self.pin_state.unblock_path =
+                                    Some(ui::pin::UnblockPath::FactoryReset);
+                            }
+                        }
+                    }
+                    KeyCode::Esc => {
+                        self.pin_state.screen = PinScreen::Main;
+                        self.pin_state.message = None;
+                        self.pin_state.unblock_path = None;
+                    }
+                    _ => {}
+                },
                 PinScreen::UnblockWizardWithReset | PinScreen::UnblockWizardWithAdmin => {
                     match key.code {
                         KeyCode::Enter => {
