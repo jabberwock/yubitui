@@ -11,12 +11,12 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         .constraints([
             Constraint::Length(3),
             Constraint::Min(10),
-            Constraint::Length(8),
+            Constraint::Length(10),
         ])
         .split(area);
 
     // Title
-    let title = Paragraph::new("🔐 YubiTUI - YubiKey Management")
+    let title = Paragraph::new("🔐 YubiTUI - YubiKey Management Dashboard")
         .style(
             Style::default()
                 .fg(Color::Cyan)
@@ -24,26 +24,6 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         )
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(title, chunks[0]);
-
-    // Main menu
-    let menu_items = vec![
-        ListItem::new("1. Dashboard (Current)"),
-        ListItem::new("2. System Diagnostics"),
-        ListItem::new("3. Key Management"),
-        ListItem::new("4. PIN Management"),
-        ListItem::new("5. SSH Setup Wizard"),
-    ];
-
-    let menu = List::new(menu_items)
-        .block(
-            Block::default()
-                .title("Main Menu")
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
-        )
-        .style(Style::default().fg(Color::White));
-
-    frame.render_widget(menu, chunks[1]);
 
     // Quick status
     let status_text = if let Some(yk) = app.yubikey_state() {
@@ -55,40 +35,71 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         } else {
             "❌"
         };
+        
+        let keys_info = if let Some(ref openpgp) = yk.openpgp {
+            let sig = if openpgp.signature_key.is_some() { "✅" } else { "❌" };
+            let enc = if openpgp.encryption_key.is_some() { "✅" } else { "❌" };
+            let auth = if openpgp.authentication_key.is_some() { "✅" } else { "❌" };
+            format!("Keys: {} Sign  {} Encrypt  {} Auth", sig, enc, auth)
+        } else {
+            "Keys: Not detected".to_string()
+        };
 
         format!(
-            "YubiKey: {} {}\n\
-             Firmware: {}\n\
-             Serial: {}\n\
+            "📱 Device: {} {} | FW: {} | SN: {}\n\
+             {} PIN: {}/3 retries | Admin: {}/3 retries\n\
+             {}\n\
              \n\
-             {} PIN Status: {} retries remaining\n\
-             Admin PIN: {} retries remaining",
+             ✨ All systems operational - Your YubiKey is ready to use!",
             yk.info.model,
             yk.info.form_factor,
             yk.info.version,
             yk.info.serial,
             pin_emoji,
             pin_status.user_pin_retries,
-            pin_status.admin_pin_retries
+            pin_status.admin_pin_retries,
+            keys_info
         )
     } else {
-        "No YubiKey detected.\n\n\
-         Please insert a YubiKey and press 'R' to refresh.\n\n\
+        "❌ No YubiKey Detected\n\
+         \n\
+         Please insert your YubiKey and press 'R' to refresh.\n\
+         \n\
          Troubleshooting:\n\
-         • Ensure pcscd is running\n\
          • Check USB connection\n\
-         • Try: pcsc_scan"
+         • Run diagnostics with '2' key"
             .to_string()
     };
 
     let status = Paragraph::new(status_text)
         .block(
             Block::default()
-                .title("Quick Status")
+                .title("📊 Status")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Green)),
         )
         .wrap(ratatui::widgets::Wrap { trim: true });
 
-    frame.render_widget(status, chunks[2]);
+    frame.render_widget(status, chunks[1]);
+
+    // Navigation menu - make it clear and actionable
+    let menu_items = vec![
+        ListItem::new("  [1] Dashboard         You are here →").style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ListItem::new("  [2] System Check      Diagnose PC/SC, GPG, SSH configuration"),
+        ListItem::new("  [3] Key Management    View and manage OpenPGP/PIV keys"),
+        ListItem::new("  [4] PIN Management    Change PINs, view retry counters"),
+        ListItem::new("  [5] SSH Setup         Configure SSH authentication"),
+        ListItem::new(""),
+        ListItem::new("  [R] Refresh          [Q] Quit          [?] Help"),
+    ];
+
+    let menu = List::new(menu_items)
+        .block(
+            Block::default()
+                .title("⌨️  Navigation - Press number keys to switch screens")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        );
+
+    frame.render_widget(menu, chunks[2]);
 }

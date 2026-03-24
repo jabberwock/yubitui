@@ -5,14 +5,14 @@ use ratatui::{
 
 use crate::app::App;
 
-pub fn render(frame: &mut Frame, area: Rect, app: &App) {
+pub fn render(frame: &mut Frame, area: Rect, _app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(0)])
         .split(area);
 
     // Title
-    let title = Paragraph::new("SSH Setup Wizard")
+    let title = Paragraph::new("🔧 SSH Setup Guide")
         .style(
             Style::default()
                 .fg(Color::Cyan)
@@ -21,30 +21,44 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(title, chunks[0]);
 
-    // Content
-    let content = if let Some(_yk) = app.yubikey_state() {
-        "SSH Configuration Wizard\n\
-         ========================\n\n\
-         This wizard will guide you through configuring SSH authentication with your YubiKey.\n\n\
-         Steps:\n\
-         1. ✅ Detect YubiKey\n\
-         2. ⏳ Check for authentication key\n\
-         3. ⏳ Configure gpg-agent for SSH support\n\
-         4. ⏳ Export SSH public key\n\
-         5. ⏳ Add to authorized_keys\n\n\
-         Recommended Configuration:\n\
-         • Algorithm: Ed25519 (fastest, most secure)\n\
-         • Touch policy: Required (for security)\n\
-         • PIN caching: Enabled (for convenience)\n\n\
-         Press 'N' to continue to next step...\n\n\
-         📖 Need help? See: https://github.com/drduh/YubiKey-Guide"
-            .to_string()
-    } else {
-        "No YubiKey detected. Please insert a YubiKey and press 'R' to refresh.".to_string()
-    };
+    // Instructional content - no "press N" nonsense
+    let content = "SSH Authentication with YubiKey - Setup Guide\n\
+         =============================================\n\n\
+         📋 Prerequisites:\n\
+         1. GPG agent must be running (check in System Diagnostics)\n\
+         2. Authentication key must be on your YubiKey (check Key Management)\n\
+         3. enable-ssh-support must be in ~/.gnupg/gpg-agent.conf\n\n\
+         🔧 Configuration Steps:\n\n\
+         Step 1: Enable SSH Support\n\
+         ---------------------------\n\
+         Add this line to ~/.gnupg/gpg-agent.conf:\n\
+           enable-ssh-support\n\n\
+         Then restart GPG agent:\n\
+           $ gpgconf --kill gpg-agent\n\n\
+         Step 2: Set SSH_AUTH_SOCK\n\
+         --------------------------\n\
+         Add to your ~/.zshrc or ~/.bashrc:\n\
+           export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)\n\n\
+         Then reload:\n\
+           $ source ~/.zshrc\n\n\
+         Step 3: Export Public Key\n\
+         --------------------------\n\
+         Export your authentication key:\n\
+           $ gpg --export-ssh-key YOUR_KEY_ID\n\n\
+         Add the output to ~/.ssh/authorized_keys on remote servers.\n\n\
+         Step 4: Test Connection\n\
+         ------------------------\n\
+         Test SSH with your YubiKey:\n\
+           $ ssh -v user@host\n\n\
+         You should be prompted for your YubiKey PIN.\n\n\
+         ✅ Verify: Run System Diagnostics (press '2') to check your configuration.\n\n\
+         📖 Full Guide: https://github.com/drduh/YubiKey-Guide#ssh"
+            .to_string();
 
     let paragraph = Paragraph::new(content)
-        .block(Block::default().borders(Borders::ALL))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title("Copy these commands to your terminal"))
         .wrap(ratatui::widgets::Wrap { trim: true });
 
     frame.render_widget(paragraph, chunks[1]);
