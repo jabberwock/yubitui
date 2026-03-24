@@ -22,7 +22,7 @@ Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gap
 
 Plans:
 - [ ] 01-01-PLAN.md — Interactive key selection UI for import
-- [ ] 01-02-PLAN.md — Help screen with keybinding reference
+- [x] 01-02-PLAN.md — Help screen with keybinding reference
 - [ ] 01-03-PLAN.md — Update README roadmap checkboxes
 
 **Requirements:** [KEY-PICKER, HELP-SCREEN, README-SYNC]
