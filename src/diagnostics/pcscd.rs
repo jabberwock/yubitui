@@ -11,23 +11,21 @@ pub fn check_pcscd() -> Result<PcscdStatus> {
     // Try to detect if pcscd is running
     #[cfg(target_os = "macos")]
     let running = {
-        // On macOS, check for com.apple.ctkpcscd process
-        let ps_check = Command::new("pgrep")
-            .args(&["-f", "com.apple.ctkpcscd"])
+        // Check system domain via `launchctl print` (works without sudo on macOS 10.10+)
+        let launchctl_check = Command::new("launchctl")
+            .args(&["print", "system/com.apple.ctkpcscd"])
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false);
 
-        // Also try launchctl
-        let launchctl_check = Command::new("launchctl")
-            .args(&["list"])
+        // Fallback: check for the process by its short name
+        let pgrep_check = Command::new("pgrep")
+            .args(&["-x", "ctkpcscd"])
             .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| s.contains("com.apple.ctkpcscd"))
+            .map(|o| o.status.success())
             .unwrap_or(false);
 
-        ps_check || launchctl_check
+        launchctl_check || pgrep_check
     };
 
     #[cfg(target_os = "linux")]
