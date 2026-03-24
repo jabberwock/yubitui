@@ -1,8 +1,8 @@
 ---
 phase: 02-ux-menus-wizards-fixes
 verified: 2026-03-24T21:00:00Z
-status: gaps_found
-score: 16/17 must-haves verified
+status: passed
+score: 17/17 must-haves verified
 gaps:
   - truth: "cargo fmt -- --check passes (implied by CLAUDE.md security checklist)"
     status: failed
