@@ -40,7 +40,7 @@ pub fn get_openpgp_state() -> Result<OpenPgpState> {
     parse_card_status(&stdout)
 }
 
-fn parse_card_status(output: &str) -> Result<OpenPgpState> {
+pub fn parse_card_status(output: &str) -> Result<OpenPgpState> {
     let mut signature_key = None;
     let mut encryption_key = None;
     let mut authentication_key = None;
@@ -125,4 +125,70 @@ fn parse_card_status(output: &str) -> Result<OpenPgpState> {
         cardholder_name,
         public_key_url,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_card_status_full() {
+        let input = "\
+Version ..........: 3.4\n\
+Name of cardholder: Test User\n\
+URL of public key : https://example.com/key.asc\n\
+Key attributes ...: ed25519 cv25519 ed25519\n\
+Signature key .....: ABCD 1234 5678 9012 3456  7890 ABCD EF01 2345 6789\n\
+Encryption key.....: 1111 2222 3333 4444 5555  6666 7777 8888 9999 0000\n\
+Authentication key: AAAA BBBB CCCC DDDD EEEE  FFFF 0000 1111 2222 3333\n\
+";
+        let state = parse_card_status(input).unwrap();
+        assert!(state.card_present);
+        assert_eq!(state.version, "3.4");
+        assert_eq!(state.cardholder_name.as_deref(), Some("Test User"));
+        assert_eq!(
+            state.public_key_url.as_deref(),
+            Some("https://example.com/key.asc")
+        );
+        assert!(state.signature_key.is_some());
+        assert!(state.encryption_key.is_some());
+        assert!(state.authentication_key.is_some());
+        let sig = state.signature_key.unwrap();
+        assert!(sig.fingerprint.contains("ABCD"));
+        assert_eq!(sig.key_attributes, "ed25519");
+    }
+
+    #[test]
+    fn test_parse_card_status_empty() {
+        let state = parse_card_status("").unwrap();
+        assert!(state.card_present);
+        assert!(state.signature_key.is_none());
+        assert!(state.encryption_key.is_none());
+        assert!(state.authentication_key.is_none());
+        assert!(state.cardholder_name.is_none());
+    }
+
+    #[test]
+    fn test_parse_card_status_none_keys() {
+        let input = "\
+Signature key .....: [none]\n\
+Encryption key.....: [none]\n\
+Authentication key: [none]\n\
+";
+        let state = parse_card_status(input).unwrap();
+        assert!(state.signature_key.is_none());
+        assert!(state.encryption_key.is_none());
+        assert!(state.authentication_key.is_none());
+    }
+
+    #[test]
+    fn test_parse_card_status_rsa() {
+        let input = "Key attributes ...: rsa4096 rsa4096 rsa4096\n";
+        let state = parse_card_status(input).unwrap();
+        // key_attributes is updated but no key lines present so keys are None
+        // The key_attributes default before this line is rsa2048, after it becomes rsa4096
+        // We verify the state parses without error
+        assert!(state.card_present);
+        assert!(state.signature_key.is_none());
+    }
 }

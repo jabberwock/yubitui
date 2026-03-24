@@ -36,7 +36,7 @@ pub fn get_key_attributes() -> Result<KeyAttributes> {
     parse_ykman_openpgp_info(&stdout)
 }
 
-fn parse_ykman_openpgp_info(output: &str) -> Result<KeyAttributes> {
+pub fn parse_ykman_openpgp_info(output: &str) -> Result<KeyAttributes> {
     let mut attrs = KeyAttributes::default();
 
     // ykman openpgp info output format (example):
@@ -98,6 +98,67 @@ fn parse_ykman_openpgp_info(output: &str) -> Result<KeyAttributes> {
     }
 
     Ok(attrs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_ykman_openpgp_info_full() {
+        let input = "\
+OpenPGP version:            3.4\n\
+Application version:        5.2.7\n\
+PIN tries remaining:        3\n\
+Reset code tries remaining: 0\n\
+Admin PIN tries remaining:  3\n\
+SIG key:\n\
+  Fingerprint: ABCDEF0123456789\n\
+  Algorithm:   ed25519\n\
+ENC key:\n\
+  Fingerprint: 1234567890ABCDEF\n\
+  Algorithm:   cv25519\n\
+AUT key:\n\
+  Fingerprint: FEDCBA9876543210\n\
+  Algorithm:   ed25519\n\
+";
+        let attrs = parse_ykman_openpgp_info(input).unwrap();
+        let sig = attrs.signature.as_ref().unwrap();
+        assert_eq!(sig.algorithm, "ed25519");
+        assert_eq!(sig.fingerprint, "ABCDEF0123456789");
+        let enc = attrs.encryption.as_ref().unwrap();
+        assert_eq!(enc.algorithm, "cv25519");
+        assert_eq!(enc.fingerprint, "1234567890ABCDEF");
+        let aut = attrs.authentication.as_ref().unwrap();
+        assert_eq!(aut.algorithm, "ed25519");
+        assert_eq!(aut.fingerprint, "FEDCBA9876543210");
+    }
+
+    #[test]
+    fn test_parse_ykman_openpgp_info_empty_slots() {
+        let input = "SIG key:\nENC key:\nAUT key:\n";
+        let attrs = parse_ykman_openpgp_info(input).unwrap();
+        assert!(attrs.signature.is_none());
+        assert!(attrs.encryption.is_none());
+        assert!(attrs.authentication.is_none());
+    }
+
+    #[test]
+    fn test_parse_ykman_openpgp_info_partial() {
+        let input = "\
+SIG key:\n\
+  Fingerprint: AABBCCDD11223344\n\
+  Algorithm:   rsa2048\n\
+ENC key:\n\
+AUT key:\n\
+";
+        let attrs = parse_ykman_openpgp_info(input).unwrap();
+        assert!(attrs.signature.is_some());
+        let sig = attrs.signature.as_ref().unwrap();
+        assert_eq!(sig.algorithm, "rsa2048");
+        assert!(attrs.encryption.is_none());
+        assert!(attrs.authentication.is_none());
+    }
 }
 
 fn save_slot(attrs: &mut KeyAttributes, slot: &str, algo: &str, fp: &str) {

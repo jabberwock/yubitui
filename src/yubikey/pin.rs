@@ -31,7 +31,7 @@ pub fn get_pin_status() -> Result<PinStatus> {
     parse_pin_status(&stdout)
 }
 
-fn parse_pin_status(output: &str) -> Result<PinStatus> {
+pub fn parse_pin_status(output: &str) -> Result<PinStatus> {
     let mut user_pin_retries = 3;
     let mut admin_pin_retries = 3;
     let mut reset_code_retries = 0;
@@ -61,4 +61,77 @@ fn parse_pin_status(output: &str) -> Result<PinStatus> {
         user_pin_blocked: user_pin_retries == 0,
         admin_pin_blocked: admin_pin_retries == 0,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_pin_status_normal() {
+        let status = parse_pin_status("PIN retry counter : 3 3 0\n").unwrap();
+        assert_eq!(status.user_pin_retries, 3);
+        assert_eq!(status.admin_pin_retries, 3);
+        assert_eq!(status.reset_code_retries, 0);
+        assert!(!status.user_pin_blocked);
+        assert!(!status.admin_pin_blocked);
+    }
+
+    #[test]
+    fn test_parse_pin_status_user_blocked() {
+        let status = parse_pin_status("PIN retry counter : 0 3 0\n").unwrap();
+        assert_eq!(status.user_pin_retries, 0);
+        assert!(status.user_pin_blocked);
+        assert!(!status.admin_pin_blocked);
+    }
+
+    #[test]
+    fn test_parse_pin_status_admin_blocked() {
+        let status = parse_pin_status("PIN retry counter : 3 0 0\n").unwrap();
+        assert_eq!(status.admin_pin_retries, 0);
+        assert!(!status.user_pin_blocked);
+        assert!(status.admin_pin_blocked);
+    }
+
+    #[test]
+    fn test_parse_pin_status_all_blocked() {
+        let status = parse_pin_status("PIN retry counter : 0 0 0\n").unwrap();
+        assert!(status.user_pin_blocked);
+        assert!(status.admin_pin_blocked);
+    }
+
+    #[test]
+    fn test_parse_pin_status_no_match() {
+        let status = parse_pin_status("some unrelated output\n").unwrap();
+        // Defaults: user=3, admin=3, reset=0
+        assert_eq!(status.user_pin_retries, 3);
+        assert_eq!(status.admin_pin_retries, 3);
+        assert_eq!(status.reset_code_retries, 0);
+        assert!(!status.user_pin_blocked);
+        assert!(!status.admin_pin_blocked);
+    }
+
+    #[test]
+    fn test_is_healthy() {
+        let status = PinStatus {
+            user_pin_retries: 3,
+            admin_pin_retries: 3,
+            reset_code_retries: 0,
+            user_pin_blocked: false,
+            admin_pin_blocked: false,
+        };
+        assert!(status.is_healthy());
+    }
+
+    #[test]
+    fn test_needs_attention() {
+        let status = PinStatus {
+            user_pin_retries: 1,
+            admin_pin_retries: 3,
+            reset_code_retries: 0,
+            user_pin_blocked: false,
+            admin_pin_blocked: false,
+        };
+        assert!(status.needs_attention());
+    }
 }

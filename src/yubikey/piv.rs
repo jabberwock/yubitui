@@ -32,7 +32,7 @@ pub fn get_piv_state() -> Result<PivState> {
     Ok(PivState { slots: vec![] })
 }
 
-fn parse_piv_info(output: &str) -> PivState {
+pub fn parse_piv_info(output: &str) -> PivState {
     let mut slots = Vec::new();
 
     for line in output.lines() {
@@ -55,4 +55,24 @@ fn parse_piv_info(output: &str) -> PivState {
     }
 
     PivState { slots }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_piv_info_with_slots() {
+        let input = "Slot 9a:\n  Algorithm: RSA2048\nSlot 9c:\n  Algorithm: ECCP256\n";
+        let state = parse_piv_info(input);
+        assert_eq!(state.slots.len(), 2);
+        assert_eq!(state.slots[0].slot, "9a");
+        assert_eq!(state.slots[1].slot, "9c");
+    }
+
+    #[test]
+    fn test_parse_piv_info_empty() {
+        let state = parse_piv_info("");
+        assert!(state.slots.is_empty());
+    }
 }
