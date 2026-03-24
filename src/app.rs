@@ -29,6 +29,7 @@ pub struct App {
     current_screen: Screen,
     diagnostics: Diagnostics,
     yubikey_state: Option<YubiKeyState>,
+    pin_state: ui::pin::PinState,
 }
 
 impl App {
@@ -41,6 +42,7 @@ impl App {
             current_screen: Screen::Dashboard,
             diagnostics,
             yubikey_state,
+            pin_state: ui::pin::PinState::default(),
         })
     }
 
@@ -86,7 +88,7 @@ impl App {
             Screen::Dashboard => ui::dashboard::render(frame, chunks[0], self),
             Screen::Diagnostics => ui::diagnostics::render(frame, chunks[0], &self.diagnostics),
             Screen::Keys => ui::keys::render(frame, chunks[0], &self.yubikey_state),
-            Screen::PinManagement => ui::pin::render(frame, chunks[0], &self.yubikey_state),
+            Screen::PinManagement => ui::pin::render(frame, chunks[0], &self.yubikey_state, &self.pin_state),
             Screen::SshWizard => ui::ssh::render(frame, chunks[0], self),
         }
 
@@ -104,6 +106,49 @@ impl App {
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) -> Result<()> {
+        // Handle PIN management sub-screens
+        if self.current_screen == Screen::PinManagement {
+            use ui::pin::PinScreen;
+            
+            match self.pin_state.screen {
+                PinScreen::Main => {
+                    match key.code {
+                        KeyCode::Char('c') => {
+                            self.pin_state.screen = PinScreen::ChangeUserPin;
+                        }
+                        KeyCode::Char('a') => {
+                            self.pin_state.screen = PinScreen::ChangeAdminPin;
+                        }
+                        KeyCode::Char('r') => {
+                            self.pin_state.screen = PinScreen::SetResetCode;
+                        }
+                        KeyCode::Char('u') => {
+                            self.pin_state.screen = PinScreen::UnblockUserPin;
+                        }
+                        KeyCode::Esc => {
+                            self.current_screen = Screen::Dashboard;
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {
+                    match key.code {
+                        KeyCode::Enter => {
+                            // Execute the operation
+                            self.execute_pin_operation()?;
+                        }
+                        KeyCode::Esc => {
+                            self.pin_state.screen = PinScreen::Main;
+                            self.pin_state.message = None;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            return Ok(());
+        }
+        
+        // Regular navigation
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => {
                 if self.current_screen == Screen::Dashboard {
@@ -115,7 +160,10 @@ impl App {
             KeyCode::Char('1') => self.current_screen = Screen::Dashboard,
             KeyCode::Char('2') => self.current_screen = Screen::Diagnostics,
             KeyCode::Char('3') => self.current_screen = Screen::Keys,
-            KeyCode::Char('4') => self.current_screen = Screen::PinManagement,
+            KeyCode::Char('4') => {
+                self.current_screen = Screen::PinManagement;
+                self.pin_state = ui::pin::PinState::default();
+            }
             KeyCode::Char('5') => self.current_screen = Screen::SshWizard,
             KeyCode::Char('r') => {
                 // Refresh: re-run diagnostics and detect YubiKey
@@ -124,6 +172,42 @@ impl App {
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    fn execute_pin_operation(&mut self) -> Result<()> {
+        use crate::yubikey::pin_operations;
+        use ui::pin::PinScreen;
+        
+        // Switch to alternate screen to run GPG interactively
+        crossterm::terminal::disable_raw_mode()?;
+        crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
+        
+        let result = match self.pin_state.screen {
+            PinScreen::ChangeUserPin => pin_operations::change_user_pin(),
+            PinScreen::ChangeAdminPin => pin_operations::change_admin_pin(),
+            PinScreen::SetResetCode => pin_operations::set_reset_code(),
+            PinScreen::UnblockUserPin => pin_operations::unblock_user_pin(),
+            _ => Ok("No operation".to_string()),
+        };
+        
+        // Restore TUI
+        crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
+        crossterm::terminal::enable_raw_mode()?;
+        
+        // Update state
+        match result {
+            Ok(msg) => {
+                self.pin_state.message = Some(msg);
+                // Refresh YubiKey state to get updated PIN counters
+                self.yubikey_state = YubiKeyState::detect()?;
+            }
+            Err(e) => {
+                self.pin_state.message = Some(format!("Error: {}", e));
+            }
+        }
+        
+        self.pin_state.screen = PinScreen::Main;
         Ok(())
     }
 

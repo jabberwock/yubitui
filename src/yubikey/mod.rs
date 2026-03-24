@@ -1,6 +1,7 @@
 pub mod detection;
 pub mod openpgp;
 pub mod pin;
+pub mod pin_operations;
 pub mod piv;
 pub mod ssh;
 

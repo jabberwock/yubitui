@@ -2,6 +2,8 @@ pub mod dashboard;
 pub mod diagnostics;
 pub mod keys;
 pub mod pin;
+
+pub use pin::{PinScreen, PinState};
 pub mod ssh;
 
 use ratatui::{
