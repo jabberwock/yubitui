@@ -12,6 +12,8 @@ pub enum KeyScreen {
     ImportKey,
     GenerateKey,
     ExportSSH,
+    KeyAttributes,   // read-only key algorithm display per slot
+    SshPubkeyPopup,  // in-TUI SSH public key viewer
 }
 
 pub struct KeyState {
@@ -19,6 +21,10 @@ pub struct KeyState {
     pub message: Option<String>,
     pub available_keys: Vec<String>,
     pub selected_key_index: usize,
+    pub key_attributes: Option<crate::yubikey::key_operations::KeyAttributes>,
+    pub ssh_pubkey: Option<String>,
+    pub show_context_menu: bool,
+    pub menu_selected_index: usize,
 }
 
 impl Default for KeyState {
@@ -28,6 +34,10 @@ impl Default for KeyState {
             message: None,
             available_keys: Vec::new(),
             selected_key_index: 0,
+            key_attributes: None,
+            ssh_pubkey: None,
+            show_context_menu: false,
+            menu_selected_index: 0,
         }
     }
 }
@@ -44,6 +54,8 @@ pub fn render(
         KeyScreen::ImportKey => render_import_key(frame, area, state),
         KeyScreen::GenerateKey => render_generate_key(frame, area, state),
         KeyScreen::ExportSSH => render_export_ssh(frame, area, state),
+        KeyScreen::KeyAttributes => render_key_attributes(frame, area, state),
+        KeyScreen::SshPubkeyPopup => render_ssh_pubkey_popup(frame, area, yubikey_state, state),
     }
 }
 
@@ -58,7 +70,7 @@ fn render_main(
         .constraints([
             Constraint::Length(3),
             Constraint::Min(10),
-            Constraint::Length(12),
+            Constraint::Length(14),
         ])
         .split(area);
 
@@ -140,6 +152,8 @@ fn render_main(
         ListItem::new("[I] Import existing key to card").style(Style::default().fg(Color::Green)),
         ListItem::new("[G] Generate new key on card").style(Style::default().fg(Color::Yellow)),
         ListItem::new("[E] Export SSH public key").style(Style::default().fg(Color::Magenta)),
+        ListItem::new("[A] View key attributes").style(Style::default().fg(Color::Blue)),
+        ListItem::new("[S] Show SSH public key").style(Style::default().fg(Color::White)),
         ListItem::new(""),
         ListItem::new("[ESC] Back to Dashboard"),
     ];
@@ -285,6 +299,120 @@ fn render_export_ssh(frame: &mut Frame, area: Rect, state: &KeyState) {
          Press ENTER to continue or ESC to cancel.",
         state,
     );
+}
+
+fn render_key_attributes(frame: &mut Frame, area: Rect, state: &KeyState) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(0)])
+        .split(area);
+
+    let title_widget = Paragraph::new("Key Attributes")
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(Block::default().borders(Borders::ALL));
+    frame.render_widget(title_widget, chunks[0]);
+
+    let mut lines: Vec<Line> = Vec::new();
+
+    if let Some(ref attrs) = state.key_attributes {
+        // Signature slot
+        if let Some(ref slot) = attrs.signature {
+            lines.push(Line::from(vec![
+                Span::styled("Signature:      ", Style::default().fg(Color::Green)),
+                Span::raw(format!(
+                    "{} (Fingerprint: {})",
+                    slot.algorithm, slot.fingerprint
+                )),
+            ]));
+        } else {
+            lines.push(Line::from(vec![
+                Span::styled("Signature:      ", Style::default().fg(Color::DarkGray)),
+                Span::styled("[empty]", Style::default().fg(Color::DarkGray)),
+            ]));
+        }
+
+        // Encryption slot
+        if let Some(ref slot) = attrs.encryption {
+            lines.push(Line::from(vec![
+                Span::styled("Encryption:     ", Style::default().fg(Color::Green)),
+                Span::raw(format!(
+                    "{} (Fingerprint: {})",
+                    slot.algorithm, slot.fingerprint
+                )),
+            ]));
+        } else {
+            lines.push(Line::from(vec![
+                Span::styled("Encryption:     ", Style::default().fg(Color::DarkGray)),
+                Span::styled("[empty]", Style::default().fg(Color::DarkGray)),
+            ]));
+        }
+
+        // Authentication slot
+        if let Some(ref slot) = attrs.authentication {
+            lines.push(Line::from(vec![
+                Span::styled("Authentication: ", Style::default().fg(Color::Green)),
+                Span::raw(format!(
+                    "{} (Fingerprint: {})",
+                    slot.algorithm, slot.fingerprint
+                )),
+            ]));
+        } else {
+            lines.push(Line::from(vec![
+                Span::styled("Authentication: ", Style::default().fg(Color::DarkGray)),
+                Span::styled("[empty]", Style::default().fg(Color::DarkGray)),
+            ]));
+        }
+    } else {
+        lines.push(Line::from(vec![Span::styled(
+            "Key attributes unavailable. ykman required.",
+            Style::default().fg(Color::Yellow),
+        )]));
+    }
+
+    if let Some(ref msg) = state.message {
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![Span::styled(
+            msg.as_str(),
+            Style::default().fg(Color::Red),
+        )]));
+    }
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![Span::styled(
+        "[ESC] Back",
+        Style::default().fg(Color::DarkGray),
+    )]));
+
+    let paragraph = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    frame.render_widget(paragraph, chunks[1]);
+}
+
+fn render_ssh_pubkey_popup(
+    frame: &mut Frame,
+    area: Rect,
+    yubikey_state: &Option<YubiKeyState>,
+    state: &KeyState,
+) {
+    // Render the main screen as background
+    render_main(frame, area, yubikey_state, state);
+
+    // Overlay the SSH pubkey popup
+    if let Some(ref key) = state.ssh_pubkey {
+        let body = format!(
+            "{}\n\nAdd this key to:\n  - ~/.ssh/authorized_keys on remote servers\n  - GitHub > Settings > SSH Keys\n  - GitLab > Preferences > SSH Keys\n\nTip: Select and copy with your terminal's copy shortcut.\n\nPress ESC to close.",
+            key
+        );
+        crate::ui::widgets::popup::render_popup(frame, area, "SSH Public Key", &body, 80, 16);
+    } else {
+        let body = "No authentication key found on card.\nImport or generate a key first.";
+        crate::ui::widgets::popup::render_popup(frame, area, "SSH Public Key", body, 60, 8);
+    }
 }
 
 fn render_operation_screen(
