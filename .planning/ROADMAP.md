@@ -36,13 +36,23 @@ Plans:
 **Scope:**
 - Dropdown/context menus throughout the TUI
 - Mouse support
-- PIN unblock wizard: 4-branch decision tree (reset code → admin PIN → factory reset → abort)
+- PIN unblock wizard: 4-branch decision tree (reset code -> admin PIN -> factory reset -> abort)
 - SSH enable wizard: guide through gpg-agent.conf edit, agent restart, SSH_AUTH_SOCK setup
 - Fix SSH detection false negative on Windows (wrong gnupg conf path)
 - Key attribute display (read-only via ykman openpgp info)
 - authorized_keys management (display and copy SSH public key)
 
 **Done when:** A non-expert can unblock their PIN, enable SSH, and understand their key status without reading documentation.
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Popup widget, mouse support, gnupg path fix
+- [ ] 02-02-PLAN.md — PIN unblock wizard (4-branch decision tree)
+- [ ] 02-03-PLAN.md — Key attribute display and SSH pubkey popup
+- [ ] 02-04-PLAN.md — Dashboard context menu and visual verification
+
+**Requirements:** [MENU-01, MOUSE-01, PIN-WIZARD-01, SSH-FIX-01, KEY-ATTR-01, AUTHKEYS-01]
 
 ---
 
