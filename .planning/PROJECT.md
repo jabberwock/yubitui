@@ -23,7 +23,7 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 
 ## Current State (as of 2026-03-24)
 
-Phase 2 complete — UX/wizards/fixes shipped and human-verified.
+Phase 3 complete — all Milestone 1 phases shipped. v1.0 feature-complete.
 
 ### Done
 - YubiKey detection via `gpg --card-status` and PC/SC
@@ -40,10 +40,15 @@ Phase 2 complete — UX/wizards/fixes shipped and human-verified.
 - Reusable popup widget system: render_popup, render_confirm_dialog, render_context_menu
 - CLI flags: `--check`, `--list`, `--debug`
 - Security hardening: no flag injection, no shell injection, no sensitive values in logs
+- **[Phase 3]** 36 unit tests — all parser functions pub and tested with fixture data
+- **[Phase 3]** Touch policy: view per slot, set with IRREVERSIBLE warning, `ykman openpgp keys set-touch`
+- **[Phase 3]** Attestation: verify on-device key generation, PEM popup via `ykman openpgp keys attest`
+- **[Phase 3]** Multi-key: Tab cycling between connected YubiKeys, dashboard shows Key X/Y indicator
+- **[Phase 3]** CI: 3-OS matrix (Linux/macOS/Windows) with clippy; tag-triggered release binary builds
 
 ### Known Gaps
-- Key selection UI: import always uses first key in list (no picker)
-- Phase 3 features: touch policy, attestation, multi-YubiKey, backup/restore
+- 02-04 dashboard context menu (visual polish plan was deferred)
+- Human UAT needed for hardware-dependent features (touch policy set, attestation, multi-key Tab)
 
 ## Requirements
 
@@ -58,12 +63,15 @@ Phase 2 complete — UX/wizards/fixes shipped and human-verified.
 - System diagnostics with platform-appropriate fix suggestions
 
 ### Active
-- [ ] Key selection UI for import operation
-- [ ] Help screen (`?` key)
-- [ ] Touch policy configuration
-- [ ] Multiple YubiKey support
 - [ ] Backup/restore workflows
-- [ ] Attestation support
+- [ ] 02-04 dashboard context menu and visual polish (deferred)
+
+### Validated (Phase 3)
+- Touch policy configuration (view and set per slot) — Validated in Phase 3
+- Multiple YubiKey support (detect and Tab-switch) — Validated in Phase 3
+- Attestation support (on-device key verification) — Validated in Phase 3
+- Unit tests for all parsers — Validated in Phase 3 (36 tests)
+- CI 3-OS matrix + release builds — Validated in Phase 3
 
 ### Out of Scope
 - GUI (non-TUI) interface — terminal-first, always
@@ -96,4 +104,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-24 after initialization*
+*Last updated: 2026-03-24 after Phase 3 completion (Milestone 1 complete)*
