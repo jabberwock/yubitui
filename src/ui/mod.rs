@@ -2,9 +2,11 @@ pub mod dashboard;
 pub mod diagnostics;
 pub mod keys;
 pub mod pin;
-
-pub use pin::{PinScreen, PinState};
 pub mod ssh;
+
+pub use keys::{KeyScreen, KeyState};
+pub use pin::{PinScreen, PinState};
+pub use ssh::{SshScreen, SshState};
 
 use ratatui::{
     prelude::*,

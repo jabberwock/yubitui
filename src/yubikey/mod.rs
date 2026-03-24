@@ -1,9 +1,11 @@
 pub mod detection;
+pub mod key_operations;
 pub mod openpgp;
 pub mod pin;
 pub mod pin_operations;
 pub mod piv;
 pub mod ssh;
+pub mod ssh_operations;
 
 // YubiKey detection and management
 
