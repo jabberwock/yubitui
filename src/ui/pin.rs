@@ -12,6 +12,7 @@ pub enum PinScreen {
     ChangeUserPin,
     ChangeAdminPin,
     SetResetCode,
+    #[allow(dead_code)]
     UnblockUserPin,
     // Wizard screens:
     UnblockWizardCheck,      // Shows retry counters, determines available path
