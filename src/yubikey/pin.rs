@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::process::Command;
 
 #[derive(Debug, Clone)]
 pub struct PinStatus {
@@ -20,13 +21,46 @@ impl PinStatus {
 }
 
 pub fn get_pin_status() -> Result<PinStatus> {
-    // For now, return a placeholder
-    // TODO: Implement actual PIN status reading via gpg --card-status parsing
+    let output = Command::new("gpg")
+        .arg("--card-status")
+        .output()?;
+
+    if !output.status.success() {
+        anyhow::bail!("gpg --card-status failed");
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    parse_pin_status(&stdout)
+}
+
+fn parse_pin_status(output: &str) -> Result<PinStatus> {
+    let mut user_pin_retries = 3;
+    let mut admin_pin_retries = 3;
+    let mut reset_code_retries = 0;
+
+    for line in output.lines() {
+        let line = line.trim();
+        
+        // Look for "PIN retry counter : 3 0 3"
+        // Format: user_pin admin_pin reset_code
+        if line.starts_with("PIN retry counter :") {
+            if let Some(counters) = line.split(':').nth(1) {
+                let parts: Vec<&str> = counters.trim().split_whitespace().collect();
+                if parts.len() >= 3 {
+                    user_pin_retries = parts[0].parse().unwrap_or(3);
+                    admin_pin_retries = parts[1].parse().unwrap_or(3);
+                    reset_code_retries = parts[2].parse().unwrap_or(0);
+                }
+            }
+            break;
+        }
+    }
+
     Ok(PinStatus {
-        user_pin_retries: 3,
-        admin_pin_retries: 3,
-        reset_code_retries: 3,
-        user_pin_blocked: false,
-        admin_pin_blocked: false,
+        user_pin_retries,
+        admin_pin_retries,
+        reset_code_retries,
+        user_pin_blocked: user_pin_retries == 0,
+        admin_pin_blocked: admin_pin_retries == 0,
     })
 }
