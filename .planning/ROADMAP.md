@@ -47,9 +47,9 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Popup widget, mouse support, gnupg path fix
-- [ ] 02-02-PLAN.md — PIN unblock wizard (4-branch decision tree)
-- [ ] 02-03-PLAN.md — Key attribute display and SSH pubkey popup
+- [x] 02-01-PLAN.md — Popup widget, mouse support, gnupg path fix
+- [x] 02-02-PLAN.md — PIN unblock wizard (4-branch decision tree)
+- [x] 02-03-PLAN.md — Key attribute display and SSH pubkey popup
 - [ ] 02-04-PLAN.md — Dashboard context menu and visual verification
 
 **Requirements:** [MENU-01, MOUSE-01, PIN-WIZARD-01, SSH-FIX-01, KEY-ATTR-01, AUTHKEYS-01]

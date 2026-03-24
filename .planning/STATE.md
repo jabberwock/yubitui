@@ -23,14 +23,14 @@ active
 
 ## Current Plan
 
-Phase 2 — Plan 03 (02-03)
+Phase 2 — Plan 04 (02-04)
 
 ## Progress
 
-[█████░░░░░] 57%
+[█████████░] 86%
 
 - Phase 1: complete (all 3 plans complete)
-- Phase 2: in progress (2 of 4 plans complete)
+- Phase 2: in progress (3 of 4 plans complete)
 - Phase 3: not started
 
 ## Completed Plans
@@ -40,6 +40,7 @@ Phase 2 — Plan 03 (02-03)
 - 01-03: README roadmap sync — checkboxes corrected, log path platform-aware (2026-03-24)
 - 02-01: Foundation infrastructure — popup widgets, mouse capture, gpgconf-authoritative gnupg path (2026-03-24)
 - 02-02: PIN unblock wizard — 4-branch decision tree, ykman factory reset with double confirmation (2026-03-24)
+- 02-03: Key attributes display and SSH pubkey popup — ykman openpgp info parsing, in-TUI SSH key viewer (2026-03-24)
 
 ## Decisions
 
@@ -53,6 +54,8 @@ Phase 2 — Plan 03 (02-03)
 - [Phase 02-ux-menus-wizards-fixes]: gpgconf --list-dirs homedir is now authoritative gnupg path source with Windows GPG4Win fallback
 - [02-02]: UnblockUserPin kept with #[allow(dead_code)] for compat; UI routes through wizard variants
 - [02-02]: factory_reset_openpgp uses ykman (not gpg) -- only ykman supports --force full OpenPGP app reset
+- [02-03]: show_context_menu and menu_selected_index kept with #[allow(dead_code)] — reserved for Plan 02-04 context menu integration
+- [02-03]: get_ssh_public_key_text() uses gpg --export-ssh-key with -- flag separator for security (defense-in-depth)
 
 ## Notes
 
@@ -62,5 +65,5 @@ Phase 2 — Plan 03 (02-03)
 
 ## Last Session
 
-- Stopped at: Completed 02-02-PLAN.md (PIN unblock wizard, factory reset, ykman detection)
+- Stopped at: Completed 02-03-PLAN.md (key attributes display, SSH pubkey popup)
 - Date: 2026-03-24
