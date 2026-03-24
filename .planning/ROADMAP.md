@@ -29,31 +29,36 @@ Plans:
 
 ---
 
-## Phase 2: Advanced YubiKey Features
+## Phase 2: UX — Menus, Wizards & Bug Fixes
 
-**Goal:** Implement Phase 4 from original README — power-user features.
+**Goal:** Make yubitui genuinely accessible to non-experts through guided wizards, polished UI, and fixed diagnostics.
+
+**Scope:**
+- Dropdown/context menus throughout the TUI
+- Mouse support
+- PIN unblock wizard: 4-branch decision tree (reset code → admin PIN → factory reset → abort)
+- SSH enable wizard: guide through gpg-agent.conf edit, agent restart, SSH_AUTH_SOCK setup
+- Fix SSH detection false negative on Windows (wrong gnupg conf path)
+- Key attribute display (read-only via ykman openpgp info)
+- authorized_keys management (display and copy SSH public key)
+
+**Done when:** A non-expert can unblock their PIN, enable SSH, and understand their key status without reading documentation.
+
+---
+
+## Phase 3: Advanced YubiKey Features
+
+**Goal:** Power-user features and release readiness.
 
 **Scope:**
 - Touch policy configuration (view and set touch policy per slot)
 - Multiple YubiKey support (detect and switch between connected keys)
 - Attestation support (verify key was generated on-device)
-- Backup/restore workflow guidance (not key material — operational guidance)
-
-**Done when:** Users can configure touch policy, attestation certificates can be read, multiple keys are handled gracefully.
-
----
-
-## Phase 3: Testing & Release
-
-**Goal:** Establish test coverage and prepare for public release.
-
-**Scope:**
 - Unit tests for all parsers (card status, PIN counter, PIV info)
-- Integration test harness with mock gpg output
 - CI passes on Linux, macOS, Windows
 - Release binary builds via GitHub Actions
 
-**Done when:** `cargo test` passes with meaningful coverage, CI matrix is green on all three platforms.
+**Done when:** `cargo test` passes with meaningful coverage, CI matrix is green, touch policy and attestation work.
 
 ---
 
