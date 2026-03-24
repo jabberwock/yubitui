@@ -32,7 +32,12 @@ impl Default for KeyState {
     }
 }
 
-pub fn render(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState>, state: &KeyState) {
+pub fn render(
+    frame: &mut Frame,
+    area: Rect,
+    yubikey_state: &Option<YubiKeyState>,
+    state: &KeyState,
+) {
     match state.screen {
         KeyScreen::Main => render_main(frame, area, yubikey_state, state),
         KeyScreen::ViewStatus => render_view_status(frame, area, yubikey_state, state),
@@ -42,7 +47,12 @@ pub fn render(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState
     }
 }
 
-fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState>, state: &KeyState) {
+fn render_main(
+    frame: &mut Frame,
+    area: Rect,
+    yubikey_state: &Option<YubiKeyState>,
+    state: &KeyState,
+) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -53,13 +63,17 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
         .split(area);
 
     let title = Paragraph::new("🔑 Key Management")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(title, chunks[0]);
 
     let content = if let Some(yk) = yubikey_state {
         let mut lines = vec![];
-        
+
         if let Some(ref openpgp) = yk.openpgp {
             if let Some(ref sig) = openpgp.signature_key {
                 lines.push(Line::from(vec![
@@ -73,7 +87,7 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
                     Span::raw("Not set"),
                 ]));
             }
-            
+
             if let Some(ref enc) = openpgp.encryption_key {
                 lines.push(Line::from(vec![
                     Span::styled("✅ Encryption: ", Style::default().fg(Color::Green)),
@@ -86,7 +100,7 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
                     Span::raw("Not set"),
                 ]));
             }
-            
+
             if let Some(ref auth) = openpgp.authentication_key {
                 lines.push(Line::from(vec![
                     Span::styled("✅ Authentication: ", Style::default().fg(Color::Green)),
@@ -100,7 +114,7 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
                 ]));
             }
         }
-        
+
         if let Some(ref msg) = state.message {
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
@@ -108,14 +122,17 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
                 Span::raw(msg),
             ]));
         }
-        
+
         lines
     } else {
         vec![Line::from("No YubiKey detected. Press 'R' to refresh.")]
     };
 
-    let paragraph = Paragraph::new(content)
-        .block(Block::default().borders(Borders::ALL).title("📊 Keys on Card"));
+    let paragraph = Paragraph::new(content).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("📊 Keys on Card"),
+    );
     frame.render_widget(paragraph, chunks[1]);
 
     let actions = vec![
@@ -127,12 +144,17 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
         ListItem::new("[ESC] Back to Dashboard"),
     ];
 
-    let action_list = List::new(actions)
-        .block(Block::default().title("⌨️  Actions").borders(Borders::ALL));
+    let action_list =
+        List::new(actions).block(Block::default().title("⌨️  Actions").borders(Borders::ALL));
     frame.render_widget(action_list, chunks[2]);
 }
 
-fn render_view_status(frame: &mut Frame, area: Rect, _yubikey_state: &Option<YubiKeyState>, state: &KeyState) {
+fn render_view_status(
+    frame: &mut Frame,
+    area: Rect,
+    _yubikey_state: &Option<YubiKeyState>,
+    state: &KeyState,
+) {
     render_operation_screen(
         frame,
         area,
@@ -149,30 +171,80 @@ fn render_view_status(frame: &mut Frame, area: Rect, _yubikey_state: &Option<Yub
 }
 
 fn render_import_key(frame: &mut Frame, area: Rect, state: &KeyState) {
-    let mut text = "Import Key to YubiKey\n\n\
-         This will launch GPG to import an existing key.\n\n\
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Length(6),
+            Constraint::Min(4),
+            Constraint::Length(3),
+        ])
+        .split(area);
+
+    let title_widget = Paragraph::new("Import Key to YubiKey")
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(Block::default().borders(Borders::ALL));
+    frame.render_widget(title_widget, chunks[0]);
+
+    let intro = Paragraph::new(
+        "This will launch GPG to import an existing key to your YubiKey.\n\
          Prerequisites:\n\
          - You must have a GPG key already generated\n\
-         - The key must be in your GPG keyring\n\n\
-         Available keys:\n".to_string();
-    
+         - The key must be in your GPG keyring",
+    )
+    .block(Block::default().borders(Borders::ALL))
+    .wrap(ratatui::widgets::Wrap { trim: true });
+    frame.render_widget(intro, chunks[1]);
+
+    let key_list_block = Block::default()
+        .borders(Borders::ALL)
+        .title("Available Keys");
+
     if state.available_keys.is_empty() {
-        text.push_str("  (Loading keys...)\n");
+        let empty_msg = Paragraph::new(
+            "  No GPG keys found in keyring.\n\
+               Generate a key first, or import one with: gpg --import <file>",
+        )
+        .style(Style::default().fg(Color::Red))
+        .block(key_list_block)
+        .wrap(ratatui::widgets::Wrap { trim: true });
+        frame.render_widget(empty_msg, chunks[2]);
     } else {
-        for key in &state.available_keys {
-            text.push_str(&format!("  • {}\n", key));
-        }
+        let items: Vec<ListItem> = state
+            .available_keys
+            .iter()
+            .enumerate()
+            .map(|(i, key)| {
+                if i == state.selected_key_index {
+                    ListItem::new(format!("> [{}] {}", i + 1, key)).style(
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    )
+                } else {
+                    ListItem::new(format!("  [{}] {}", i + 1, key))
+                        .style(Style::default().fg(Color::White))
+                }
+            })
+            .collect();
+
+        let key_list = List::new(items).block(key_list_block);
+        frame.render_widget(key_list, chunks[2]);
     }
-    
-    text.push_str("\nPress ENTER to continue or ESC to cancel.");
-    
-    render_operation_screen(
-        frame,
-        area,
-        "Import Key",
-        &text,
-        state,
-    );
+
+    let mut hint_text = "Use Up/Down to select, Enter to import, Esc to cancel".to_string();
+    if let Some(ref msg) = state.message {
+        hint_text.push('\n');
+        hint_text.push_str(msg);
+    }
+    let hint = Paragraph::new(hint_text)
+        .style(Style::default().fg(Color::DarkGray))
+        .block(Block::default().borders(Borders::ALL));
+    frame.render_widget(hint, chunks[3]);
 }
 
 fn render_generate_key(frame: &mut Frame, area: Rect, state: &KeyState) {
@@ -228,7 +300,11 @@ fn render_operation_screen(
         .split(area);
 
     let title_widget = Paragraph::new(title)
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(title_widget, chunks[0]);
 
