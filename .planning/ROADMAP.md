@@ -70,10 +70,10 @@ Plans:
 
 **Done when:** `cargo test` passes with meaningful coverage, CI matrix is green, touch policy and attestation work.
 
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
-- [ ] 03-01-PLAN.md — Parser unit tests (20 tests) + fingerprint slice safety fix
+- [x] 03-01-PLAN.md — Parser unit tests (20 tests) + fingerprint slice safety fix
 - [ ] 03-02-PLAN.md — Touch policy and attestation backend modules with tests
 - [ ] 03-03-PLAN.md — Multi-key detection, App struct evolution, touch/attestation UI integration
 - [x] 03-04-PLAN.md — CI 3-OS matrix + release binary workflow

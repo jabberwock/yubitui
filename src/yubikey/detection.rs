@@ -105,7 +105,7 @@ pub fn detect_yubikey_state() -> Result<Option<YubiKeyState>> {
     }))
 }
 
-fn detect_model_from_version(version: &Version) -> Model {
+pub fn detect_model_from_version(version: &Version) -> Model {
     // YubiKey 5 series
     if version.major >= 5 {
         return Model::YubiKey5;
@@ -122,4 +122,33 @@ fn detect_model_from_version(version: &Version) -> Model {
     }
 
     Model::Unknown
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_detect_model_yubikey5() {
+        let v = Version { major: 5, minor: 2, patch: 7 };
+        assert_eq!(detect_model_from_version(&v), Model::YubiKey5);
+    }
+
+    #[test]
+    fn test_detect_model_yubikey4() {
+        let v = Version { major: 4, minor: 3, patch: 0 };
+        assert_eq!(detect_model_from_version(&v), Model::YubiKey4);
+    }
+
+    #[test]
+    fn test_detect_model_neo() {
+        let v = Version { major: 3, minor: 1, patch: 0 };
+        assert_eq!(detect_model_from_version(&v), Model::YubiKeyNeo);
+    }
+
+    #[test]
+    fn test_detect_model_unknown() {
+        let v = Version { major: 1, minor: 0, patch: 0 };
+        assert_eq!(detect_model_from_version(&v), Model::Unknown);
+    }
 }
