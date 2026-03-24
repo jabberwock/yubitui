@@ -23,15 +23,15 @@ active
 
 ## Current Plan
 
-Phase 3 — Plan 02 (03-02) [next]
+Phase 3 — Plan 03 (03-03) [next]
 
 ## Progress
 
-[████████░░] 73%
+[█████████░] 82%
 
 - Phase 1: complete (all 3 plans complete)
 - Phase 2: complete (all 4 plans complete)
-- Phase 3: in progress (2 of 4 plans complete)
+- Phase 3: in progress (3 of 4 plans complete)
 
 ## Completed Plans
 
@@ -42,6 +42,7 @@ Phase 3 — Plan 02 (03-02) [next]
 - 02-02: PIN unblock wizard — 4-branch decision tree, ykman factory reset with double confirmation (2026-03-24)
 - 02-03: Key attributes display and SSH pubkey popup — ykman openpgp info parsing, in-TUI SSH key viewer (2026-03-24)
 - 03-01: 20 unit tests across 5 parser modules, all parser functions pub, safe fingerprint slice in keys.rs (2026-03-24)
+- 03-02: Touch policy and attestation backend — TouchPolicy enum, parse/set functions, attestation cert fetch, 12 unit tests (2026-03-24)
 - 03-04: CI 3-OS matrix and release workflow — GitHub Actions on Linux/macOS/Windows with clippy and tag-triggered binary releases (2026-03-24)
 
 ## Decisions
@@ -60,6 +61,9 @@ Phase 3 — Plan 02 (03-02) [next]
 - [02-03]: get_ssh_public_key_text() uses gpg --export-ssh-key with -- flag separator for security (defense-in-depth)
 - [03-01]: Parser functions made pub to allow direct unit test calls; fixture strings used — no hardware required
 - [03-01]: Safe fingerprint display uses .get(..16).unwrap_or(&str) instead of panic-prone [..16] slice
+- [03-02]: touch_policy and attestation public API uses #[allow(dead_code)] — backend only until Plan 03-03 wires UI
+- [03-02]: parse_attestation_result separated from get_attestation_cert for testability without YubiKey hardware
+- [03-02]: VALID_ATTEST_SLOTS excludes "att" — attestation slot cannot self-attest per ykman behavior
 - [03-04]: CI uses fail-fast: false so all OS results visible even when one fails
 - [03-04]: libpcsclite-dev install is Linux-only conditional; macOS/Windows provide PCSC natively
 - [03-04]: Release artifact names encode OS to prevent download collisions; Windows binary has .exe extension
@@ -73,5 +77,5 @@ Phase 3 — Plan 02 (03-02) [next]
 
 ## Last Session
 
-- Stopped at: Wave 1 complete — 03-01 (parser tests) + 03-04 (CI matrix) done, 03-02 merging
+- Stopped at: Wave 1 complete — 03-01 (parser tests) + 03-02 (touch/attest backend) + 03-04 (CI matrix) done
 - Date: 2026-03-24
