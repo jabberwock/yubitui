@@ -162,7 +162,7 @@ RUST_LOG=debug cargo run
 - [x] View existing keys
 - [x] Import keys to card (via GPG)
 - [x] Generate keys on-device
-- [ ] Key attribute configuration
+- [x] Key attribute configuration
 
 ### Phase 3: SSH Integration
 - [x] SSH configuration wizard
