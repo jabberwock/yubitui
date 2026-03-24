@@ -8,7 +8,7 @@ progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -23,14 +23,14 @@ active
 
 ## Current Plan
 
-Phase 2 — Plan 02 (02-02)
+Phase 2 — Plan 03 (02-03)
 
 ## Progress
 
-[████░░░░░░] 43%
+[█████░░░░░] 57%
 
 - Phase 1: complete (all 3 plans complete)
-- Phase 2: in progress (1 of 4 plans complete)
+- Phase 2: in progress (2 of 4 plans complete)
 - Phase 3: not started
 
 ## Completed Plans
@@ -39,6 +39,7 @@ Phase 2 — Plan 02 (02-02)
 - 01-02: Help screen — ? key opens keybinding reference overlay from any screen (2026-03-24)
 - 01-03: README roadmap sync — checkboxes corrected, log path platform-aware (2026-03-24)
 - 02-01: Foundation infrastructure — popup widgets, mouse capture, gpgconf-authoritative gnupg path (2026-03-24)
+- 02-02: PIN unblock wizard — 4-branch decision tree, ykman factory reset with double confirmation (2026-03-24)
 
 ## Decisions
 
@@ -50,6 +51,8 @@ Phase 2 — Plan 02 (02-02)
 - Interactive key picker: use selected_key_index in KeyState, ratatui List widget with per-item styles for ImportKey screen
 - [Phase 02-ux-menus-wizards-fixes]: Used Layout-based centering for popups since Rect::centered() does not exist in ratatui 0.29
 - [Phase 02-ux-menus-wizards-fixes]: gpgconf --list-dirs homedir is now authoritative gnupg path source with Windows GPG4Win fallback
+- [02-02]: UnblockUserPin kept with #[allow(dead_code)] for compat; UI routes through wizard variants
+- [02-02]: factory_reset_openpgp uses ykman (not gpg) -- only ykman supports --force full OpenPGP app reset
 
 ## Notes
 
@@ -59,5 +62,5 @@ Phase 2 — Plan 02 (02-02)
 
 ## Last Session
 
-- Stopped at: Completed 02-01-PLAN.md (popup widgets, mouse capture, gnupg_home fix)
+- Stopped at: Completed 02-02-PLAN.md (PIN unblock wizard, factory reset, ykman detection)
 - Date: 2026-03-24

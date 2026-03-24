@@ -288,13 +288,105 @@ impl App {
                         self.pin_state.screen = PinScreen::SetResetCode;
                     }
                     KeyCode::Char('u') => {
-                        self.pin_state.screen = PinScreen::UnblockUserPin;
+                        // Launch the unblock wizard instead of direct passthrough
+                        self.pin_state.screen = PinScreen::UnblockWizardCheck;
+                        self.pin_state.ykman_available =
+                            crate::yubikey::pin_operations::is_ykman_available();
                     }
                     KeyCode::Esc => {
                         self.current_screen = Screen::Dashboard;
                     }
                     _ => {}
                 },
+                PinScreen::UnblockWizardCheck => {
+                    match key.code {
+                        KeyCode::Char('1') => {
+                            if let Some(yk) = &self.yubikey_state {
+                                if yk.pin_status.reset_code_retries > 0 {
+                                    self.pin_state.screen = PinScreen::UnblockWizardWithReset;
+                                    self.pin_state.unblock_path =
+                                        Some(ui::pin::UnblockPath::ResetCode);
+                                }
+                            }
+                        }
+                        KeyCode::Char('2') => {
+                            if let Some(yk) = &self.yubikey_state {
+                                if yk.pin_status.admin_pin_retries > 0 {
+                                    self.pin_state.screen = PinScreen::UnblockWizardWithAdmin;
+                                    self.pin_state.unblock_path =
+                                        Some(ui::pin::UnblockPath::AdminPin);
+                                }
+                            }
+                        }
+                        KeyCode::Char('3') => {
+                            if let Some(yk) = &self.yubikey_state {
+                                if yk.pin_status.reset_code_retries == 0
+                                    && yk.pin_status.admin_pin_retries == 0
+                                    && self.pin_state.ykman_available
+                                {
+                                    self.pin_state.screen = PinScreen::UnblockWizardFactoryReset;
+                                    self.pin_state.unblock_path =
+                                        Some(ui::pin::UnblockPath::FactoryReset);
+                                }
+                            }
+                        }
+                        KeyCode::Esc => {
+                            self.pin_state.screen = PinScreen::Main;
+                            self.pin_state.message = None;
+                            self.pin_state.unblock_path = None;
+                        }
+                        _ => {}
+                    }
+                }
+                PinScreen::UnblockWizardWithReset | PinScreen::UnblockWizardWithAdmin => {
+                    match key.code {
+                        KeyCode::Enter => {
+                            self.execute_pin_operation()?;
+                        }
+                        KeyCode::Esc => {
+                            self.pin_state.screen = PinScreen::UnblockWizardCheck;
+                            self.pin_state.unblock_path = None;
+                        }
+                        _ => {}
+                    }
+                }
+                PinScreen::UnblockWizardFactoryReset => {
+                    match key.code {
+                        KeyCode::Char('y') | KeyCode::Char('Y') => {
+                            if self.pin_state.confirm_factory_reset {
+                                // Second confirmation -- execute factory reset
+                                let result =
+                                    crate::yubikey::pin_operations::factory_reset_openpgp();
+                                match result {
+                                    Ok(msg) => {
+                                        self.pin_state.message = Some(msg);
+                                        self.yubikey_state = YubiKeyState::detect()?;
+                                    }
+                                    Err(e) => {
+                                        self.pin_state.message = Some(format!("Error: {}", e));
+                                    }
+                                }
+                                self.pin_state.screen = PinScreen::Main;
+                                self.pin_state.confirm_factory_reset = false;
+                                self.pin_state.unblock_path = None;
+                            } else {
+                                // First Y press -- show confirmation overlay
+                                self.pin_state.confirm_factory_reset = true;
+                            }
+                        }
+                        KeyCode::Char('n') | KeyCode::Char('N') => {
+                            if self.pin_state.confirm_factory_reset {
+                                self.pin_state.confirm_factory_reset = false;
+                            }
+                        }
+                        KeyCode::Esc => {
+                            self.pin_state.confirm_factory_reset = false;
+                            self.pin_state.screen = PinScreen::UnblockWizardCheck;
+                            self.pin_state.unblock_path = None;
+                        }
+                        _ => {}
+                    }
+                }
                 _ => {
                     match key.code {
                         KeyCode::Enter => {
@@ -352,6 +444,9 @@ impl App {
             PinScreen::ChangeAdminPin => pin_operations::change_admin_pin(),
             PinScreen::SetResetCode => pin_operations::set_reset_code(),
             PinScreen::UnblockUserPin => pin_operations::unblock_user_pin(),
+            PinScreen::UnblockWizardWithReset | PinScreen::UnblockWizardWithAdmin => {
+                pin_operations::unblock_user_pin()
+            }
             _ => Ok("No operation".to_string()),
         };
 
