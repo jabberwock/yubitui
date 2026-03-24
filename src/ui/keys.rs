@@ -23,7 +23,10 @@ pub struct KeyState {
     pub selected_key_index: usize,
     pub key_attributes: Option<crate::yubikey::key_operations::KeyAttributes>,
     pub ssh_pubkey: Option<String>,
+    // Reserved for future context menu integration (Plan 02-04)
+    #[allow(dead_code)]
     pub show_context_menu: bool,
+    #[allow(dead_code)]
     pub menu_selected_index: usize,
 }
 

@@ -220,13 +220,12 @@ impl App {
                         _ => {}
                     }
                 }
-                KeyScreen::KeyAttributes | KeyScreen::SshPubkeyPopup => match key.code {
-                    KeyCode::Esc => {
+                KeyScreen::KeyAttributes | KeyScreen::SshPubkeyPopup => {
+                    if key.code == KeyCode::Esc {
                         self.key_state.screen = KeyScreen::Main;
                         self.key_state.message = None;
                     }
-                    _ => {}
-                },
+                }
                 _ => match key.code {
                     KeyCode::Enter => {
                         self.execute_key_operation()?;
