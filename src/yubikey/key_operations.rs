@@ -13,8 +13,17 @@ pub fn view_card_status() -> Result<String> {
 
 /// Import a key to YubiKey (interactive)
 pub fn import_key_to_card(key_id: &str) -> Result<String> {
+    // Validate key_id: must be non-empty and must not start with '-' (GPG flag injection)
+    if key_id.is_empty() {
+        anyhow::bail!("key_id must not be empty");
+    }
+    if key_id.starts_with('-') {
+        anyhow::bail!("Invalid key_id: must not start with '-'");
+    }
+
     let mut child = Command::new("gpg")
         .arg("--edit-key")
+        .arg("--")
         .arg(key_id)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::inherit())
@@ -83,9 +92,12 @@ pub fn export_ssh_public_key() -> Result<String> {
     }
     
     if let Some(keygrip) = auth_keygrip {
-        // Export the SSH public key
+        // Export the SSH public key; `--` prevents a leading `-` in the
+        // fingerprint from being interpreted as a GPG flag (defence-in-depth —
+        // fingerprints are hex, but we guard the boundary regardless).
         let output = Command::new("gpg")
             .arg("--export-ssh-key")
+            .arg("--")
             .arg(&keygrip)
             .output()?;
         
@@ -109,6 +121,7 @@ pub fn export_ssh_public_key() -> Result<String> {
 }
 
 /// Delete/reset a key slot (interactive)
+#[allow(dead_code)]
 pub fn reset_key_slot() -> Result<String> {
     let mut child = Command::new("gpg")
         .arg("--card-edit")

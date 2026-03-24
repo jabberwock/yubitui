@@ -1,6 +1,6 @@
 # Rust
 /target/
-Cargo.lock
+# Cargo.lock intentionally tracked — this is a binary; lock file ensures reproducible, auditable builds
 **/*.rs.bk
 *.pdb
 

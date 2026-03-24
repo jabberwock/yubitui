@@ -99,7 +99,8 @@ fn parse_card_status(output: &str) -> Result<OpenPgpState> {
                 }
             }
         } else if line.starts_with("URL of public key :") {
-            let url_str = line.split(':').nth(1).map(|s| s.trim());
+            // Use split_once so that the URL itself (which contains ':') is kept intact
+            let url_str = line.split_once(':').map(|(_label, rest)| rest.trim());
             if let Some(u) = url_str {
                 if u != "[not set]" && !u.is_empty() {
                     public_key_url = Some(u.to_string());
@@ -108,7 +109,7 @@ fn parse_card_status(output: &str) -> Result<OpenPgpState> {
         } else if line.starts_with("Key attributes ...:") {
             // Parse something like "rsa2048 rsa2048 rsa2048" or "ed25519 cv25519 ed25519"
             key_attributes = line.split(':').nth(1)
-                .map(|s| s.trim().split_whitespace().next().unwrap_or("rsa2048").to_string())
+                .map(|s| s.split_whitespace().next().unwrap_or("rsa2048").to_string())
                 .unwrap_or_else(|| "rsa2048".to_string());
         }
     }

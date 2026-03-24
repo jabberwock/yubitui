@@ -52,8 +52,9 @@ pub fn detect_yubikeys() -> Result<Vec<YubiKeyInfo>> {
     }
     
     if serial != 0 {
-        tracing::info!("Found YubiKey via gpg --card-status (SN: {}, FW: {}.{}.{})", 
-                      serial, version.major, version.minor, version.patch);
+        // Serial number intentionally omitted from logs — see CLAUDE.md security rules
+        tracing::info!("Found YubiKey via gpg --card-status (FW: {}.{}.{})",
+                      version.major, version.minor, version.patch);
         
         let model = detect_model_from_version(&version);
         let form_factor = FormFactor::UsbA;

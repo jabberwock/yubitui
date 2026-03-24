@@ -61,14 +61,25 @@ pub fn get_gpg_ssh_socket() -> Result<String> {
 /// Add SSH_AUTH_SOCK export to shell config
 pub fn configure_shell_ssh() -> Result<String> {
     let socket_path = get_gpg_ssh_socket()?;
+
+    // Reject paths that would be unsafe inside a double-quoted shell string.
+    // `$` triggers variable/command expansion; `"` and `` ` `` break quoting.
+    if socket_path.contains('"') || socket_path.contains('$') || socket_path.contains('`') {
+        anyhow::bail!(
+            "gpgconf returned a socket path with unsafe characters; aborting shell config write"
+        );
+    }
+
     let export_line = format!("export SSH_AUTH_SOCK=\"{}\"", socket_path);
     
     // Detect shell
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+    let home = dirs::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
     let rc_file = if shell.contains("zsh") {
-        dirs::home_dir().unwrap().join(".zshrc")
+        home.join(".zshrc")
     } else {
-        dirs::home_dir().unwrap().join(".bashrc")
+        home.join(".bashrc")
     };
     
     // Check if already configured
@@ -113,6 +124,7 @@ pub fn restart_gpg_agent() -> Result<String> {
 }
 
 /// Export SSH public key and save to file
+#[allow(dead_code)]
 pub fn export_ssh_key_to_file(path: &PathBuf) -> Result<String> {
     let ssh_key = crate::yubikey::key_operations::export_ssh_public_key()?;
     
@@ -122,18 +134,28 @@ pub fn export_ssh_key_to_file(path: &PathBuf) -> Result<String> {
 }
 
 /// Add SSH public key to authorized_keys on remote server
+#[allow(dead_code)]
 pub fn add_to_remote_authorized_keys(ssh_key: &str, user: &str, host: &str) -> Result<String> {
-    // This requires ssh access, so we run it interactively
+    validate_ssh_target(user, host)?;
+
+    // Pass the key via stdin to avoid shell injection — never interpolate key material into a shell command
     let mut child = Command::new("ssh")
-        .arg(format!("{}@{}", user, host))
-        .arg(format!("mkdir -p ~/.ssh && echo '{}' >> ~/.ssh/authorized_keys", ssh_key))
-        .stdin(std::process::Stdio::inherit())
+        .arg("-l").arg(user)
+        .arg("--")
+        .arg(host)
+        .arg("mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys")
+        .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
         .spawn()?;
-    
+
+    if let Some(mut stdin) = child.stdin.take() {
+        use std::io::Write;
+        writeln!(stdin, "{}", ssh_key)?;
+    }
+
     let output = child.wait()?;
-    
+
     if output.success() {
         Ok("SSH key added to remote authorized_keys".to_string())
     } else {
@@ -143,22 +165,46 @@ pub fn add_to_remote_authorized_keys(ssh_key: &str, user: &str, host: &str) -> R
 
 /// Test SSH connection
 pub fn test_ssh_connection(user: &str, host: &str) -> Result<String> {
+    validate_ssh_target(user, host)?;
+
     let mut child = Command::new("ssh")
-        .arg("-v")
-        .arg(format!("{}@{}", user, host))
+        .arg("-l").arg(user)
+        .arg("--")
+        .arg(host)
         .arg("echo 'SSH connection successful'")
         .stdin(std::process::Stdio::inherit())
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
         .spawn()?;
-    
+
     let output = child.wait()?;
-    
+
     if output.success() {
         Ok("SSH connection test successful".to_string())
     } else {
         Ok("SSH connection test failed".to_string())
     }
+}
+
+/// Reject user/host values that could be used for SSH option injection.
+/// Passed as separate arguments (not through a shell), so spaces are harmless,
+/// but a leading `-` would be interpreted as an SSH flag.
+fn validate_ssh_target(user: &str, host: &str) -> Result<()> {
+    if user.is_empty() || host.is_empty() {
+        anyhow::bail!("user and host must not be empty");
+    }
+    if user.starts_with('-') || host.starts_with('-') {
+        anyhow::bail!("Invalid user or host: must not start with '-'");
+    }
+    let user_ok = user.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.');
+    let host_ok = host.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '.' || c == ':' || c == '[' || c == ']');
+    if !user_ok {
+        anyhow::bail!("Invalid characters in username");
+    }
+    if !host_ok {
+        anyhow::bail!("Invalid characters in hostname");
+    }
+    Ok(())
 }
 
 fn get_gpg_agent_conf_path() -> Result<PathBuf> {

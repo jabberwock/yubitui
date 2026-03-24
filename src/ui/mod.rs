@@ -4,8 +4,11 @@ pub mod keys;
 pub mod pin;
 pub mod ssh;
 
+#[allow(unused_imports)]
 pub use keys::{KeyScreen, KeyState};
+#[allow(unused_imports)]
 pub use pin::{PinScreen, PinState};
+#[allow(unused_imports)]
 pub use ssh::{SshScreen, SshState};
 
 use ratatui::{

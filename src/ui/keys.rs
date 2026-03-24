@@ -130,7 +130,7 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
     frame.render_widget(action_list, chunks[2]);
 }
 
-fn render_view_status(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState>, state: &KeyState) {
+fn render_view_status(frame: &mut Frame, area: Rect, _yubikey_state: &Option<YubiKeyState>, state: &KeyState) {
     render_operation_screen(
         frame,
         area,

@@ -45,7 +45,7 @@ fn parse_pin_status(output: &str) -> Result<PinStatus> {
         // Format: user_pin admin_pin reset_code
         if line.starts_with("PIN retry counter :") {
             if let Some(counters) = line.split(':').nth(1) {
-                let parts: Vec<&str> = counters.trim().split_whitespace().collect();
+                let parts: Vec<&str> = counters.split_whitespace().collect();
                 if parts.len() >= 3 {
                     user_pin_retries = parts[0].parse().unwrap_or(3);
                     admin_pin_retries = parts[1].parse().unwrap_or(3);

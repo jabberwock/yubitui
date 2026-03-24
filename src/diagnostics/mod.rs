@@ -25,11 +25,10 @@ impl Diagnostics {
     }
 
     pub fn has_errors(&self) -> bool {
-        !self.gpg_agent.running
-            || !self.pcscd.running
-            || (!self.scdaemon.configured && self.gpg_agent.running)
+        !self.gpg_agent.running || !self.pcscd.running || !self.scdaemon.configured
     }
 
+    #[allow(dead_code)]
     pub fn has_warnings(&self) -> bool {
         !self.ssh_agent.configured || self.scdaemon.issues.is_some()
     }

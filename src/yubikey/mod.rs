@@ -34,6 +34,7 @@ impl fmt::Display for Version {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum Model {
     YubiKey5,
     YubiKey5C,
@@ -49,10 +50,12 @@ pub enum Model {
 }
 
 impl Model {
+    #[allow(dead_code)]
     pub fn supports_openpgp(&self) -> bool {
         !matches!(self, Model::Unknown)
     }
 
+    #[allow(dead_code)]
     pub fn supports_piv(&self) -> bool {
         !matches!(self, Model::Unknown)
     }
@@ -70,6 +73,7 @@ impl Model {
         )
     }
 
+    #[allow(dead_code)]
     pub fn max_rsa_bits(&self) -> u32 {
         match self {
             Model::YubiKey5
@@ -104,6 +108,7 @@ impl fmt::Display for Model {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum FormFactor {
     UsbA,
     UsbC,
@@ -136,6 +141,7 @@ impl fmt::Display for YubiKeyInfo {
 pub struct YubiKeyState {
     pub info: YubiKeyInfo,
     pub openpgp: Option<openpgp::OpenPgpState>,
+    #[allow(dead_code)]
     pub piv: Option<piv::PivState>,
     pub pin_status: pin::PinStatus,
 }
