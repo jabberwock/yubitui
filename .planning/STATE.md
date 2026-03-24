@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gaps.
 status: Executing Phase 03
-last_updated: "2026-03-24T21:00:00Z"
+last_updated: "2026-03-24T21:11:07.128Z"
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 11
 ---
 
 # Project State
@@ -23,15 +23,15 @@ active
 
 ## Current Plan
 
-Phase 3 — Plan 03 (03-03) [next]
+Phase 3 — Plan 04 (03-04) [complete — all plans done]
 
 ## Progress
 
-[█████████░] 82%
+[██████████] 100%
 
 - Phase 1: complete (all 3 plans complete)
 - Phase 2: complete (all 4 plans complete)
-- Phase 3: in progress (3 of 4 plans complete)
+- Phase 3: complete (all 4 plans complete)
 
 ## Completed Plans
 
@@ -43,6 +43,7 @@ Phase 3 — Plan 03 (03-03) [next]
 - 02-03: Key attributes display and SSH pubkey popup — ykman openpgp info parsing, in-TUI SSH key viewer (2026-03-24)
 - 03-01: 20 unit tests across 5 parser modules, all parser functions pub, safe fingerprint slice in keys.rs (2026-03-24)
 - 03-02: Touch policy and attestation backend — TouchPolicy enum, parse/set functions, attestation cert fetch, 12 unit tests (2026-03-24)
+- 03-03: Multi-key detection, touch policy UI + set flow, attestation popup — Vec<YubiKeyState> with Tab cycling (2026-03-24)
 - 03-04: CI 3-OS matrix and release workflow — GitHub Actions on Linux/macOS/Windows with clippy and tag-triggered binary releases (2026-03-24)
 
 ## Decisions
@@ -68,6 +69,10 @@ Phase 3 — Plan 03 (03-03) [next]
 - [03-04]: libpcsclite-dev install is Linux-only conditional; macOS/Windows provide PCSC natively
 - [03-04]: Release artifact names encode OS to prevent download collisions; Windows binary has .exe extension
 - [03-04]: device-tests feature not enabled in any workflow — no YubiKey on CI runners
+- [Phase 03-03]: [03-03]: App evolves from single yubikey_state: Option<YubiKeyState> to yubikey_states: Vec + selected_yubikey_idx; accessor yubikey_state() preserved for backward compat
+- [Phase 03-03]: [03-03]: render() sites clone the selected state (.cloned()) rather than changing all render signatures
+- [Phase 03-03]: [03-03]: 'a' key remapped to attestation; 'k' now opens key attributes (was 'a')
+- [Phase 03-03]: [03-03]: detect_all_yubikey_states falls back to single detect_yubikey_state() -- gpg only sees one card
 
 ## Notes
 
@@ -77,5 +82,5 @@ Phase 3 — Plan 03 (03-03) [next]
 
 ## Last Session
 
-- Stopped at: Wave 1 complete — 03-01 (parser tests) + 03-02 (touch/attest backend) + 03-04 (CI matrix) done
+- Stopped at: Completed 03-03-PLAN.md (multi-key detection, touch policy UI, attestation popup)
 - Date: 2026-03-24
