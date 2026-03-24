@@ -2,20 +2,20 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gaps.
-status: unknown
-last_updated: "2026-03-24T18:28:14.980Z"
+status: active
+last_updated: "2026-03-24T19:18:44Z"
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 7
+  completed_plans: 4
 ---
 
 # Project State
 
 ## Current Phase
 
-**Phase 1** — Polish & Cross-Platform Fixes
+**Phase 2** — UX Menus, Wizards & Fixes
 
 ## Status
 
@@ -23,12 +23,14 @@ active
 
 ## Current Plan
 
-Phase 1 — ALL PLANS COMPLETE
+Phase 2 — Plan 02 (02-02)
 
 ## Progress
 
-- Phase 1: in progress (all 3 plans complete)
-- Phase 2: not started
+[████░░░░░░] 43%
+
+- Phase 1: complete (all 3 plans complete)
+- Phase 2: in progress (1 of 4 plans complete)
 - Phase 3: not started
 
 ## Completed Plans
@@ -36,6 +38,7 @@ Phase 1 — ALL PLANS COMPLETE
 - 01-01: Interactive key picker — arrow-key navigation replaces hardcoded available_keys[0] (2026-03-24)
 - 01-02: Help screen — ? key opens keybinding reference overlay from any screen (2026-03-24)
 - 01-03: README roadmap sync — checkboxes corrected, log path platform-aware (2026-03-24)
+- 02-01: Foundation infrastructure — popup widgets, mouse capture, gpgconf-authoritative gnupg path (2026-03-24)
 
 ## Decisions
 
@@ -45,6 +48,8 @@ Phase 1 — ALL PLANS COMPLETE
 - Global ? handler at top of handle_key_event before screen-specific blocks ensures uniform access from all screens
 - previous_screen: Screen field stores return destination for modal overlay pattern
 - Interactive key picker: use selected_key_index in KeyState, ratatui List widget with per-item styles for ImportKey screen
+- [Phase 02-ux-menus-wizards-fixes]: Used Layout-based centering for popups since Rect::centered() does not exist in ratatui 0.29
+- [Phase 02-ux-menus-wizards-fixes]: gpgconf --list-dirs homedir is now authoritative gnupg path source with Windows GPG4Win fallback
 
 ## Notes
 
@@ -54,5 +59,5 @@ Phase 1 — ALL PLANS COMPLETE
 
 ## Last Session
 
-- Stopped at: Completed all 3 plans in Phase 1 (01-01, 01-02, 01-03)
+- Stopped at: Completed 02-01-PLAN.md (popup widgets, mouse capture, gnupg_home fix)
 - Date: 2026-03-24
