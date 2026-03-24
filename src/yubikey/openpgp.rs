@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::process::Command;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct OpenPgpState {
     pub card_present: bool,
     pub version: String,
@@ -13,6 +14,7 @@ pub struct OpenPgpState {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct KeyInfo {
     pub fingerprint: String,
     pub created: Option<String>,

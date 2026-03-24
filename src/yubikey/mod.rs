@@ -4,6 +4,8 @@ pub mod pin;
 pub mod piv;
 pub mod ssh;
 
+// YubiKey detection and management
+
 use anyhow::Result;
 use std::fmt;
 
@@ -52,6 +54,7 @@ impl Model {
         !matches!(self, Model::Unknown)
     }
 
+    #[allow(dead_code)]
     pub fn supports_fido2(&self) -> bool {
         matches!(
             self,

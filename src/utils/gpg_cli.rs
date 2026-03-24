@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::process::Command;
 
 /// Execute a GPG command and return stdout
+#[allow(dead_code)]
 pub fn gpg_command(args: &[&str]) -> Result<String> {
     let output = Command::new("gpg")
         .args(args)
@@ -16,11 +17,13 @@ pub fn gpg_command(args: &[&str]) -> Result<String> {
 }
 
 /// Get card status from gpg --card-status
+#[allow(dead_code)]
 pub fn get_card_status() -> Result<String> {
     gpg_command(&["--card-status"])
 }
 
 /// Run gpg --card-edit with commands
+#[allow(dead_code)]
 pub fn card_edit(commands: &[&str]) -> Result<String> {
     let mut child = Command::new("gpg")
         .arg("--card-edit")
@@ -42,6 +45,7 @@ pub fn card_edit(commands: &[&str]) -> Result<String> {
 }
 
 /// Parse PIN retry counters from card status
+#[allow(dead_code)]
 pub fn parse_pin_retries(card_status: &str) -> Option<(u8, u8, u8)> {
     for line in card_status.lines() {
         if line.contains("PIN retry counter") {

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 use super::{FormFactor, Model, Version, YubiKeyInfo, YubiKeyState};
 
@@ -7,7 +7,7 @@ pub fn detect_yubikeys() -> Result<Vec<YubiKeyInfo>> {
 
     // Use the yubikey crate's built-in detection
     match yubikey::YubiKey::open() {
-        Ok(mut yk) => {
+        Ok(yk) => {
             tracing::info!("Found YubiKey via yubikey crate");
             
             let serial = yk.serial().into();

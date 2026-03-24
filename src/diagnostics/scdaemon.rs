@@ -1,5 +1,4 @@
 use anyhow::Result;
-use std::process::Command;
 
 #[derive(Debug, Clone)]
 pub struct ScdaemonStatus {
