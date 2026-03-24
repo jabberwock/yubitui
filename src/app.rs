@@ -191,12 +191,42 @@ impl App {
                         KeyCode::Char('e') => {
                             self.key_state.screen = KeyScreen::ExportSSH;
                         }
+                        KeyCode::Char('a') => {
+                            // Fetch key attributes via ykman
+                            self.key_state.screen = KeyScreen::KeyAttributes;
+                            match crate::yubikey::key_operations::get_key_attributes() {
+                                Ok(attrs) => self.key_state.key_attributes = Some(attrs),
+                                Err(e) => {
+                                    self.key_state.key_attributes = None;
+                                    self.key_state.message =
+                                        Some(format!("Could not fetch attributes: {}", e));
+                                }
+                            }
+                        }
+                        KeyCode::Char('s') => {
+                            // Show SSH public key in popup
+                            self.key_state.screen = KeyScreen::SshPubkeyPopup;
+                            match crate::yubikey::key_operations::get_ssh_public_key_text() {
+                                Ok(key) => self.key_state.ssh_pubkey = Some(key),
+                                Err(e) => {
+                                    self.key_state.ssh_pubkey = None;
+                                    self.key_state.message = Some(format!("{}", e));
+                                }
+                            }
+                        }
                         KeyCode::Esc => {
                             self.current_screen = Screen::Dashboard;
                         }
                         _ => {}
                     }
                 }
+                KeyScreen::KeyAttributes | KeyScreen::SshPubkeyPopup => match key.code {
+                    KeyCode::Esc => {
+                        self.key_state.screen = KeyScreen::Main;
+                        self.key_state.message = None;
+                    }
+                    _ => {}
+                },
                 _ => match key.code {
                     KeyCode::Enter => {
                         self.execute_key_operation()?;
