@@ -70,6 +70,14 @@ Plans:
 
 **Done when:** `cargo test` passes with meaningful coverage, CI matrix is green, touch policy and attestation work.
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Multiple YubiKey support
+- [x] 03-02-PLAN.md — Touch policy and attestation backend modules
+- [ ] 03-03-PLAN.md — Touch policy and attestation UI
+- [ ] 03-04-PLAN.md — CI and release binary builds
+
 ---
 
 ## Backlog
