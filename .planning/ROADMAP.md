@@ -73,10 +73,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Unit tests for all parser functions
-- [ ] 03-02-PLAN.md — Touch policy and attestation backend modules
-- [ ] 03-03-PLAN.md — Multi-key support, touch policy display, attestation UI
-- [ ] 03-04-PLAN.md — CI matrix (3 OS) and release binary workflow
+- [ ] 03-01-PLAN.md — Parser unit tests (20 tests) + fingerprint slice safety fix
+- [ ] 03-02-PLAN.md — Touch policy and attestation backend modules with tests
+- [ ] 03-03-PLAN.md — Multi-key detection, App struct evolution, touch/attestation UI integration
+- [ ] 03-04-PLAN.md — CI 3-OS matrix + release binary workflow
 
 ---
 
