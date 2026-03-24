@@ -60,14 +60,59 @@ fn list_yubikeys() -> Result<()> {
     use yubikey::detection::detect_yubikeys;
 
     println!("Detecting YubiKeys...\n");
+    
+    // First, let's try to list all PC/SC readers to debug
+    match pcsc::Context::establish(pcsc::Scope::System) {
+        Ok(ctx) => {
+            let mut readers_buf = [0; 2048];
+            match ctx.list_readers(&mut readers_buf) {
+                Ok(readers) => {
+                    println!("📡 PC/SC Readers found:");
+                    for reader in readers {
+                        if let Ok(reader_str) = reader.to_str() {
+                            println!("  • {}", reader_str);
+                        }
+                    }
+                    println!();
+                }
+                Err(e) => {
+                    println!("⚠️  Could not list PC/SC readers: {:?}\n", e);
+                }
+            }
+        }
+        Err(e) => {
+            println!("❌ Could not establish PC/SC context: {:?}\n", e);
+            println!("PC/SC daemon may not be running or accessible.\n");
+        }
+    }
+    
     let keys = detect_yubikeys()?;
 
     if keys.is_empty() {
-        println!("❌ No YubiKeys detected.");
-        println!("\nTroubleshooting:");
+        println!("❌ No YubiKeys detected.\n");
+        println!("Troubleshooting:");
         println!("  • Ensure your YubiKey is plugged in");
-        println!("  • Check that pcscd is running: systemctl status pcscd");
-        println!("  • Try: pcsc_scan");
+        
+        #[cfg(target_os = "macos")]
+        {
+            println!("  • On macOS, PC/SC should work automatically");
+            println!("  • Check: ps aux | grep ctkpcscd");
+        }
+        
+        #[cfg(target_os = "linux")]
+        {
+            println!("  • Check that pcscd is running: systemctl status pcscd");
+            println!("  • Or start it: sudo systemctl start pcscd");
+        }
+        
+        #[cfg(target_os = "windows")]
+        {
+            println!("  • PC/SC service should be running by default");
+            println!("  • Check: Get-Service SCardSvr");
+        }
+        
+        println!("  • Try: pcsc_scan (install with: brew install pcsc-tools / apt-get install pcsc-tools)");
+        println!("  • Some readers require the YubiKey to be removed and reinserted");
         return Ok(());
     }
 

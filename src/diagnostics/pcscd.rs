@@ -10,11 +10,25 @@ pub struct PcscdStatus {
 pub fn check_pcscd() -> Result<PcscdStatus> {
     // Try to detect if pcscd is running
     #[cfg(target_os = "macos")]
-    let running = Command::new("launchctl")
-        .args(&["list", "com.apple.securityd"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    let running = {
+        // On macOS, check for com.apple.ctkpcscd process
+        let ps_check = Command::new("pgrep")
+            .args(&["-f", "com.apple.ctkpcscd"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        
+        // Also try launchctl
+        let launchctl_check = Command::new("launchctl")
+            .args(&["list"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.contains("com.apple.ctkpcscd"))
+            .unwrap_or(false);
+        
+        ps_check || launchctl_check
+    };
 
     #[cfg(target_os = "linux")]
     let running = Command::new("systemctl")
@@ -26,7 +40,11 @@ pub fn check_pcscd() -> Result<PcscdStatus> {
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     let running = false;
 
-    // Try pcsc_scan to get version
+    // Try to get version info
+    #[cfg(target_os = "macos")]
+    let version = Some("macOS PC/SC (CryptoTokenKit)".to_string());
+    
+    #[cfg(not(target_os = "macos"))]
     let version = Command::new("pcscd")
         .arg("-v")
         .output()
