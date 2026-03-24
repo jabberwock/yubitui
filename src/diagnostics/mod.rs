@@ -1,0 +1,75 @@
+pub mod gpg_agent;
+pub mod pcscd;
+pub mod scdaemon;
+pub mod ssh_agent;
+
+use anyhow::Result;
+use std::fmt;
+
+#[derive(Debug, Clone)]
+pub struct Diagnostics {
+    pub gpg_agent: gpg_agent::GpgAgentStatus,
+    pub scdaemon: scdaemon::ScdaemonStatus,
+    pub pcscd: pcscd::PcscdStatus,
+    pub ssh_agent: ssh_agent::SshAgentStatus,
+}
+
+impl Diagnostics {
+    pub fn run() -> Result<Self> {
+        Ok(Self {
+            gpg_agent: gpg_agent::check_gpg_agent()?,
+            scdaemon: scdaemon::check_scdaemon()?,
+            pcscd: pcscd::check_pcscd()?,
+            ssh_agent: ssh_agent::check_ssh_agent()?,
+        })
+    }
+
+    pub fn has_errors(&self) -> bool {
+        !self.gpg_agent.running
+            || !self.pcscd.running
+            || (!self.scdaemon.configured && self.gpg_agent.running)
+    }
+
+    pub fn has_warnings(&self) -> bool {
+        !self.ssh_agent.configured || self.scdaemon.issues.is_some()
+    }
+}
+
+impl fmt::Display for Diagnostics {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "System Diagnostics:")?;
+        writeln!(f, "==================\n")?;
+
+        writeln!(f, "PC/SC Daemon (pcscd):")?;
+        writeln!(f, "  Status: {}", if self.pcscd.running { "✅ Running" } else { "❌ Not running" })?;
+        if let Some(ref version) = self.pcscd.version {
+            writeln!(f, "  Version: {}", version)?;
+        }
+        writeln!(f)?;
+
+        writeln!(f, "GPG Agent:")?;
+        writeln!(f, "  Status: {}", if self.gpg_agent.running { "✅ Running" } else { "❌ Not running" })?;
+        if let Some(ref version) = self.gpg_agent.version {
+            writeln!(f, "  Version: {}", version)?;
+        }
+        if let Some(ref socket) = self.gpg_agent.socket_path {
+            writeln!(f, "  Socket: {}", socket)?;
+        }
+        writeln!(f)?;
+
+        writeln!(f, "Scdaemon:")?;
+        writeln!(f, "  Configured: {}", if self.scdaemon.configured { "✅ Yes" } else { "⚠️  No" })?;
+        if let Some(ref issues) = self.scdaemon.issues {
+            writeln!(f, "  Issues: {}", issues)?;
+        }
+        writeln!(f)?;
+
+        writeln!(f, "SSH Agent Integration:")?;
+        writeln!(f, "  Configured: {}", if self.ssh_agent.configured { "✅ Yes" } else { "⚠️  No" })?;
+        if let Some(ref path) = self.ssh_agent.auth_sock {
+            writeln!(f, "  SSH_AUTH_SOCK: {}", path)?;
+        }
+
+        Ok(())
+    }
+}

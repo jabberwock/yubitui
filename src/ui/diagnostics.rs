@@ -1,0 +1,118 @@
+use ratatui::{
+    prelude::*,
+    widgets::{Block, Borders, List, ListItem, Paragraph},
+};
+
+use crate::diagnostics::Diagnostics;
+
+pub fn render(frame: &mut Frame, area: Rect, diagnostics: &Diagnostics) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(0)])
+        .split(area);
+
+    // Title
+    let title = Paragraph::new("System Diagnostics")
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(Block::default().borders(Borders::ALL));
+    frame.render_widget(title, chunks[0]);
+
+    // Diagnostics list
+    let mut items = vec![];
+
+    // PC/SC Daemon
+    items.push(ListItem::new(format!(
+        "{} PC/SC Daemon (pcscd): {}",
+        if diagnostics.pcscd.running {
+            "✅"
+        } else {
+            "❌"
+        },
+        if diagnostics.pcscd.running {
+            "Running"
+        } else {
+            "Not running - Start with: brew services start pcsc-lite"
+        }
+    )));
+
+    if let Some(ref version) = diagnostics.pcscd.version {
+        items.push(ListItem::new(format!("   Version: {}", version)));
+    }
+
+    items.push(ListItem::new(""));
+
+    // GPG Agent
+    items.push(ListItem::new(format!(
+        "{} GPG Agent: {}",
+        if diagnostics.gpg_agent.running {
+            "✅"
+        } else {
+            "❌"
+        },
+        if diagnostics.gpg_agent.running {
+            "Running"
+        } else {
+            "Not running - Start with: gpgconf --launch gpg-agent"
+        }
+    )));
+
+    if let Some(ref version) = diagnostics.gpg_agent.version {
+        items.push(ListItem::new(format!("   Version: {}", version)));
+    }
+
+    if let Some(ref socket) = diagnostics.gpg_agent.socket_path {
+        items.push(ListItem::new(format!("   Socket: {}", socket)));
+    }
+
+    items.push(ListItem::new(""));
+
+    // Scdaemon
+    items.push(ListItem::new(format!(
+        "{} Scdaemon: {}",
+        if diagnostics.scdaemon.configured {
+            "✅"
+        } else {
+            "⚠️"
+        },
+        if diagnostics.scdaemon.configured {
+            "Configured"
+        } else {
+            "Not configured - Create ~/.gnupg/scdaemon.conf"
+        }
+    )));
+
+    if let Some(ref issues) = diagnostics.scdaemon.issues {
+        items.push(ListItem::new(format!("   Issues: {}", issues)));
+    }
+
+    items.push(ListItem::new(""));
+
+    // SSH Agent
+    items.push(ListItem::new(format!(
+        "{} SSH Agent Integration: {}",
+        if diagnostics.ssh_agent.configured {
+            "✅"
+        } else {
+            "⚠️"
+        },
+        if diagnostics.ssh_agent.configured {
+            "Configured for GPG"
+        } else {
+            "Not configured - Add enable-ssh-support to gpg-agent.conf"
+        }
+    )));
+
+    if let Some(ref sock) = diagnostics.ssh_agent.auth_sock {
+        items.push(ListItem::new(format!("   SSH_AUTH_SOCK: {}", sock)));
+    }
+
+    let list = List::new(items)
+        .block(Block::default().borders(Borders::ALL))
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(list, chunks[1]);
+}

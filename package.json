@@ -1,0 +1,5 @@
+{
+	"dependencies": {
+		"gsd-pi": "^2.43.0"
+	}
+}
