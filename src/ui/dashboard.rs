@@ -5,7 +5,13 @@ use ratatui::{
 
 use crate::app::App;
 
-pub fn render(frame: &mut Frame, area: Rect, app: &App) {
+#[derive(Default)]
+pub struct DashboardState {
+    pub show_context_menu: bool,
+    pub menu_selected_index: usize,
+}
+
+pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -106,7 +112,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         ListItem::new("  [4] PIN Management    Change PINs, view retry counters"),
         ListItem::new("  [5] SSH Setup         Configure SSH authentication"),
         ListItem::new(""),
-        ListItem::new("  [R] Refresh          [Q] Quit          [?] Help"),
+        ListItem::new("  [R] Refresh          [Q] Quit          [?] Help          [m] Menu"),
     ];
 
     let menu = List::new(menu_items).block(
@@ -117,4 +123,22 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     );
 
     frame.render_widget(menu, chunks[2]);
+
+    // Context menu overlay — rendered last so it appears on top
+    if state.show_context_menu {
+        let context_items = &[
+            "Diagnostics",
+            "Key Management",
+            "PIN Management",
+            "SSH Setup Wizard",
+            "Help",
+        ];
+        crate::ui::widgets::popup::render_context_menu(
+            frame,
+            area,
+            "Navigate",
+            context_items,
+            state.menu_selected_index,
+        );
+    }
 }
