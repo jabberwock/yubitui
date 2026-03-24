@@ -2,20 +2,20 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gaps.
-status: Ready to plan
-last_updated: "2026-03-24T19:53:36.880Z"
+status: Executing Phase 03
+last_updated: "2026-03-24T20:54:17Z"
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 11
+  completed_plans: 8
 ---
 
 # Project State
 
 ## Current Phase
 
-**Phase 2** — UX Menus, Wizards & Fixes
+**Phase 3** — Advanced YubiKey Features
 
 ## Status
 
@@ -23,15 +23,15 @@ active
 
 ## Current Plan
 
-Phase 2 — Plan 04 (02-04)
+Phase 3 — Plan 04 (03-04)
 
 ## Progress
 
-[█████████░] 86%
+[███████████] 73%
 
 - Phase 1: complete (all 3 plans complete)
-- Phase 2: in progress (3 of 4 plans complete)
-- Phase 3: not started
+- Phase 2: complete (all 4 plans complete)
+- Phase 3: in progress (2 of 4 plans complete)
 
 ## Completed Plans
 
@@ -41,6 +41,7 @@ Phase 2 — Plan 04 (02-04)
 - 02-01: Foundation infrastructure — popup widgets, mouse capture, gpgconf-authoritative gnupg path (2026-03-24)
 - 02-02: PIN unblock wizard — 4-branch decision tree, ykman factory reset with double confirmation (2026-03-24)
 - 02-03: Key attributes display and SSH pubkey popup — ykman openpgp info parsing, in-TUI SSH key viewer (2026-03-24)
+- 03-04: CI 3-OS matrix and release workflow — GitHub Actions on Linux/macOS/Windows with clippy and tag-triggered binary releases (2026-03-24)
 
 ## Decisions
 
@@ -56,6 +57,10 @@ Phase 2 — Plan 04 (02-04)
 - [02-02]: factory_reset_openpgp uses ykman (not gpg) -- only ykman supports --force full OpenPGP app reset
 - [02-03]: show_context_menu and menu_selected_index kept with #[allow(dead_code)] — reserved for Plan 02-04 context menu integration
 - [02-03]: get_ssh_public_key_text() uses gpg --export-ssh-key with -- flag separator for security (defense-in-depth)
+- [03-04]: CI uses fail-fast: false so all OS results visible even when one fails
+- [03-04]: libpcsclite-dev install is Linux-only conditional; macOS/Windows provide PCSC natively
+- [03-04]: Release artifact names encode OS to prevent download collisions; Windows binary has .exe extension
+- [03-04]: device-tests feature not enabled in any workflow — no YubiKey on CI runners
 
 ## Notes
 
@@ -65,5 +70,5 @@ Phase 2 — Plan 04 (02-04)
 
 ## Last Session
 
-- Stopped at: Completed 02-03-PLAN.md (key attributes display, SSH pubkey popup)
+- Stopped at: Completed 03-04-PLAN.md (CI 3-OS matrix and release workflow)
 - Date: 2026-03-24
