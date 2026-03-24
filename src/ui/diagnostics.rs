@@ -34,8 +34,14 @@ pub fn render(frame: &mut Frame, area: Rect, diagnostics: &Diagnostics) {
         },
         if diagnostics.pcscd.running {
             "Running"
-        } else {
+        } else if cfg!(target_os = "macos") {
             "Not running - Start with: brew services start pcsc-lite"
+        } else if cfg!(target_os = "linux") {
+            "Not running - Start with: sudo systemctl start pcscd"
+        } else if cfg!(windows) {
+            "Not running - Start with: Start-Service SCardSvr (as admin)"
+        } else {
+            "Not running"
         }
     )));
 

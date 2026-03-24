@@ -35,10 +35,11 @@ fn main() -> Result<()> {
     // When running the TUI, log to a file to avoid interfering with the display
     if !args.list && !args.check {
         // TUI mode - log to file
+        let log_path = std::env::temp_dir().join("yubitui.log");
         let log_file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open("/tmp/yubitui.log")
+            .open(&log_path)
             .ok();
         
         if let Some(file) = log_file {

@@ -189,8 +189,6 @@ Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidel
 - Use the reset function only when you understand the consequences
 - Change default PINs immediately after setup
 
-Report security vulnerabilities to: security@example.com
-
 ## License
 
 Apache-2.0 OR MIT

@@ -37,14 +37,27 @@ pub fn check_pcscd() -> Result<PcscdStatus> {
         .map(|o| o.status.success())
         .unwrap_or(false);
 
-    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    #[cfg(windows)]
+    let running = {
+        // On Windows, query the Smart Card service (SCardSvr)
+        Command::new("sc")
+            .args(["query", "SCardSvr"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains("RUNNING"))
+            .unwrap_or(false)
+    };
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
     let running = false;
 
     // Try to get version info
     #[cfg(target_os = "macos")]
     let version = Some("macOS PC/SC (CryptoTokenKit)".to_string());
     
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    let version = Some("Windows Smart Card Service (SCardSvr)".to_string());
+
+    #[cfg(not(any(target_os = "macos", windows)))]
     let version = Command::new("pcscd")
         .arg("-v")
         .output()
