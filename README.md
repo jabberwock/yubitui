@@ -107,7 +107,7 @@ yubitui --list
 yubitui --debug
 ```
 
-**Note**: When running in TUI mode, logs are written to `/tmp/yubitui.log` to avoid interfering with the display. Use `tail -f /tmp/yubitui.log` in another terminal to watch logs in real-time.
+**Note**: When running in TUI mode, logs are written to your system's temp directory (e.g., `/tmp/yubitui.log` on Linux/macOS, `%TEMP%\yubitui.log` on Windows) to avoid interfering with the display.
 
 ### Navigation
 - `Tab` / `Shift+Tab`: Navigate between sections
@@ -153,22 +153,21 @@ RUST_LOG=debug cargo run
 
 ### Phase 1: Core Functionality ✅
 - [x] Project structure
-- [ ] YubiKey detection
-- [ ] Basic dashboard UI
-- [ ] PIN retry counter display
-- [ ] GPG agent diagnostics
+- [x] YubiKey detection
+- [x] Basic dashboard UI
+- [x] PIN retry counter display
+- [x] GPG agent diagnostics
 
 ### Phase 2: Key Management
-- [ ] View existing keys
-- [ ] Import keys via PIV
-- [ ] Import keys via OpenPGP
-- [ ] Generate keys on-device
+- [x] View existing keys
+- [x] Import keys to card (via GPG)
+- [x] Generate keys on-device
 - [ ] Key attribute configuration
 
 ### Phase 3: SSH Integration
-- [ ] SSH configuration wizard
-- [ ] SSH agent integration
-- [ ] Public key export
+- [x] SSH configuration wizard
+- [x] SSH agent integration
+- [x] Public key export
 - [ ] authorized_keys management
 
 ### Phase 4: Advanced Features
