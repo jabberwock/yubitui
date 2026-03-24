@@ -15,8 +15,8 @@ pub fn check_ssh_agent() -> Result<SshAgentStatus> {
     let auth_sock = env::var("SSH_AUTH_SOCK").ok();
 
     // Check if gpg-agent.conf has enable-ssh-support
-    let gpg_agent_conf = dirs::home_dir()
-        .map(|h| h.join(".gnupg/gpg-agent.conf"))
+    let gpg_agent_conf = crate::utils::config::gpg_agent_conf()
+        .ok()
         .and_then(|p| std::fs::read_to_string(p).ok());
 
     let gpg_agent_has_ssh_support = gpg_agent_conf

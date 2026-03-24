@@ -2,7 +2,10 @@
 
 use anyhow::Result;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, MouseButton,
+        MouseEvent, MouseEventKind,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -57,8 +60,7 @@ impl App {
         // Setup terminal
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen)?;
-        // Note: We deliberately DON'T enable mouse capture to allow text selection
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
@@ -67,7 +69,7 @@ impl App {
 
         // Restore terminal
         disable_raw_mode()?;
-        execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
+        execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
         terminal.show_cursor()?;
 
         result
@@ -107,9 +109,40 @@ impl App {
 
     fn handle_events(&mut self) -> Result<()> {
         if event::poll(std::time::Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                self.handle_key_event(key)?;
+            match event::read()? {
+                Event::Key(key) => self.handle_key_event(key)?,
+                Event::Mouse(mouse) => self.handle_mouse_event(mouse)?,
+                _ => {}
             }
+        }
+        Ok(())
+    }
+
+    fn handle_mouse_event(&mut self, mouse: MouseEvent) -> Result<()> {
+        match mouse.kind {
+            MouseEventKind::ScrollUp => {
+                if self.current_screen == Screen::Keys
+                    && self.key_state.screen == ui::keys::KeyScreen::ImportKey
+                    && self.key_state.selected_key_index > 0
+                {
+                    self.key_state.selected_key_index -= 1;
+                }
+            }
+            MouseEventKind::ScrollDown => {
+                if self.current_screen == Screen::Keys
+                    && self.key_state.screen == ui::keys::KeyScreen::ImportKey
+                {
+                    let max = self.key_state.available_keys.len().saturating_sub(1);
+                    if self.key_state.selected_key_index < max {
+                        self.key_state.selected_key_index += 1;
+                    }
+                }
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                // Left click -- future: hit-test menu items, buttons
+                // For now, no-op. Will be wired in Plan 02/03.
+            }
+            _ => {}
         }
         Ok(())
     }

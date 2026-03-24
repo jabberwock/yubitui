@@ -4,6 +4,7 @@ pub mod help;
 pub mod keys;
 pub mod pin;
 pub mod ssh;
+pub mod widgets;
 
 #[allow(unused_imports)]
 pub use keys::{KeyScreen, KeyState};

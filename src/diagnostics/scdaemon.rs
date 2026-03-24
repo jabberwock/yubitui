@@ -8,8 +8,8 @@ pub struct ScdaemonStatus {
 
 pub fn check_scdaemon() -> Result<ScdaemonStatus> {
     // Check if scdaemon is configured
-    let config_path = dirs::home_dir()
-        .map(|h| h.join(".gnupg/scdaemon.conf"))
+    let config_path = crate::utils::config::scdaemon_conf()
+        .ok()
         .and_then(|p| if p.exists() { Some(p) } else { None });
 
     let configured = config_path.is_some();

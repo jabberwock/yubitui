@@ -219,18 +219,10 @@ fn validate_ssh_target(user: &str, host: &str) -> Result<()> {
 }
 
 fn get_gpg_agent_conf_path() -> Result<PathBuf> {
-    let gnupg_home = if let Ok(home) = std::env::var("GNUPGHOME") {
-        PathBuf::from(home)
-    } else {
-        dirs::home_dir()
-            .ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?
-            .join(".gnupg")
-    };
-
-    // Create .gnupg directory if it doesn't exist
+    let gnupg_home = crate::utils::config::gnupg_home()?;
+    // Create directory if it doesn't exist
     if !gnupg_home.exists() {
         fs::create_dir_all(&gnupg_home)?;
-        // Set proper permissions (700)
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -238,6 +230,5 @@ fn get_gpg_agent_conf_path() -> Result<PathBuf> {
             fs::set_permissions(&gnupg_home, perms)?;
         }
     }
-
     Ok(gnupg_home.join("gpg-agent.conf"))
 }
