@@ -23,21 +23,27 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 
 ## Current State (as of 2026-03-24)
 
+Phase 2 complete — UX/wizards/fixes shipped and human-verified.
+
 ### Done
 - YubiKey detection via `gpg --card-status` and PC/SC
-- Dashboard with live status
+- Dashboard with live status and context menu (m/Enter opens popup, arrow/mouse nav)
 - Full diagnostics screen (gpg-agent, pcscd, scdaemon, SSH agent)
 - PIN management: change user/admin PIN, set reset code, unblock
+- PIN unblock wizard: 4-branch decision tree (reset code / admin PIN / factory reset)
 - Key operations: view card status, import key to card, generate on-device, export SSH public key
+- Key attribute display: algorithm type per slot (SIG/ENC/AUT) via ykman
+- SSH pubkey popup: view/copy SSH public key without leaving TUI
 - SSH wizard: enable SSH support, configure shell rc, restart agent, export key, test connection
+- Mouse support: scroll navigation in list screens, click to close menus
+- gnupg_home fix: uses gpgconf as authoritative source with Windows/GPG4Win fallback
+- Reusable popup widget system: render_popup, render_confirm_dialog, render_context_menu
 - CLI flags: `--check`, `--list`, `--debug`
 - Security hardening: no flag injection, no shell injection, no sensitive values in logs
 
 ### Known Gaps
 - Key selection UI: import always uses first key in list (no picker)
-- `?` help key documented in README but not wired up
-- Phase 4 features: touch policy, attestation, multi-YubiKey, backup/restore
-- README roadmap checkboxes are stale
+- Phase 3 features: touch policy, attestation, multi-YubiKey, backup/restore
 
 ## Requirements
 
