@@ -93,7 +93,7 @@ fn render_main(
             if let Some(ref sig) = openpgp.signature_key {
                 lines.push(Line::from(vec![
                     Span::styled("✅ Signature: ", Style::default().fg(Color::Green)),
-                    Span::raw(&sig.fingerprint[..16]),
+                    Span::raw(sig.fingerprint.get(..16).unwrap_or(&sig.fingerprint).to_string()),
                     Span::raw("..."),
                 ]));
             } else {
@@ -106,7 +106,7 @@ fn render_main(
             if let Some(ref enc) = openpgp.encryption_key {
                 lines.push(Line::from(vec![
                     Span::styled("✅ Encryption: ", Style::default().fg(Color::Green)),
-                    Span::raw(&enc.fingerprint[..16]),
+                    Span::raw(enc.fingerprint.get(..16).unwrap_or(&enc.fingerprint).to_string()),
                     Span::raw("..."),
                 ]));
             } else {
@@ -119,7 +119,7 @@ fn render_main(
             if let Some(ref auth) = openpgp.authentication_key {
                 lines.push(Line::from(vec![
                     Span::styled("✅ Authentication: ", Style::default().fg(Color::Green)),
-                    Span::raw(&auth.fingerprint[..16]),
+                    Span::raw(auth.fingerprint.get(..16).unwrap_or(&auth.fingerprint).to_string()),
                     Span::raw("..."),
                 ]));
             } else {
