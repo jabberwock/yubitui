@@ -70,6 +70,14 @@ Plans:
 
 **Done when:** `cargo test` passes with meaningful coverage, CI matrix is green, touch policy and attestation work.
 
+**Plans:** 4 plans
+
+Plans:
+- [x] 03-01-PLAN.md — Parser unit tests (20 tests across 5 modules, safe fingerprint slicing)
+- [ ] 03-02-PLAN.md — Touch policy configuration
+- [ ] 03-03-PLAN.md — Multiple YubiKey support
+- [ ] 03-04-PLAN.md — Attestation support and CI
+
 ---
 
 ## Backlog
