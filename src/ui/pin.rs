@@ -28,7 +28,12 @@ impl Default for PinState {
     }
 }
 
-pub fn render(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState>, state: &PinState) {
+pub fn render(
+    frame: &mut Frame,
+    area: Rect,
+    yubikey_state: &Option<YubiKeyState>,
+    state: &PinState,
+) {
     match state.screen {
         PinScreen::Main => render_main(frame, area, yubikey_state, state),
         PinScreen::ChangeUserPin => render_change_user_pin(frame, area, state),
@@ -38,7 +43,12 @@ pub fn render(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState
     }
 }
 
-fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState>, state: &PinState) {
+fn render_main(
+    frame: &mut Frame,
+    area: Rect,
+    yubikey_state: &Option<YubiKeyState>,
+    state: &PinState,
+) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -49,13 +59,17 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
         .split(area);
 
     let title = Paragraph::new("🔐 PIN Management")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(title, chunks[0]);
 
     let content = if let Some(yk) = yubikey_state {
         let pin = &yk.pin_status;
-        
+
         let user_status = if pin.user_pin_blocked {
             ("🔒 BLOCKED", Color::Red)
         } else if pin.user_pin_retries <= 1 {
@@ -63,7 +77,7 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
         } else {
             ("✅ OK", Color::Green)
         };
-        
+
         let admin_status = if pin.admin_pin_blocked {
             ("🔒 BLOCKED", Color::Red)
         } else if pin.admin_pin_retries <= 1 {
@@ -75,27 +89,37 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
         vec![
             Line::from(vec![
                 Span::raw("User PIN: "),
-                Span::styled(format!("{}/3 retries", pin.user_pin_retries), Style::default().fg(user_status.1)),
+                Span::styled(
+                    format!("{}/3 retries", pin.user_pin_retries),
+                    Style::default().fg(user_status.1),
+                ),
                 Span::raw(" "),
                 Span::styled(user_status.0, Style::default().fg(user_status.1)),
             ]),
             Line::from(""),
             Line::from(vec![
                 Span::raw("Admin PIN: "),
-                Span::styled(format!("{}/3 retries", pin.admin_pin_retries), Style::default().fg(admin_status.1)),
+                Span::styled(
+                    format!("{}/3 retries", pin.admin_pin_retries),
+                    Style::default().fg(admin_status.1),
+                ),
                 Span::raw(" "),
                 Span::styled(admin_status.0, Style::default().fg(admin_status.1)),
             ]),
             Line::from(""),
             Line::from(vec![
                 Span::raw("Reset Code: "),
-                Span::raw(if pin.reset_code_retries > 0 { "Set" } else { "Not set" }),
+                Span::raw(if pin.reset_code_retries > 0 {
+                    "Set"
+                } else {
+                    "Not set"
+                }),
             ]),
         ]
     } else {
         vec![Line::from("No YubiKey detected. Press 'R' to refresh.")]
     };
-    
+
     if let Some(ref msg) = state.message {
         let mut lines = content;
         lines.push(Line::from(""));
@@ -103,8 +127,8 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
             Span::styled("Status: ", Style::default().fg(Color::Yellow)),
             Span::raw(msg),
         ]));
-        let paragraph = Paragraph::new(lines)
-            .block(Block::default().borders(Borders::ALL).title("📊 Status"));
+        let paragraph =
+            Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title("📊 Status"));
         frame.render_widget(paragraph, chunks[1]);
     } else {
         let paragraph = Paragraph::new(content)
@@ -121,8 +145,8 @@ fn render_main(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyStat
         ListItem::new("[ESC] Back to Dashboard"),
     ];
 
-    let action_list = List::new(actions)
-        .block(Block::default().title("⌨️  Actions").borders(Borders::ALL));
+    let action_list =
+        List::new(actions).block(Block::default().title("⌨️  Actions").borders(Borders::ALL));
     frame.render_widget(action_list, chunks[2]);
 }
 
@@ -196,7 +220,11 @@ fn render_operation_screen(
         .split(area);
 
     let title_widget = Paragraph::new(title)
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(title_widget, chunks[0]);
 

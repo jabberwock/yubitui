@@ -17,7 +17,7 @@ pub fn check_pcscd() -> Result<PcscdStatus> {
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false);
-        
+
         // Also try launchctl
         let launchctl_check = Command::new("launchctl")
             .args(&["list"])
@@ -26,7 +26,7 @@ pub fn check_pcscd() -> Result<PcscdStatus> {
             .and_then(|o| String::from_utf8(o.stdout).ok())
             .map(|s| s.contains("com.apple.ctkpcscd"))
             .unwrap_or(false);
-        
+
         ps_check || launchctl_check
     };
 
@@ -53,7 +53,7 @@ pub fn check_pcscd() -> Result<PcscdStatus> {
     // Try to get version info
     #[cfg(target_os = "macos")]
     let version = Some("macOS PC/SC (CryptoTokenKit)".to_string());
-    
+
     #[cfg(windows)]
     let version = Some("Windows Smart Card Service (SCardSvr)".to_string());
 

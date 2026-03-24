@@ -35,11 +35,23 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         } else {
             "❌"
         };
-        
+
         let keys_info = if let Some(ref openpgp) = yk.openpgp {
-            let sig = if openpgp.signature_key.is_some() { "✅" } else { "❌" };
-            let enc = if openpgp.encryption_key.is_some() { "✅" } else { "❌" };
-            let auth = if openpgp.authentication_key.is_some() { "✅" } else { "❌" };
+            let sig = if openpgp.signature_key.is_some() {
+                "✅"
+            } else {
+                "❌"
+            };
+            let enc = if openpgp.encryption_key.is_some() {
+                "✅"
+            } else {
+                "❌"
+            };
+            let auth = if openpgp.authentication_key.is_some() {
+                "✅"
+            } else {
+                "❌"
+            };
             format!("Keys: {} Sign  {} Encrypt  {} Auth", sig, enc, auth)
         } else {
             "Keys: Not detected".to_string()
@@ -84,7 +96,11 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
 
     // Navigation menu - make it clear and actionable
     let menu_items = vec![
-        ListItem::new("  [1] Dashboard         You are here →").style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ListItem::new("  [1] Dashboard         You are here →").style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
         ListItem::new("  [2] System Check      Diagnose PC/SC, GPG, SSH configuration"),
         ListItem::new("  [3] Key Management    View and manage OpenPGP/PIV keys"),
         ListItem::new("  [4] PIN Management    Change PINs, view retry counters"),
@@ -93,13 +109,12 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         ListItem::new("  [R] Refresh          [Q] Quit          [?] Help"),
     ];
 
-    let menu = List::new(menu_items)
-        .block(
-            Block::default()
-                .title("⌨️  Navigation - Press number keys to switch screens")
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
-        );
+    let menu = List::new(menu_items).block(
+        Block::default()
+            .title("⌨️  Navigation - Press number keys to switch screens")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Yellow)),
+    );
 
     frame.render_widget(menu, chunks[2]);
 }

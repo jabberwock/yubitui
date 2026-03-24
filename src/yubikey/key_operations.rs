@@ -1,13 +1,11 @@
 use anyhow::Result;
-use std::process::Command;
 use std::io::Write;
+use std::process::Command;
 
 /// View card status
 pub fn view_card_status() -> Result<String> {
-    let output = Command::new("gpg")
-        .arg("--card-status")
-        .output()?;
-    
+    let output = Command::new("gpg").arg("--card-status").output()?;
+
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
@@ -36,7 +34,7 @@ pub fn import_key_to_card(key_id: &str) -> Result<String> {
     }
 
     let output = child.wait()?;
-    
+
     if output.success() {
         Ok("Key imported to card successfully".to_string())
     } else {
@@ -60,7 +58,7 @@ pub fn generate_key_on_card() -> Result<String> {
     }
 
     let output = child.wait()?;
-    
+
     if output.success() {
         Ok("Key generated on card successfully".to_string())
     } else {
@@ -71,12 +69,10 @@ pub fn generate_key_on_card() -> Result<String> {
 /// Export SSH public key from authentication slot
 pub fn export_ssh_public_key() -> Result<String> {
     // First, get the authentication key fingerprint from card status
-    let card_status = Command::new("gpg")
-        .arg("--card-status")
-        .output()?;
-    
+    let card_status = Command::new("gpg").arg("--card-status").output()?;
+
     let status_text = String::from_utf8_lossy(&card_status.stdout);
-    
+
     // Look for the authentication key fingerprint
     let mut auth_keygrip = None;
     for line in status_text.lines() {
@@ -90,7 +86,7 @@ pub fn export_ssh_public_key() -> Result<String> {
             }
         }
     }
-    
+
     if let Some(keygrip) = auth_keygrip {
         // Export the SSH public key; `--` prevents a leading `-` in the
         // fingerprint from being interpreted as a GPG flag (defence-in-depth —
@@ -100,15 +96,13 @@ pub fn export_ssh_public_key() -> Result<String> {
             .arg("--")
             .arg(&keygrip)
             .output()?;
-        
+
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
         } else {
             // Try alternative method
-            let output = Command::new("ssh-add")
-                .arg("-L")
-                .output()?;
-            
+            let output = Command::new("ssh-add").arg("-L").output()?;
+
             if output.status.success() {
                 Ok(String::from_utf8_lossy(&output.stdout).to_string())
             } else {
@@ -137,7 +131,7 @@ pub fn reset_key_slot() -> Result<String> {
     }
 
     let output = child.wait()?;
-    
+
     if output.success() {
         Ok("Card reset successfully".to_string())
     } else {
@@ -151,16 +145,16 @@ pub fn list_gpg_keys() -> Result<Vec<String>> {
         .arg("--list-secret-keys")
         .arg("--with-colons")
         .output()?;
-    
+
     let mut keys = Vec::new();
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     for line in stdout.lines() {
         let parts: Vec<&str> = line.split(':').collect();
         if parts.is_empty() {
             continue;
         }
-        
+
         if parts[0] == "sec" || parts[0] == "ssb" {
             // Extract key ID and user ID
             if parts.len() > 4 {
@@ -169,6 +163,6 @@ pub fn list_gpg_keys() -> Result<Vec<String>> {
             }
         }
     }
-    
+
     Ok(keys)
 }

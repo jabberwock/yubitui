@@ -40,14 +40,30 @@ impl fmt::Display for Diagnostics {
         writeln!(f, "==================\n")?;
 
         writeln!(f, "PC/SC Daemon (pcscd):")?;
-        writeln!(f, "  Status: {}", if self.pcscd.running { "✅ Running" } else { "❌ Not running" })?;
+        writeln!(
+            f,
+            "  Status: {}",
+            if self.pcscd.running {
+                "✅ Running"
+            } else {
+                "❌ Not running"
+            }
+        )?;
         if let Some(ref version) = self.pcscd.version {
             writeln!(f, "  Version: {}", version)?;
         }
         writeln!(f)?;
 
         writeln!(f, "GPG Agent:")?;
-        writeln!(f, "  Status: {}", if self.gpg_agent.running { "✅ Running" } else { "❌ Not running" })?;
+        writeln!(
+            f,
+            "  Status: {}",
+            if self.gpg_agent.running {
+                "✅ Running"
+            } else {
+                "❌ Not running"
+            }
+        )?;
         if let Some(ref version) = self.gpg_agent.version {
             writeln!(f, "  Version: {}", version)?;
         }
@@ -57,18 +73,37 @@ impl fmt::Display for Diagnostics {
         writeln!(f)?;
 
         writeln!(f, "Scdaemon:")?;
-        writeln!(f, "  Configured: {}", if self.scdaemon.configured { "✅ Yes" } else { "⚠️  No" })?;
+        writeln!(
+            f,
+            "  Configured: {}",
+            if self.scdaemon.configured {
+                "✅ Yes"
+            } else {
+                "⚠️  No"
+            }
+        )?;
         if let Some(ref issues) = self.scdaemon.issues {
             writeln!(f, "  Issues: {}", issues)?;
         }
         writeln!(f)?;
 
         writeln!(f, "SSH Agent Integration:")?;
-        writeln!(f, "  Configured: {}", if self.ssh_agent.configured { "✅ Yes" } else { "⚠️  No" })?;
-        
+        writeln!(
+            f,
+            "  Configured: {}",
+            if self.ssh_agent.configured {
+                "✅ Yes"
+            } else {
+                "⚠️  No"
+            }
+        )?;
+
         if !self.ssh_agent.configured {
             if !self.ssh_agent.gpg_agent_has_ssh_support {
-                writeln!(f, "  Issues: enable-ssh-support not found in ~/.gnupg/gpg-agent.conf")?;
+                writeln!(
+                    f,
+                    "  Issues: enable-ssh-support not found in ~/.gnupg/gpg-agent.conf"
+                )?;
             }
             if !self.ssh_agent.ssh_auth_sock_correct {
                 writeln!(f, "  Issues: SSH_AUTH_SOCK not pointing to GPG agent")?;

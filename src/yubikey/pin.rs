@@ -21,9 +21,7 @@ impl PinStatus {
 }
 
 pub fn get_pin_status() -> Result<PinStatus> {
-    let output = Command::new("gpg")
-        .arg("--card-status")
-        .output()?;
+    let output = Command::new("gpg").arg("--card-status").output()?;
 
     if !output.status.success() {
         anyhow::bail!("gpg --card-status failed");
@@ -40,7 +38,7 @@ fn parse_pin_status(output: &str) -> Result<PinStatus> {
 
     for line in output.lines() {
         let line = line.trim();
-        
+
         // Look for "PIN retry counter : 3 0 3"
         // Format: user_pin admin_pin reset_code
         if line.starts_with("PIN retry counter :") {

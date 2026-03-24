@@ -57,15 +57,16 @@ fn render_main(frame: &mut Frame, area: Rect, _app: &App, state: &SshState) {
         .split(area);
 
     let title = Paragraph::new("🔧 SSH Setup Wizard")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(title, chunks[0]);
 
-    let mut status_lines = vec![
-        Line::from("Setup Progress:"),
-        Line::from(""),
-    ];
-    
+    let mut status_lines = vec![Line::from("Setup Progress:"), Line::from("")];
+
     status_lines.push(Line::from(vec![
         if state.ssh_enabled {
             Span::styled("✅ ", Style::default().fg(Color::Green))
@@ -74,7 +75,7 @@ fn render_main(frame: &mut Frame, area: Rect, _app: &App, state: &SshState) {
         },
         Span::raw("SSH support enabled in gpg-agent.conf"),
     ]));
-    
+
     status_lines.push(Line::from(vec![
         if state.shell_configured {
             Span::styled("✅ ", Style::default().fg(Color::Green))
@@ -83,7 +84,7 @@ fn render_main(frame: &mut Frame, area: Rect, _app: &App, state: &SshState) {
         },
         Span::raw("SSH_AUTH_SOCK configured in shell"),
     ]));
-    
+
     status_lines.push(Line::from(vec![
         if state.agent_running {
             Span::styled("✅ ", Style::default().fg(Color::Green))
@@ -92,7 +93,7 @@ fn render_main(frame: &mut Frame, area: Rect, _app: &App, state: &SshState) {
         },
         Span::raw("GPG agent running"),
     ]));
-    
+
     if let Some(ref msg) = state.message {
         status_lines.push(Line::from(""));
         status_lines.push(Line::from(vec![
@@ -106,8 +107,10 @@ fn render_main(frame: &mut Frame, area: Rect, _app: &App, state: &SshState) {
     frame.render_widget(paragraph, chunks[1]);
 
     let actions = vec![
-        ListItem::new("[1] Enable SSH support in gpg-agent.conf").style(Style::default().fg(Color::Green)),
-        ListItem::new("[2] Configure SSH_AUTH_SOCK in shell").style(Style::default().fg(Color::Yellow)),
+        ListItem::new("[1] Enable SSH support in gpg-agent.conf")
+            .style(Style::default().fg(Color::Green)),
+        ListItem::new("[2] Configure SSH_AUTH_SOCK in shell")
+            .style(Style::default().fg(Color::Yellow)),
         ListItem::new("[3] Restart GPG agent").style(Style::default().fg(Color::Cyan)),
         ListItem::new("[4] Export SSH public key").style(Style::default().fg(Color::Magenta)),
         ListItem::new("[5] Test SSH connection").style(Style::default().fg(Color::Blue)),
@@ -116,8 +119,8 @@ fn render_main(frame: &mut Frame, area: Rect, _app: &App, state: &SshState) {
         ListItem::new("[ESC] Back to Dashboard"),
     ];
 
-    let action_list = List::new(actions)
-        .block(Block::default().title("⌨️  Actions").borders(Borders::ALL));
+    let action_list =
+        List::new(actions).block(Block::default().title("⌨️  Actions").borders(Borders::ALL));
     frame.render_widget(action_list, chunks[2]);
 }
 
@@ -204,7 +207,11 @@ fn render_operation_screen(
         .split(area);
 
     let title_widget = Paragraph::new(title)
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(title_widget, chunks[0]);
 

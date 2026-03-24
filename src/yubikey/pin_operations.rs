@@ -24,7 +24,7 @@ pub fn unblock_user_pin() -> Result<String> {
 /// Execute gpg --card-edit interactively in the terminal
 fn execute_gpg_card_edit(commands: &[&str]) -> Result<String> {
     use std::io::Write;
-    
+
     let mut child = Command::new("gpg")
         .arg("--card-edit")
         .stdin(std::process::Stdio::piped())
@@ -39,7 +39,7 @@ fn execute_gpg_card_edit(commands: &[&str]) -> Result<String> {
     }
 
     let output = child.wait()?;
-    
+
     if output.success() {
         Ok("Operation completed successfully".to_string())
     } else {

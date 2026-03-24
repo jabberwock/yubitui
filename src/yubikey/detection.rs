@@ -17,17 +17,21 @@ pub fn detect_yubikeys() -> Result<Vec<YubiKeyInfo>> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Parse serial number and version from the output
     let mut serial = 0;
-    let mut version = Version { major: 0, minor: 0, patch: 0 };
-    
+    let mut version = Version {
+        major: 0,
+        minor: 0,
+        patch: 0,
+    };
+
     for line in stdout.lines() {
         let parts: Vec<&str> = line.split(':').collect();
         if parts.is_empty() {
             continue;
         }
-        
+
         match parts[0] {
             "serial" => {
                 if parts.len() > 1 && !parts[1].is_empty() {
@@ -50,15 +54,19 @@ pub fn detect_yubikeys() -> Result<Vec<YubiKeyInfo>> {
             _ => {}
         }
     }
-    
+
     if serial != 0 {
         // Serial number intentionally omitted from logs — see CLAUDE.md security rules
-        tracing::info!("Found YubiKey via gpg --card-status (FW: {}.{}.{})",
-                      version.major, version.minor, version.patch);
-        
+        tracing::info!(
+            "Found YubiKey via gpg --card-status (FW: {}.{}.{})",
+            version.major,
+            version.minor,
+            version.patch
+        );
+
         let model = detect_model_from_version(&version);
         let form_factor = FormFactor::UsbA;
-        
+
         keys.push(YubiKeyInfo {
             serial,
             version,
@@ -72,7 +80,7 @@ pub fn detect_yubikeys() -> Result<Vec<YubiKeyInfo>> {
 
 pub fn detect_yubikey_state() -> Result<Option<YubiKeyState>> {
     let keys = detect_yubikeys()?;
-    
+
     if keys.is_empty() {
         return Ok(None);
     }

@@ -13,7 +13,7 @@ pub fn check_scdaemon() -> Result<ScdaemonStatus> {
         .and_then(|p| if p.exists() { Some(p) } else { None });
 
     let configured = config_path.is_some();
-    
+
     // Check for common issues
     let issues = if configured {
         // TODO: Parse scdaemon.conf and check for common misconfigurations
@@ -22,8 +22,5 @@ pub fn check_scdaemon() -> Result<ScdaemonStatus> {
         Some("scdaemon.conf not found".to_string())
     };
 
-    Ok(ScdaemonStatus {
-        configured,
-        issues,
-    })
+    Ok(ScdaemonStatus { configured, issues })
 }

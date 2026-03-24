@@ -4,9 +4,7 @@ use std::process::Command;
 /// Execute a GPG command and return stdout
 #[allow(dead_code)]
 pub fn gpg_command(args: &[&str]) -> Result<String> {
-    let output = Command::new("gpg")
-        .args(args)
-        .output()?;
+    let output = Command::new("gpg").args(args).output()?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -56,7 +54,7 @@ pub fn parse_pin_retries(card_status: &str) -> Option<(u8, u8, u8)> {
                     .split_whitespace()
                     .filter_map(|s| s.parse().ok())
                     .collect();
-                
+
                 if numbers.len() == 3 {
                     return Some((numbers[0], numbers[1], numbers[2]));
                 }

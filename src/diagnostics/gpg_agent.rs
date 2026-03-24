@@ -10,12 +10,10 @@ pub struct GpgAgentStatus {
 
 pub fn check_gpg_agent() -> Result<GpgAgentStatus> {
     // Check if gpg-agent is running
-    let output = Command::new("gpgconf")
-        .arg("--list-dirs")
-        .output();
+    let output = Command::new("gpgconf").arg("--list-dirs").output();
 
     let running = output.is_ok();
-    
+
     let socket_path = if running {
         output
             .ok()

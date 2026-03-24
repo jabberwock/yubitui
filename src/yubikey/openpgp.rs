@@ -22,9 +22,7 @@ pub struct KeyInfo {
 }
 
 pub fn get_openpgp_state() -> Result<OpenPgpState> {
-    let output = Command::new("gpg")
-        .arg("--card-status")
-        .output()?;
+    let output = Command::new("gpg").arg("--card-status").output()?;
 
     if !output.status.success() {
         return Ok(OpenPgpState {
@@ -53,9 +51,11 @@ fn parse_card_status(output: &str) -> Result<OpenPgpState> {
 
     for line in output.lines() {
         let line = line.trim();
-        
+
         if line.starts_with("Version ..........:") {
-            version = line.split(':').nth(1)
+            version = line
+                .split(':')
+                .nth(1)
                 .map(|s| s.trim().to_string())
                 .unwrap_or_default();
         } else if line.starts_with("Signature key .....:") {
@@ -108,7 +108,9 @@ fn parse_card_status(output: &str) -> Result<OpenPgpState> {
             }
         } else if line.starts_with("Key attributes ...:") {
             // Parse something like "rsa2048 rsa2048 rsa2048" or "ed25519 cv25519 ed25519"
-            key_attributes = line.split(':').nth(1)
+            key_attributes = line
+                .split(':')
+                .nth(1)
                 .map(|s| s.split_whitespace().next().unwrap_or("rsa2048").to_string())
                 .unwrap_or_else(|| "rsa2048".to_string());
         }

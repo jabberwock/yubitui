@@ -31,7 +31,7 @@ fn main() -> Result<()> {
 
     // Initialize tracing
     let log_level = if args.debug { "debug" } else { "info" };
-    
+
     // When running the TUI, log to a file to avoid interfering with the display
     if !args.list && !args.check {
         // TUI mode - log to file
@@ -41,7 +41,7 @@ fn main() -> Result<()> {
             .append(true)
             .open(&log_path)
             .ok();
-        
+
         if let Some(file) = log_file {
             tracing_subscriber::registry()
                 .with(
@@ -94,7 +94,7 @@ fn list_yubikeys() -> Result<()> {
     use yubikey::detection::detect_yubikeys;
 
     println!("Detecting YubiKeys...\n");
-    
+
     // First, let's try to list all PC/SC readers to debug
     match pcsc::Context::establish(pcsc::Scope::System) {
         Ok(ctx) => {
@@ -119,32 +119,32 @@ fn list_yubikeys() -> Result<()> {
             println!("PC/SC daemon may not be running or accessible.\n");
         }
     }
-    
+
     let keys = detect_yubikeys()?;
 
     if keys.is_empty() {
         println!("❌ No YubiKeys detected.\n");
         println!("Troubleshooting:");
         println!("  • Ensure your YubiKey is plugged in");
-        
+
         #[cfg(target_os = "macos")]
         {
             println!("  • On macOS, PC/SC should work automatically");
             println!("  • Check: ps aux | grep ctkpcscd");
         }
-        
+
         #[cfg(target_os = "linux")]
         {
             println!("  • Check that pcscd is running: systemctl status pcscd");
             println!("  • Or start it: sudo systemctl start pcscd");
         }
-        
+
         #[cfg(target_os = "windows")]
         {
             println!("  • PC/SC service should be running by default");
             println!("  • Check: Get-Service SCardSvr");
         }
-        
+
         println!("  • Try: pcsc_scan (install with: brew install pcsc-tools / apt-get install pcsc-tools)");
         println!("  • Some readers require the YubiKey to be removed and reinserted");
         return Ok(());

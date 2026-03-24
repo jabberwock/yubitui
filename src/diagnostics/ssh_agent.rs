@@ -13,17 +13,17 @@ pub struct SshAgentStatus {
 
 pub fn check_ssh_agent() -> Result<SshAgentStatus> {
     let auth_sock = env::var("SSH_AUTH_SOCK").ok();
-    
+
     // Check if gpg-agent.conf has enable-ssh-support
     let gpg_agent_conf = dirs::home_dir()
         .map(|h| h.join(".gnupg/gpg-agent.conf"))
         .and_then(|p| std::fs::read_to_string(p).ok());
-    
+
     let gpg_agent_has_ssh_support = gpg_agent_conf
         .as_ref()
         .map(|conf| conf.contains("enable-ssh-support"))
         .unwrap_or(false);
-    
+
     // Get the expected GPG agent SSH socket path
     let expected_sock = Command::new("gpgconf")
         .arg("--list-dirs")
@@ -39,14 +39,14 @@ pub fn check_ssh_agent() -> Result<SshAgentStatus> {
                 None
             }
         });
-    
+
     // Check if SSH_AUTH_SOCK points to gpg-agent
     let ssh_auth_sock_correct = if let (Some(sock), Some(expected)) = (&auth_sock, &expected_sock) {
         sock == expected
     } else {
         false
     };
-    
+
     // Overall configured status: both conditions must be true
     let configured = gpg_agent_has_ssh_support && ssh_auth_sock_correct;
 
