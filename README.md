@@ -102,7 +102,12 @@ yubitui --check
 
 # Show detected YubiKeys
 yubitui --list
+
+# Enable debug logging
+yubitui --debug
 ```
+
+**Note**: When running in TUI mode, logs are written to `/tmp/yubitui.log` to avoid interfering with the display. Use `tail -f /tmp/yubitui.log` in another terminal to watch logs in real-time.
 
 ### Navigation
 - `Tab` / `Shift+Tab`: Navigate between sections

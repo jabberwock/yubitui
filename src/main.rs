@@ -31,15 +31,48 @@ fn main() -> Result<()> {
 
     // Initialize tracing
     let log_level = if args.debug { "debug" } else { "info" };
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| log_level.into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    
+    // When running the TUI, log to a file to avoid interfering with the display
+    if !args.list && !args.check {
+        // TUI mode - log to file
+        let log_file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/tmp/yubitui.log")
+            .ok();
+        
+        if let Some(file) = log_file {
+            tracing_subscriber::registry()
+                .with(
+                    tracing_subscriber::EnvFilter::try_from_default_env()
+                        .unwrap_or_else(|_| log_level.into()),
+                )
+                .with(tracing_subscriber::fmt::layer().with_writer(std::sync::Arc::new(file)))
+                .init();
+        } else {
+            // Fallback: no logging if file can't be created
+            tracing_subscriber::registry()
+                .with(
+                    tracing_subscriber::EnvFilter::try_from_default_env()
+                        .unwrap_or_else(|_| "error".into()),
+                )
+                .with(tracing_subscriber::fmt::layer().with_writer(std::io::sink))
+                .init();
+        }
+    } else {
+        // CLI mode - log to stdout as normal
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| log_level.into()),
+            )
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    }
 
-    tracing::info!("YubiTUI starting...");
+    if args.list || args.check {
+        tracing::info!("YubiTUI starting...");
+    }
 
     if args.list {
         return list_yubikeys();

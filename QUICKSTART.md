@@ -92,6 +92,18 @@ gpg --card-status
 
 ## Common Tasks
 
+### View Logs
+
+When running the TUI, logs are written to `/tmp/yubitui.log`:
+
+```bash
+# Watch logs in real-time
+tail -f /tmp/yubitui.log
+
+# View recent logs
+tail -50 /tmp/yubitui.log
+```
+
 ### View Card Status
 ```bash
 gpg --card-status
