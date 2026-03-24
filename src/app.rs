@@ -146,6 +146,7 @@ impl App {
                         }
                         KeyCode::Char('i') => {
                             self.key_state.screen = KeyScreen::ImportKey;
+                            self.key_state.selected_key_index = 0;
                             // Load available keys
                             if let Ok(keys) = crate::yubikey::key_operations::list_gpg_keys() {
                                 self.key_state.available_keys = keys;
@@ -166,6 +167,21 @@ impl App {
                 _ => match key.code {
                     KeyCode::Enter => {
                         self.execute_key_operation()?;
+                    }
+                    KeyCode::Up => {
+                        if self.key_state.screen == KeyScreen::ImportKey
+                            && self.key_state.selected_key_index > 0
+                        {
+                            self.key_state.selected_key_index -= 1;
+                        }
+                    }
+                    KeyCode::Down => {
+                        if self.key_state.screen == KeyScreen::ImportKey {
+                            let max = self.key_state.available_keys.len().saturating_sub(1);
+                            if self.key_state.selected_key_index < max {
+                                self.key_state.selected_key_index += 1;
+                            }
+                        }
                     }
                     KeyCode::Esc => {
                         self.key_state.screen = KeyScreen::Main;
@@ -340,8 +356,14 @@ impl App {
                 if self.key_state.available_keys.is_empty() {
                     Ok("No keys available to import".to_string())
                 } else {
-                    // Use the first available key for now
-                    key_operations::import_key_to_card(&self.key_state.available_keys[0])
+                    let idx = if self.key_state.selected_key_index
+                        < self.key_state.available_keys.len()
+                    {
+                        self.key_state.selected_key_index
+                    } else {
+                        0
+                    };
+                    key_operations::import_key_to_card(&self.key_state.available_keys[idx])
                 }
             }
             KeyScreen::GenerateKey => key_operations::generate_key_on_card(),

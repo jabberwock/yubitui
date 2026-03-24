@@ -6,6 +6,9 @@
 ## Status
 active
 
+## Current Plan
+Phase 1 — ALL PLANS COMPLETE
+
 ## Progress
 - Phase 1: in progress (all 3 plans complete)
 - Phase 2: not started
@@ -22,6 +25,7 @@ active
 - Consolidated redundant Phase 2 import lines into single 'Import keys to card (via GPG)' entry
 - Global ? handler at top of handle_key_event before screen-specific blocks ensures uniform access from all screens
 - previous_screen: Screen field stores return destination for modal overlay pattern
+- Interactive key picker: use selected_key_index in KeyState, ratatui List widget with per-item styles for ImportKey screen
 
 ## Notes
 - Cross-platform requirement is non-negotiable (Linux/macOS/Windows)
