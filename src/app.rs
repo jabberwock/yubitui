@@ -46,7 +46,8 @@ impl App {
         // Setup terminal
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        execute!(stdout, EnterAlternateScreen)?;
+        // Note: We deliberately DON'T enable mouse capture to allow text selection
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
@@ -58,7 +59,6 @@ impl App {
         execute!(
             terminal.backend_mut(),
             LeaveAlternateScreen,
-            DisableMouseCapture
         )?;
         terminal.show_cursor()?;
 

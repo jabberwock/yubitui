@@ -112,6 +112,8 @@ yubitui --list
 - `q`: Quit
 - `?`: Show help
 
+**Note**: Mouse capture is intentionally disabled to allow text selection and copying. Use keyboard navigation instead.
+
 ## YubiKey Model Support
 
 | Model | PIV | OpenPGP | FIDO2 | Firmware Detection |
