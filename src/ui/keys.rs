@@ -12,8 +12,8 @@ pub enum KeyScreen {
     ImportKey,
     GenerateKey,
     ExportSSH,
-    KeyAttributes,   // read-only key algorithm display per slot
-    SshPubkeyPopup,  // in-TUI SSH public key viewer
+    KeyAttributes,  // read-only key algorithm display per slot
+    SshPubkeyPopup, // in-TUI SSH public key viewer
 }
 
 pub struct KeyState {

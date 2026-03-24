@@ -171,6 +171,12 @@ impl App {
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) -> Result<()> {
+        // On Windows, crossterm fires both Press and Release events.
+        // Ignore everything except Press to prevent double-handling.
+        if key.kind != crossterm::event::KeyEventKind::Press {
+            return Ok(());
+        }
+
         // Global ? handler — open help from any screen
         if key.code == KeyCode::Char('?') {
             if self.current_screen == Screen::Help {
