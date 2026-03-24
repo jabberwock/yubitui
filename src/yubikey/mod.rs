@@ -5,6 +5,7 @@ pub mod pin;
 pub mod pin_operations;
 pub mod piv;
 pub mod ssh;
+pub mod attestation;
 pub mod ssh_operations;
 pub mod touch_policy;
 
