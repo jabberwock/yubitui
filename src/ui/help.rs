@@ -39,6 +39,16 @@ pub fn render(frame: &mut Frame, area: Rect) {
                 Style::default().fg(Color::White),
             ),
         ]),
+        Line::from(vec![
+            Span::styled(
+                format!("{:<12}", "m / Enter"),
+                Style::default().fg(Color::Yellow),
+            ),
+            Span::styled(
+                "Open navigation menu (Dashboard)",
+                Style::default().fg(Color::White),
+            ),
+        ]),
         Line::from(""),
         Line::from(vec![Span::styled(
             " Key Management (Screen 3)",

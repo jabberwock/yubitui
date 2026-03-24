@@ -2,7 +2,10 @@
 
 use anyhow::Result;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, MouseButton,
+        MouseEvent, MouseEventKind,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -34,6 +37,7 @@ pub struct App {
     pin_state: ui::pin::PinState,
     key_state: ui::keys::KeyState,
     ssh_state: ui::ssh::SshState,
+    dashboard_state: ui::dashboard::DashboardState,
 }
 
 impl App {
@@ -50,6 +54,7 @@ impl App {
             pin_state: ui::pin::PinState::default(),
             key_state: ui::keys::KeyState::default(),
             ssh_state: ui::ssh::SshState::default(),
+            dashboard_state: ui::dashboard::DashboardState::default(),
         })
     }
 
@@ -57,8 +62,7 @@ impl App {
         // Setup terminal
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen)?;
-        // Note: We deliberately DON'T enable mouse capture to allow text selection
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
@@ -67,7 +71,11 @@ impl App {
 
         // Restore terminal
         disable_raw_mode()?;
-        execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
+        execute!(
+            terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )?;
         terminal.show_cursor()?;
 
         result
@@ -89,7 +97,9 @@ impl App {
 
         // Render current screen
         match self.current_screen {
-            Screen::Dashboard => ui::dashboard::render(frame, chunks[0], self),
+            Screen::Dashboard => {
+                ui::dashboard::render(frame, chunks[0], self, &self.dashboard_state)
+            }
             Screen::Diagnostics => ui::diagnostics::render(frame, chunks[0], &self.diagnostics),
             Screen::Help => ui::help::render(frame, chunks[0]),
             Screen::Keys => {
@@ -107,8 +117,10 @@ impl App {
 
     fn handle_events(&mut self) -> Result<()> {
         if event::poll(std::time::Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                self.handle_key_event(key)?;
+            match event::read()? {
+                Event::Key(key) => self.handle_key_event(key)?,
+                Event::Mouse(mouse) => self.handle_mouse_event(mouse)?,
+                _ => {}
             }
         }
         Ok(())
@@ -130,6 +142,44 @@ impl App {
         if self.current_screen == Screen::Help {
             if key.code == KeyCode::Esc {
                 self.current_screen = self.previous_screen;
+            }
+            return Ok(());
+        }
+
+        // Handle Dashboard context menu
+        if self.current_screen == Screen::Dashboard && self.dashboard_state.show_context_menu {
+            match key.code {
+                KeyCode::Up => {
+                    if self.dashboard_state.menu_selected_index > 0 {
+                        self.dashboard_state.menu_selected_index -= 1;
+                    }
+                }
+                KeyCode::Down => {
+                    if self.dashboard_state.menu_selected_index < 4 {
+                        self.dashboard_state.menu_selected_index += 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    let target = match self.dashboard_state.menu_selected_index {
+                        0 => Screen::Diagnostics,
+                        1 => Screen::Keys,
+                        2 => Screen::PinManagement,
+                        3 => Screen::SshWizard,
+                        4 => Screen::Help,
+                        _ => Screen::Dashboard,
+                    };
+                    self.dashboard_state.show_context_menu = false;
+                    self.dashboard_state.menu_selected_index = 0;
+                    if target == Screen::PinManagement {
+                        self.pin_state = ui::pin::PinState::default();
+                    }
+                    self.current_screen = target;
+                }
+                KeyCode::Esc => {
+                    self.dashboard_state.show_context_menu = false;
+                    self.dashboard_state.menu_selected_index = 0;
+                }
+                _ => {}
             }
             return Ok(());
         }
@@ -300,6 +350,57 @@ impl App {
                 // Refresh: re-run diagnostics and detect YubiKey
                 self.diagnostics = Diagnostics::run()?;
                 self.yubikey_state = YubiKeyState::detect()?;
+            }
+            KeyCode::Enter | KeyCode::Char('m') => {
+                if self.current_screen == Screen::Dashboard {
+                    self.dashboard_state.show_context_menu = true;
+                    self.dashboard_state.menu_selected_index = 0;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn handle_mouse_event(&mut self, mouse: MouseEvent) -> Result<()> {
+        match mouse.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                // If context menu is showing, clicking closes it
+                if self.current_screen == Screen::Dashboard
+                    && self.dashboard_state.show_context_menu
+                {
+                    self.dashboard_state.show_context_menu = false;
+                }
+            }
+            MouseEventKind::ScrollUp => {
+                if self.current_screen == Screen::Dashboard
+                    && self.dashboard_state.show_context_menu
+                {
+                    if self.dashboard_state.menu_selected_index > 0 {
+                        self.dashboard_state.menu_selected_index -= 1;
+                    }
+                } else if self.current_screen == Screen::Keys
+                    && self.key_state.screen == ui::keys::KeyScreen::ImportKey
+                    && self.key_state.selected_key_index > 0
+                {
+                    self.key_state.selected_key_index -= 1;
+                }
+            }
+            MouseEventKind::ScrollDown => {
+                if self.current_screen == Screen::Dashboard
+                    && self.dashboard_state.show_context_menu
+                {
+                    if self.dashboard_state.menu_selected_index < 4 {
+                        self.dashboard_state.menu_selected_index += 1;
+                    }
+                } else if self.current_screen == Screen::Keys
+                    && self.key_state.screen == ui::keys::KeyScreen::ImportKey
+                {
+                    let max = self.key_state.available_keys.len().saturating_sub(1);
+                    if self.key_state.selected_key_index < max {
+                        self.key_state.selected_key_index += 1;
+                    }
+                }
             }
             _ => {}
         }
