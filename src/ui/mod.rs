@@ -1,5 +1,6 @@
 pub mod dashboard;
 pub mod diagnostics;
+pub mod help;
 pub mod keys;
 pub mod pin;
 pub mod ssh;
@@ -22,6 +23,7 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     let status_text = match app.current_screen() {
         Screen::Dashboard => "Dashboard",
         Screen::Diagnostics => "Diagnostics",
+        Screen::Help => "Help",
         Screen::Keys => "Key Management",
         Screen::PinManagement => "PIN Management",
         Screen::SshWizard => "SSH Setup Wizard",
@@ -29,6 +31,7 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
 
     let help_text = match app.current_screen() {
         Screen::Dashboard => "1-5: Switch View | R: Refresh | Q: Quit",
+        Screen::Help => "?: Close Help | ESC: Close Help",
         _ => "ESC: Back | R: Refresh | Q: Quit",
     };
 
