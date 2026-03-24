@@ -12,8 +12,11 @@ pub enum KeyScreen {
     ImportKey,
     GenerateKey,
     ExportSSH,
-    KeyAttributes,  // read-only key algorithm display per slot
-    SshPubkeyPopup, // in-TUI SSH public key viewer
+    KeyAttributes,        // read-only key algorithm display per slot
+    SshPubkeyPopup,       // in-TUI SSH public key viewer
+    SetTouchPolicy,       // slot selection
+    SetTouchPolicySelect, // policy selection
+    SetTouchPolicyConfirm, // irreversibility confirmation
 }
 
 pub struct KeyState {
@@ -23,6 +26,9 @@ pub struct KeyState {
     pub selected_key_index: usize,
     pub key_attributes: Option<crate::yubikey::key_operations::KeyAttributes>,
     pub ssh_pubkey: Option<String>,
+    pub touch_slot_index: usize,   // 0=sig, 1=enc, 2=aut, 3=att
+    pub touch_policy_index: usize, // 0=Off, 1=On, 2=Fixed, 3=Cached, 4=CachedFixed
+    pub attestation_popup: Option<String>, // PEM content for popup display
     // Reserved for future context menu integration (Plan 02-04)
     #[allow(dead_code)]
     pub show_context_menu: bool,
@@ -39,9 +45,44 @@ impl Default for KeyState {
             selected_key_index: 0,
             key_attributes: None,
             ssh_pubkey: None,
+            touch_slot_index: 0,
+            touch_policy_index: 0,
+            attestation_popup: None,
             show_context_menu: false,
             menu_selected_index: 0,
         }
+    }
+}
+
+pub fn touch_slot_name(index: usize) -> &'static str {
+    match index {
+        0 => "sig",
+        1 => "enc",
+        2 => "aut",
+        3 => "att",
+        _ => "sig",
+    }
+}
+
+pub fn touch_slot_display(index: usize) -> &'static str {
+    match index {
+        0 => "Signature",
+        1 => "Encryption",
+        2 => "Authentication",
+        3 => "Attestation",
+        _ => "Signature",
+    }
+}
+
+pub fn touch_policy_from_index(index: usize) -> crate::yubikey::touch_policy::TouchPolicy {
+    use crate::yubikey::touch_policy::TouchPolicy;
+    match index {
+        0 => TouchPolicy::Off,
+        1 => TouchPolicy::On,
+        2 => TouchPolicy::Fixed,
+        3 => TouchPolicy::Cached,
+        4 => TouchPolicy::CachedFixed,
+        _ => TouchPolicy::Off,
     }
 }
 
@@ -59,6 +100,14 @@ pub fn render(
         KeyScreen::ExportSSH => render_export_ssh(frame, area, state),
         KeyScreen::KeyAttributes => render_key_attributes(frame, area, state),
         KeyScreen::SshPubkeyPopup => render_ssh_pubkey_popup(frame, area, yubikey_state, state),
+        KeyScreen::SetTouchPolicy => render_set_touch_policy(frame, area, state),
+        KeyScreen::SetTouchPolicySelect => render_set_touch_policy_select(frame, area, state),
+        KeyScreen::SetTouchPolicyConfirm => render_set_touch_policy_confirm(frame, area, state),
+    }
+
+    // Attestation popup overlays any other screen
+    if state.attestation_popup.is_some() {
+        render_attestation_popup(frame, area, state);
     }
 }
 
@@ -77,7 +126,7 @@ fn render_main(
         ])
         .split(area);
 
-    let title = Paragraph::new("🔑 Key Management")
+    let title = Paragraph::new("Key Management")
         .style(
             Style::default()
                 .fg(Color::Cyan)
@@ -92,42 +141,67 @@ fn render_main(
         if let Some(ref openpgp) = yk.openpgp {
             if let Some(ref sig) = openpgp.signature_key {
                 lines.push(Line::from(vec![
-                    Span::styled("✅ Signature: ", Style::default().fg(Color::Green)),
+                    Span::styled("Signature:      ", Style::default().fg(Color::Green)),
                     Span::raw(sig.fingerprint.get(..16).unwrap_or(&sig.fingerprint).to_string()),
                     Span::raw("..."),
                 ]));
             } else {
                 lines.push(Line::from(vec![
-                    Span::styled("❌ Signature: ", Style::default().fg(Color::Red)),
+                    Span::styled("Signature:      ", Style::default().fg(Color::Red)),
                     Span::raw("Not set"),
                 ]));
             }
 
             if let Some(ref enc) = openpgp.encryption_key {
                 lines.push(Line::from(vec![
-                    Span::styled("✅ Encryption: ", Style::default().fg(Color::Green)),
+                    Span::styled("Encryption:     ", Style::default().fg(Color::Green)),
                     Span::raw(enc.fingerprint.get(..16).unwrap_or(&enc.fingerprint).to_string()),
                     Span::raw("..."),
                 ]));
             } else {
                 lines.push(Line::from(vec![
-                    Span::styled("❌ Encryption: ", Style::default().fg(Color::Red)),
+                    Span::styled("Encryption:     ", Style::default().fg(Color::Red)),
                     Span::raw("Not set"),
                 ]));
             }
 
             if let Some(ref auth) = openpgp.authentication_key {
                 lines.push(Line::from(vec![
-                    Span::styled("✅ Authentication: ", Style::default().fg(Color::Green)),
+                    Span::styled("Authentication: ", Style::default().fg(Color::Green)),
                     Span::raw(auth.fingerprint.get(..16).unwrap_or(&auth.fingerprint).to_string()),
                     Span::raw("..."),
                 ]));
             } else {
                 lines.push(Line::from(vec![
-                    Span::styled("❌ Authentication: ", Style::default().fg(Color::Red)),
+                    Span::styled("Authentication: ", Style::default().fg(Color::Red)),
                     Span::raw("Not set (required for SSH)"),
                 ]));
             }
+        }
+
+        // Touch policy display
+        if let Some(ref tp) = yk.touch_policies {
+            lines.push(Line::from(""));
+            lines.push(Line::from(vec![Span::styled(
+                "Touch Policies:",
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(Line::from(vec![
+                Span::styled("  Signature:      ", Style::default().fg(Color::Yellow)),
+                Span::raw(format!("{}", tp.signature)),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled("  Encryption:     ", Style::default().fg(Color::Yellow)),
+                Span::raw(format!("{}", tp.encryption)),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled("  Authentication: ", Style::default().fg(Color::Yellow)),
+                Span::raw(format!("{}", tp.authentication)),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled("  Attestation:    ", Style::default().fg(Color::Yellow)),
+                Span::raw(format!("{}", tp.attestation)),
+            ]));
         }
 
         if let Some(ref msg) = state.message {
@@ -146,7 +220,7 @@ fn render_main(
     let paragraph = Paragraph::new(content).block(
         Block::default()
             .borders(Borders::ALL)
-            .title("📊 Keys on Card"),
+            .title("Keys on Card"),
     );
     frame.render_widget(paragraph, chunks[1]);
 
@@ -155,14 +229,14 @@ fn render_main(
         ListItem::new("[I] Import existing key to card").style(Style::default().fg(Color::Green)),
         ListItem::new("[G] Generate new key on card").style(Style::default().fg(Color::Yellow)),
         ListItem::new("[E] Export SSH public key").style(Style::default().fg(Color::Magenta)),
-        ListItem::new("[A] View key attributes").style(Style::default().fg(Color::Blue)),
-        ListItem::new("[S] Show SSH public key").style(Style::default().fg(Color::White)),
+        ListItem::new("[K] Key attributes  [S] SSH pubkey").style(Style::default().fg(Color::Blue)),
+        ListItem::new("[T] Touch policy  [A] Attestation").style(Style::default().fg(Color::White)),
         ListItem::new(""),
         ListItem::new("[ESC] Back to Dashboard"),
     ];
 
     let action_list =
-        List::new(actions).block(Block::default().title("⌨️  Actions").borders(Borders::ALL));
+        List::new(actions).block(Block::default().title("Actions").borders(Borders::ALL));
     frame.render_widget(action_list, chunks[2]);
 }
 
@@ -449,4 +523,104 @@ fn render_operation_screen(
         .block(Block::default().borders(Borders::ALL))
         .wrap(ratatui::widgets::Wrap { trim: true });
     frame.render_widget(paragraph, chunks[1]);
+}
+
+fn render_set_touch_policy(frame: &mut Frame, area: Rect, state: &KeyState) {
+    let slots = ["Signature (sig)", "Encryption (enc)", "Authentication (aut)", "Attestation (att)"];
+    let mut lines: Vec<Line> = vec![
+        Line::from(vec![Span::styled(
+            "Select slot for touch policy:",
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+    ];
+    for (i, slot) in slots.iter().enumerate() {
+        if i == state.touch_slot_index {
+            lines.push(Line::from(vec![
+                Span::styled("> ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Span::styled(*slot, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            ]));
+        } else {
+            lines.push(Line::from(vec![
+                Span::raw("  "),
+                Span::raw(*slot),
+            ]));
+        }
+    }
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![Span::styled(
+        "[Up/Down] Select  [Enter] Confirm  [Esc] Cancel",
+        Style::default().fg(Color::DarkGray),
+    )]));
+
+    let paragraph = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title("Set Touch Policy"))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    frame.render_widget(paragraph, area);
+}
+
+fn render_set_touch_policy_select(frame: &mut Frame, area: Rect, state: &KeyState) {
+    let slot_display = touch_slot_display(state.touch_slot_index);
+    let policies = ["Off", "On", "Fixed (IRREVERSIBLE)", "Cached", "Cached-Fixed (IRREVERSIBLE)"];
+    let mut lines: Vec<Line> = vec![
+        Line::from(vec![Span::styled(
+            format!("Select touch policy for {}:", slot_display),
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+    ];
+    for (i, policy) in policies.iter().enumerate() {
+        if i == state.touch_policy_index {
+            lines.push(Line::from(vec![
+                Span::styled("> ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Span::styled(*policy, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            ]));
+        } else {
+            lines.push(Line::from(vec![
+                Span::raw("  "),
+                Span::raw(*policy),
+            ]));
+        }
+    }
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![Span::styled(
+        "[Up/Down] Select  [Enter] Confirm  [Esc] Back to slot selection",
+        Style::default().fg(Color::DarkGray),
+    )]));
+
+    let paragraph = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title("Set Touch Policy"))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    frame.render_widget(paragraph, area);
+}
+
+fn render_set_touch_policy_confirm(frame: &mut Frame, area: Rect, state: &KeyState) {
+    let slot_display = touch_slot_display(state.touch_slot_index);
+    let policy = touch_policy_from_index(state.touch_policy_index);
+    let text = format!(
+        "WARNING: IRREVERSIBLE OPERATION\n\n\
+         Setting {} touch policy on {} is IRREVERSIBLE.\n\
+         The policy cannot be changed without deleting the private key.\n\n\
+         Press 'y' to confirm or any other key to cancel.",
+        policy, slot_display
+    );
+    let paragraph = Paragraph::new(text)
+        .style(Style::default().fg(Color::Red))
+        .block(Block::default().borders(Borders::ALL).title("Confirm IRREVERSIBLE Change"))
+        .wrap(ratatui::widgets::Wrap { trim: true });
+    frame.render_widget(paragraph, area);
+}
+
+fn render_attestation_popup(frame: &mut Frame, area: Rect, state: &KeyState) {
+    if let Some(ref pem) = state.attestation_popup {
+        let body = format!("{}\n\nPress ESC to close.", pem);
+        crate::ui::widgets::popup::render_popup(
+            frame,
+            area,
+            "Attestation Certificate (SIG)",
+            &body,
+            80,
+            20,
+        );
+    }
 }

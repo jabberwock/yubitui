@@ -33,7 +33,8 @@ pub struct App {
     current_screen: Screen,
     previous_screen: Screen,
     diagnostics: Diagnostics,
-    yubikey_state: Option<YubiKeyState>,
+    yubikey_states: Vec<YubiKeyState>,
+    selected_yubikey_idx: usize,
     pin_state: ui::pin::PinState,
     key_state: ui::keys::KeyState,
     ssh_state: ui::ssh::SshState,
@@ -43,14 +44,15 @@ pub struct App {
 impl App {
     pub fn new() -> Result<Self> {
         let diagnostics = Diagnostics::run()?;
-        let yubikey_state = YubiKeyState::detect()?;
+        let yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
 
         Ok(Self {
             should_quit: false,
             current_screen: Screen::Dashboard,
             previous_screen: Screen::Dashboard,
             diagnostics,
-            yubikey_state,
+            yubikey_states,
+            selected_yubikey_idx: 0,
             pin_state: ui::pin::PinState::default(),
             key_state: ui::keys::KeyState::default(),
             ssh_state: ui::ssh::SshState::default(),
@@ -103,10 +105,12 @@ impl App {
             Screen::Diagnostics => ui::diagnostics::render(frame, chunks[0], &self.diagnostics),
             Screen::Help => ui::help::render(frame, chunks[0]),
             Screen::Keys => {
-                ui::keys::render(frame, chunks[0], &self.yubikey_state, &self.key_state)
+                let yk = self.yubikey_state().cloned();
+                ui::keys::render(frame, chunks[0], &yk, &self.key_state)
             }
             Screen::PinManagement => {
-                ui::pin::render(frame, chunks[0], &self.yubikey_state, &self.pin_state)
+                let yk = self.yubikey_state().cloned();
+                ui::pin::render(frame, chunks[0], &yk, &self.pin_state)
             }
             Screen::SshWizard => ui::ssh::render(frame, chunks[0], self, &self.ssh_state),
         }
@@ -202,6 +206,13 @@ impl App {
 
             match self.key_state.screen {
                 KeyScreen::Main => {
+                    // Attestation popup takes priority: Esc closes it
+                    if self.key_state.attestation_popup.is_some() {
+                        if key.code == KeyCode::Esc {
+                            self.key_state.attestation_popup = None;
+                        }
+                        return Ok(());
+                    }
                     match key.code {
                         KeyCode::Char('v') => {
                             self.key_state.screen = KeyScreen::ViewStatus;
@@ -220,7 +231,7 @@ impl App {
                         KeyCode::Char('e') => {
                             self.key_state.screen = KeyScreen::ExportSSH;
                         }
-                        KeyCode::Char('a') => {
+                        KeyCode::Char('k') => {
                             // Fetch key attributes via ykman
                             self.key_state.screen = KeyScreen::KeyAttributes;
                             match crate::yubikey::key_operations::get_key_attributes() {
@@ -243,6 +254,23 @@ impl App {
                                 }
                             }
                         }
+                        KeyCode::Char('t') => {
+                            // Enter touch policy slot selection
+                            self.key_state.screen = KeyScreen::SetTouchPolicy;
+                            self.key_state.touch_slot_index = 0;
+                        }
+                        KeyCode::Char('a') => {
+                            // Show attestation certificate for sig slot
+                            let serial = self.yubikey_state().map(|yk| yk.info.serial);
+                            match crate::yubikey::attestation::get_attestation_cert("sig", serial) {
+                                Ok(pem) => {
+                                    self.key_state.attestation_popup = Some(pem);
+                                }
+                                Err(e) => {
+                                    self.key_state.message = Some(format!("Attestation: {}", e));
+                                }
+                            }
+                        }
                         KeyCode::Esc => {
                             self.current_screen = Screen::Dashboard;
                         }
@@ -253,6 +281,69 @@ impl App {
                     if key.code == KeyCode::Esc {
                         self.key_state.screen = KeyScreen::Main;
                         self.key_state.message = None;
+                    }
+                }
+                KeyScreen::SetTouchPolicy => {
+                    match key.code {
+                        KeyCode::Up => {
+                            if self.key_state.touch_slot_index > 0 {
+                                self.key_state.touch_slot_index -= 1;
+                            }
+                        }
+                        KeyCode::Down => {
+                            if self.key_state.touch_slot_index < 3 {
+                                self.key_state.touch_slot_index += 1;
+                            }
+                        }
+                        KeyCode::Enter => {
+                            self.key_state.touch_policy_index = 0;
+                            self.key_state.screen = KeyScreen::SetTouchPolicySelect;
+                        }
+                        KeyCode::Esc => {
+                            self.key_state.screen = KeyScreen::Main;
+                            self.key_state.message = None;
+                        }
+                        _ => {}
+                    }
+                }
+                KeyScreen::SetTouchPolicySelect => {
+                    match key.code {
+                        KeyCode::Up => {
+                            if self.key_state.touch_policy_index > 0 {
+                                self.key_state.touch_policy_index -= 1;
+                            }
+                        }
+                        KeyCode::Down => {
+                            if self.key_state.touch_policy_index < 4 {
+                                self.key_state.touch_policy_index += 1;
+                            }
+                        }
+                        KeyCode::Enter => {
+                            let policy = ui::keys::touch_policy_from_index(self.key_state.touch_policy_index);
+                            if policy.is_irreversible() {
+                                self.key_state.screen = KeyScreen::SetTouchPolicyConfirm;
+                            } else {
+                                let slot = ui::keys::touch_slot_name(self.key_state.touch_slot_index).to_string();
+                                self.execute_touch_policy_set(&slot, &policy)?;
+                            }
+                        }
+                        KeyCode::Esc => {
+                            self.key_state.screen = KeyScreen::SetTouchPolicy;
+                        }
+                        _ => {}
+                    }
+                }
+                KeyScreen::SetTouchPolicyConfirm => {
+                    match key.code {
+                        KeyCode::Char('y') | KeyCode::Char('Y') => {
+                            let slot = ui::keys::touch_slot_name(self.key_state.touch_slot_index).to_string();
+                            let policy = ui::keys::touch_policy_from_index(self.key_state.touch_policy_index);
+                            self.execute_touch_policy_set(&slot, &policy)?;
+                        }
+                        _ => {
+                            self.key_state.message = Some("Cancelled".to_string());
+                            self.key_state.screen = KeyScreen::Main;
+                        }
                     }
                 }
                 _ => match key.code {
@@ -358,7 +449,7 @@ impl App {
                 },
                 PinScreen::UnblockWizardCheck => match key.code {
                     KeyCode::Char('1') => {
-                        if let Some(yk) = &self.yubikey_state {
+                        if let Some(yk) = self.yubikey_state() {
                             if yk.pin_status.reset_code_retries > 0 {
                                 self.pin_state.screen = PinScreen::UnblockWizardWithReset;
                                 self.pin_state.unblock_path = Some(ui::pin::UnblockPath::ResetCode);
@@ -366,7 +457,7 @@ impl App {
                         }
                     }
                     KeyCode::Char('2') => {
-                        if let Some(yk) = &self.yubikey_state {
+                        if let Some(yk) = self.yubikey_state() {
                             if yk.pin_status.admin_pin_retries > 0 {
                                 self.pin_state.screen = PinScreen::UnblockWizardWithAdmin;
                                 self.pin_state.unblock_path = Some(ui::pin::UnblockPath::AdminPin);
@@ -374,7 +465,7 @@ impl App {
                         }
                     }
                     KeyCode::Char('3') => {
-                        if let Some(yk) = &self.yubikey_state {
+                        if let Some(yk) = self.yubikey_state() {
                             if yk.pin_status.reset_code_retries == 0
                                 && yk.pin_status.admin_pin_retries == 0
                                 && self.pin_state.ykman_available
@@ -414,7 +505,10 @@ impl App {
                                 match result {
                                     Ok(msg) => {
                                         self.pin_state.message = Some(msg);
-                                        self.yubikey_state = YubiKeyState::detect()?;
+                                        self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                                        if self.selected_yubikey_idx >= self.yubikey_states.len() {
+                                            self.selected_yubikey_idx = 0;
+                                        }
                                     }
                                     Err(e) => {
                                         self.pin_state.message = Some(format!("Error: {}", e));
@@ -505,6 +599,12 @@ impl App {
                     self.current_screen = Screen::Dashboard;
                 }
             }
+            KeyCode::Tab => {
+                // Switch active YubiKey on Dashboard
+                if self.current_screen == Screen::Dashboard && !self.yubikey_states.is_empty() {
+                    self.selected_yubikey_idx = (self.selected_yubikey_idx + 1) % self.yubikey_states.len();
+                }
+            }
             KeyCode::Char('1') => self.current_screen = Screen::Dashboard,
             KeyCode::Char('2') => self.current_screen = Screen::Diagnostics,
             KeyCode::Char('3') => self.current_screen = Screen::Keys,
@@ -514,9 +614,12 @@ impl App {
             }
             KeyCode::Char('5') => self.current_screen = Screen::SshWizard,
             KeyCode::Char('r') => {
-                // Refresh: re-run diagnostics and detect YubiKey
+                // Refresh: re-run diagnostics and detect YubiKeys
                 self.diagnostics = Diagnostics::run()?;
-                self.yubikey_state = YubiKeyState::detect()?;
+                self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                if self.selected_yubikey_idx >= self.yubikey_states.len() {
+                    self.selected_yubikey_idx = 0;
+                }
             }
             KeyCode::Enter | KeyCode::Char('m') => {
                 if self.current_screen == Screen::Dashboard {
@@ -557,7 +660,10 @@ impl App {
             Ok(msg) => {
                 self.pin_state.message = Some(msg);
                 // Refresh YubiKey state to get updated PIN counters
-                self.yubikey_state = YubiKeyState::detect()?;
+                self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                if self.selected_yubikey_idx >= self.yubikey_states.len() {
+                    self.selected_yubikey_idx = 0;
+                }
             }
             Err(e) => {
                 self.pin_state.message = Some(format!("Error: {}", e));
@@ -606,7 +712,10 @@ impl App {
             Ok(msg) => {
                 self.key_state.message = Some(msg);
                 // Refresh YubiKey state
-                self.yubikey_state = YubiKeyState::detect()?;
+                self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                if self.selected_yubikey_idx >= self.yubikey_states.len() {
+                    self.selected_yubikey_idx = 0;
+                }
             }
             Err(e) => {
                 self.key_state.message = Some(format!("Error: {}", e));
@@ -720,12 +829,67 @@ impl App {
         Ok(())
     }
 
+    fn execute_touch_policy_set(
+        &mut self,
+        slot: &str,
+        policy: &crate::yubikey::touch_policy::TouchPolicy,
+    ) -> Result<()> {
+        let serial = self.yubikey_state().map(|yk| yk.info.serial);
+
+        // Drop to terminal for ykman Admin PIN entry
+        crossterm::terminal::disable_raw_mode()?;
+        crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
+
+        let result = crate::yubikey::touch_policy::set_touch_policy(slot, policy, serial);
+        match result {
+            Ok(mut child) => {
+                let status = child.wait();
+                match status {
+                    Ok(s) if s.success() => {
+                        self.key_state.message =
+                            Some(format!("Touch policy set to {} for {}", policy, slot));
+                    }
+                    Ok(_) => {
+                        self.key_state.message =
+                            Some("Touch policy change cancelled or failed".to_string());
+                    }
+                    Err(e) => {
+                        self.key_state.message = Some(format!("Error: {}", e));
+                    }
+                }
+            }
+            Err(e) => {
+                self.key_state.message = Some(format!("Error: {}", e));
+            }
+        }
+
+        // Restore TUI
+        crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
+        crossterm::terminal::enable_raw_mode()?;
+
+        // Refresh YubiKey state
+        self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+        if self.selected_yubikey_idx >= self.yubikey_states.len() {
+            self.selected_yubikey_idx = 0;
+        }
+        self.key_state.screen = ui::keys::KeyScreen::Main;
+        Ok(())
+    }
+
     pub fn current_screen(&self) -> Screen {
         self.current_screen
     }
 
     pub fn yubikey_state(&self) -> Option<&YubiKeyState> {
-        self.yubikey_state.as_ref()
+        self.yubikey_states.get(self.selected_yubikey_idx)
+    }
+
+    pub fn yubikey_count(&self) -> usize {
+        self.yubikey_states.len()
+    }
+
+    pub fn selected_yubikey_idx(&self) -> usize {
+        self.selected_yubikey_idx
     }
 
     pub fn diagnostics(&self) -> &Diagnostics {

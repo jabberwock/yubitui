@@ -31,6 +31,17 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState) 
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(title, chunks[0]);
 
+    // Multi-key indicator
+    let multi_key_line = if app.yubikey_count() > 1 {
+        format!(
+            "Key {}/{} (Tab to switch)\n",
+            app.selected_yubikey_idx() + 1,
+            app.yubikey_count()
+        )
+    } else {
+        String::new()
+    };
+
     // Quick status
     let status_text = if let Some(yk) = app.yubikey_state() {
         let pin_status = &yk.pin_status;
@@ -64,11 +75,12 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState) 
         };
 
         format!(
-            "📱 Device: {} {} | FW: {} | SN: {}\n\
+            "{}Device: {} {} | FW: {} | SN: {}\n\
              {} PIN: {}/3 retries | Admin: {}/3 retries\n\
              {}\n\
              \n\
-             ✨ All systems operational - Your YubiKey is ready to use!",
+             All systems operational - Your YubiKey is ready to use!",
+            multi_key_line,
             yk.info.model,
             yk.info.form_factor,
             yk.info.version,

@@ -146,10 +146,16 @@ pub struct YubiKeyState {
     #[allow(dead_code)]
     pub piv: Option<piv::PivState>,
     pub pin_status: pin::PinStatus,
+    pub touch_policies: Option<touch_policy::TouchPolicies>,
 }
 
 impl YubiKeyState {
+    #[allow(dead_code)]
     pub fn detect() -> Result<Option<Self>> {
         detection::detect_yubikey_state()
+    }
+
+    pub fn detect_all() -> Result<Vec<Self>> {
+        detection::detect_all_yubikey_states()
     }
 }

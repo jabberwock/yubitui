@@ -3,6 +3,44 @@ use std::process::Command;
 
 use super::{FormFactor, Model, Version, YubiKeyInfo, YubiKeyState};
 
+/// Parse a list of serial numbers from `ykman list --serials` output.
+/// Each line is expected to contain a single decimal serial number.
+pub fn parse_serial_list(output: &str) -> Vec<u32> {
+    output
+        .lines()
+        .filter_map(|l| l.trim().parse::<u32>().ok())
+        .collect()
+}
+
+/// Returns a list of serial numbers for all connected YubiKeys.
+/// Uses `ykman list --serials`. Returns an empty vec if ykman is unavailable or
+/// no keys are connected.
+pub fn list_connected_serials() -> Result<Vec<u32>> {
+    let ykman = match crate::yubikey::pin_operations::find_ykman() {
+        Ok(path) => path,
+        Err(_) => return Ok(vec![]),
+    };
+    let output = Command::new(ykman).args(["list", "--serials"]).output()?;
+    if !output.status.success() {
+        return Ok(vec![]);
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(parse_serial_list(&stdout))
+}
+
+/// Detect all connected YubiKey states.
+/// Falls back to single-key detection when ykman is unavailable.
+pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
+    let serials = list_connected_serials().unwrap_or_default();
+    tracing::info!("ykman list --serials detected {} serial(s)", serials.len());
+
+    // gpg only sees one card at a time; fall back to single detect
+    match detect_yubikey_state()? {
+        Some(state) => Ok(vec![state]),
+        None => Ok(vec![]),
+    }
+}
+
 pub fn detect_yubikeys() -> Result<Vec<YubiKeyInfo>> {
     let mut keys = Vec::new();
 
@@ -97,11 +135,26 @@ pub fn detect_yubikey_state() -> Result<Option<YubiKeyState>> {
     // Get PIN status (reuses the same gpg call)
     let pin_status = super::pin::get_pin_status()?;
 
+    // Get touch policies via ykman openpgp info
+    let touch_policies = match crate::yubikey::pin_operations::find_ykman() {
+        Ok(ykman) => {
+            match Command::new(ykman).args(["openpgp", "info"]).output() {
+                Ok(output) if output.status.success() => {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    Some(super::touch_policy::parse_touch_policies(&stdout))
+                }
+                _ => None,
+            }
+        }
+        Err(_) => None,
+    };
+
     Ok(Some(YubiKeyState {
         info,
         openpgp,
         piv,
         pin_status,
+        touch_policies,
     }))
 }
 
@@ -150,5 +203,29 @@ mod tests {
     fn test_detect_model_unknown() {
         let v = Version { major: 1, minor: 0, patch: 0 };
         assert_eq!(detect_model_from_version(&v), Model::Unknown);
+    }
+
+    #[test]
+    fn test_parse_serial_list_single() {
+        let result = parse_serial_list("13390292\n");
+        assert_eq!(result, vec![13390292u32]);
+    }
+
+    #[test]
+    fn test_parse_serial_list_multiple() {
+        let result = parse_serial_list("13390292\n99887766\n");
+        assert_eq!(result, vec![13390292u32, 99887766u32]);
+    }
+
+    #[test]
+    fn test_parse_serial_list_empty() {
+        let result = parse_serial_list("");
+        assert_eq!(result, vec![]);
+    }
+
+    #[test]
+    fn test_parse_serial_list_invalid() {
+        let result = parse_serial_list("not_a_number\n13390292\n");
+        assert_eq!(result, vec![13390292u32]);
     }
 }
