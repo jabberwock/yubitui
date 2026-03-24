@@ -66,8 +66,24 @@ impl fmt::Display for Diagnostics {
 
         writeln!(f, "SSH Agent Integration:")?;
         writeln!(f, "  Configured: {}", if self.ssh_agent.configured { "✅ Yes" } else { "⚠️  No" })?;
-        if let Some(ref path) = self.ssh_agent.auth_sock {
-            writeln!(f, "  SSH_AUTH_SOCK: {}", path)?;
+        
+        if !self.ssh_agent.configured {
+            if !self.ssh_agent.gpg_agent_has_ssh_support {
+                writeln!(f, "  Issues: enable-ssh-support not found in ~/.gnupg/gpg-agent.conf")?;
+            }
+            if !self.ssh_agent.ssh_auth_sock_correct {
+                writeln!(f, "  Issues: SSH_AUTH_SOCK not pointing to GPG agent")?;
+                if let Some(ref current) = self.ssh_agent.auth_sock {
+                    writeln!(f, "    Current: {}", current)?;
+                }
+                if let Some(ref expected) = self.ssh_agent.expected_sock {
+                    writeln!(f, "    Expected: {}", expected)?;
+                    writeln!(f, "    Add to ~/.bashrc or ~/.zshrc:")?;
+                    writeln!(f, "      export SSH_AUTH_SOCK=\"{}\"", expected)?;
+                }
+            }
+        } else if let Some(ref sock) = self.ssh_agent.auth_sock {
+            writeln!(f, "  SSH_AUTH_SOCK: {}", sock)?;
         }
 
         Ok(())
