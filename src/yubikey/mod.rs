@@ -6,6 +6,7 @@ pub mod pin_operations;
 pub mod piv;
 pub mod ssh;
 pub mod ssh_operations;
+pub mod touch_policy;
 
 // YubiKey detection and management
 
