@@ -454,6 +454,37 @@ impl App {
                         _ => {}
                     }
                 }
+                SshScreen::TestConnection => match key.code {
+                    KeyCode::Enter => {
+                        self.execute_ssh_operation()?;
+                    }
+                    KeyCode::Esc => {
+                        self.ssh_state.screen = SshScreen::Main;
+                        self.ssh_state.message = None;
+                        self.ssh_state.test_conn_user.clear();
+                        self.ssh_state.test_conn_host.clear();
+                        self.ssh_state.test_conn_focused = 0;
+                    }
+                    KeyCode::Tab => {
+                        self.ssh_state.test_conn_focused =
+                            1 - self.ssh_state.test_conn_focused;
+                    }
+                    KeyCode::Backspace => {
+                        if self.ssh_state.test_conn_focused == 0 {
+                            self.ssh_state.test_conn_user.pop();
+                        } else {
+                            self.ssh_state.test_conn_host.pop();
+                        }
+                    }
+                    KeyCode::Char(c) => {
+                        if self.ssh_state.test_conn_focused == 0 {
+                            self.ssh_state.test_conn_user.push(c);
+                        } else {
+                            self.ssh_state.test_conn_host.push(c);
+                        }
+                    }
+                    _ => {}
+                },
                 _ => match key.code {
                     KeyCode::Enter => {
                         self.execute_ssh_operation()?;
@@ -857,33 +888,42 @@ impl App {
         use crate::yubikey::key_operations;
         use ui::keys::KeyScreen;
 
-        // GenerateKey and ImportKey now use the TUI wizard — only ViewStatus
-        // and ExportSSH still fall through to the old interactive path.
-        let result = match self.key_state.screen {
+        match self.key_state.screen {
             KeyScreen::ViewStatus => {
                 // View status is non-interactive (piped), no terminal escape needed
-                key_operations::view_card_status()
+                let result = key_operations::view_card_status();
+                match result {
+                    Ok(msg) => {
+                        self.key_state.message = Some(msg);
+                        self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                        if self.selected_yubikey_idx >= self.yubikey_states.len() {
+                            self.selected_yubikey_idx = 0;
+                        }
+                    }
+                    Err(e) => {
+                        self.key_state.message = Some(format!("Error: {}", e));
+                    }
+                }
+                self.key_state.screen = KeyScreen::Main;
             }
-            KeyScreen::ExportSSH => key_operations::export_ssh_public_key(),
-            _ => Ok("No operation".to_string()),
-        };
-
-        // Update state
-        match result {
-            Ok(msg) => {
-                self.key_state.message = Some(msg);
-                // Refresh YubiKey state
-                self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
-                if self.selected_yubikey_idx >= self.yubikey_states.len() {
-                    self.selected_yubikey_idx = 0;
+            KeyScreen::ExportSSH => {
+                // Show SSH public key in TUI popup — no terminal escape
+                match key_operations::get_ssh_public_key_text() {
+                    Ok(key) => {
+                        self.key_state.ssh_pubkey = Some(key);
+                        self.key_state.screen = KeyScreen::SshPubkeyPopup;
+                    }
+                    Err(e) => {
+                        self.key_state.message = Some(format!("Error: {}", e));
+                        self.key_state.screen = KeyScreen::Main;
+                    }
                 }
             }
-            Err(e) => {
-                self.key_state.message = Some(format!("Error: {}", e));
+            _ => {
+                self.key_state.screen = KeyScreen::Main;
             }
         }
 
-        self.key_state.screen = KeyScreen::Main;
         Ok(())
     }
 
@@ -1288,79 +1328,62 @@ impl App {
         use crate::yubikey::ssh_operations;
         use ui::ssh::SshScreen;
 
-        let result = match self.ssh_state.screen {
-            SshScreen::EnableSSH => ssh_operations::enable_ssh_support(),
-            SshScreen::ConfigureShell => ssh_operations::configure_shell_ssh(),
-            SshScreen::RestartAgent => ssh_operations::restart_gpg_agent(),
-            SshScreen::ExportKey => {
-                // Switch to terminal for displaying key
-                crossterm::terminal::disable_raw_mode()?;
-                crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
-
-                let key_result = crate::yubikey::key_operations::export_ssh_public_key();
-
-                if let Ok(key) = &key_result {
-                    println!("\n{}", "=".repeat(70));
-                    println!("SSH Public Key:");
-                    println!("{}", "=".repeat(70));
-                    println!("{}", key);
-                    println!("{}", "=".repeat(70));
-                    println!("\nCopy this key and add it to:");
-                    println!("  • ~/.ssh/authorized_keys on remote servers");
-                    println!("  • GitHub/GitLab SSH keys");
-                    println!("\nPress ENTER to continue...");
-
-                    use std::io::Read;
-                    let _ = std::io::stdin().read(&mut [0u8]).unwrap();
+        match self.ssh_state.screen {
+            SshScreen::EnableSSH => {
+                let result = ssh_operations::enable_ssh_support();
+                match result {
+                    Ok(msg) => self.ssh_state.message = Some(msg),
+                    Err(e) => self.ssh_state.message = Some(format!("Error: {}", e)),
                 }
-
-                // Restore TUI
-                crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
-                crossterm::terminal::enable_raw_mode()?;
-
-                key_result
+                self.refresh_ssh_status()?;
+                self.ssh_state.screen = SshScreen::Main;
+            }
+            SshScreen::ConfigureShell => {
+                let result = ssh_operations::configure_shell_ssh();
+                match result {
+                    Ok(msg) => self.ssh_state.message = Some(msg),
+                    Err(e) => self.ssh_state.message = Some(format!("Error: {}", e)),
+                }
+                self.refresh_ssh_status()?;
+                self.ssh_state.screen = SshScreen::Main;
+            }
+            SshScreen::RestartAgent => {
+                let result = ssh_operations::restart_gpg_agent();
+                match result {
+                    Ok(msg) => self.ssh_state.message = Some(msg),
+                    Err(e) => self.ssh_state.message = Some(format!("Error: {}", e)),
+                }
+                self.refresh_ssh_status()?;
+                self.ssh_state.screen = SshScreen::Main;
+            }
+            SshScreen::ExportKey => {
+                // Show SSH key in TUI popup — no terminal escape
+                match crate::yubikey::key_operations::get_ssh_public_key_text() {
+                    Ok(key) => {
+                        self.key_state.ssh_pubkey = Some(key);
+                        self.current_screen = Screen::Keys;
+                        self.key_state.screen = ui::keys::KeyScreen::SshPubkeyPopup;
+                    }
+                    Err(e) => {
+                        self.ssh_state.message = Some(format!("Error: {}", e));
+                        self.ssh_state.screen = SshScreen::Main;
+                    }
+                }
             }
             SshScreen::TestConnection => {
-                // This needs interactive input, so switch to terminal
-                crossterm::terminal::disable_raw_mode()?;
-                crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
-
-                println!("Test SSH Connection");
-                println!("==================");
-                print!("Username: ");
-                use std::io::{self, Write};
-                io::stdout().flush()?;
-                let mut user = String::new();
-                io::stdin().read_line(&mut user)?;
-
-                print!("Hostname: ");
-                io::stdout().flush()?;
-                let mut host = String::new();
-                io::stdin().read_line(&mut host)?;
-
-                let test_result = ssh_operations::test_ssh_connection(user.trim(), host.trim());
-
-                // Restore TUI
-                crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
-                crossterm::terminal::enable_raw_mode()?;
-
-                test_result
+                // Use TUI-collected username and hostname — no terminal escape
+                let user = self.ssh_state.test_conn_user.trim().to_string();
+                let host = self.ssh_state.test_conn_host.trim().to_string();
+                let result = ssh_operations::test_ssh_connection(&user, &host);
+                match result {
+                    Ok(msg) => self.ssh_state.message = Some(msg),
+                    Err(e) => self.ssh_state.message = Some(format!("Error: {}", e)),
+                }
+                // Stay on TestConnection screen to show result; user presses ESC to go back
             }
-            _ => Ok("No operation".to_string()),
-        };
-
-        // Update state
-        match result {
-            Ok(msg) => {
-                self.ssh_state.message = Some(msg);
-                self.refresh_ssh_status()?;
-            }
-            Err(e) => {
-                self.ssh_state.message = Some(format!("Error: {}", e));
-            }
+            _ => {}
         }
 
-        self.ssh_state.screen = SshScreen::Main;
         Ok(())
     }
 
@@ -1394,36 +1417,15 @@ impl App {
     ) -> Result<()> {
         let serial = self.yubikey_state().map(|yk| yk.info.serial);
 
-        // Drop to terminal for ykman Admin PIN entry
-        crossterm::terminal::disable_raw_mode()?;
-        crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
-
-        let result = crate::yubikey::touch_policy::set_touch_policy(slot, policy, serial);
-        match result {
-            Ok(mut child) => {
-                let status = child.wait();
-                match status {
-                    Ok(s) if s.success() => {
-                        self.key_state.message =
-                            Some(format!("Touch policy set to {} for {}", policy, slot));
-                    }
-                    Ok(_) => {
-                        self.key_state.message =
-                            Some("Touch policy change cancelled or failed".to_string());
-                    }
-                    Err(e) => {
-                        self.key_state.message = Some(format!("Error: {}", e));
-                    }
-                }
+        // set_touch_policy now returns Result<String> with piped IO — no terminal escape needed
+        match crate::yubikey::touch_policy::set_touch_policy(slot, policy, serial) {
+            Ok(msg) => {
+                self.key_state.message = Some(msg);
             }
             Err(e) => {
                 self.key_state.message = Some(format!("Error: {}", e));
             }
         }
-
-        // Restore TUI
-        crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
-        crossterm::terminal::enable_raw_mode()?;
 
         // Refresh YubiKey state
         self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
