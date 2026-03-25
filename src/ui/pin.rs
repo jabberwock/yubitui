@@ -4,6 +4,8 @@ use ratatui::{
 };
 
 use crate::ui::widgets::popup;
+use crate::ui::widgets::pin_input::{render_pin_input, PinInputState};
+use crate::ui::widgets::progress::render_progress_popup;
 use crate::yubikey::YubiKeyState;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -19,6 +21,10 @@ pub enum PinScreen {
     UnblockWizardWithReset,    // Confirm: use reset code to unblock
     UnblockWizardWithAdmin,    // Confirm: use admin PIN to unblock
     UnblockWizardFactoryReset, // WARNING: factory reset destroys all keys
+    // Programmatic flow screens (Plan 04-02):
+    PinInputActive,    // TUI PIN input form is active (collecting PINs)
+    OperationRunning,  // gpg subprocess is executing
+    OperationResult,   // showing success/failure result
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -34,6 +40,17 @@ pub struct PinState {
     pub unblock_path: Option<UnblockPath>,
     pub confirm_factory_reset: bool,
     pub ykman_available: bool,
+    /// Active TUI PIN input form; Some when screen == PinInputActive.
+    pub pin_input: Option<PinInputState>,
+    /// True while the gpg subprocess is executing.
+    pub operation_running: bool,
+    /// Human-readable status message shown during OperationRunning.
+    pub operation_status: Option<String>,
+    /// Spinner tick counter; incremented each render frame.
+    pub progress_tick: usize,
+    /// Which PIN operation triggered the PinInputActive screen.
+    /// Stored as the PinScreen variant that initiated the flow.
+    pub pending_operation: Option<PinScreen>,
 }
 
 impl Default for PinState {
@@ -44,6 +61,11 @@ impl Default for PinState {
             unblock_path: None,
             confirm_factory_reset: false,
             ykman_available: false,
+            pin_input: None,
+            operation_running: false,
+            operation_status: None,
+            progress_tick: 0,
+            pending_operation: None,
         }
     }
 }
@@ -71,6 +93,30 @@ pub fn render(
         }
         PinScreen::UnblockWizardFactoryReset => {
             render_unblock_wizard_factory_reset(frame, area, state)
+        }
+        PinScreen::PinInputActive => {
+            if let Some(pin_input) = &state.pin_input {
+                render_pin_input(frame, area, pin_input);
+            }
+        }
+        PinScreen::OperationRunning => {
+            render_main(frame, area, yubikey_state, state);
+            render_progress_popup(
+                frame,
+                area,
+                "PIN Operation",
+                state
+                    .operation_status
+                    .as_deref()
+                    .unwrap_or("Working..."),
+                state.progress_tick,
+            );
+        }
+        PinScreen::OperationResult => {
+            render_main(frame, area, yubikey_state, state);
+            if let Some(msg) = &state.message {
+                popup::render_popup(frame, area, "Result", msg, 60, 10);
+            }
         }
     }
 }
@@ -388,9 +434,7 @@ fn render_unblock_wizard_with_reset(
 
     let body = format!(
         "Your Reset Code has {retries} retries remaining.\n\n\
-         This will launch GPG to unblock your User PIN using the Reset Code.\n\
-         You will be prompted to enter your Reset Code and choose a new User PIN.\n\n\
-         Press ENTER to proceed or ESC to go back."
+         Press ENTER to enter PINs in-TUI, or ESC to go back."
     );
 
     render_operation_screen(frame, area, "Unblock with Reset Code", &body, state);
@@ -409,9 +453,7 @@ fn render_unblock_wizard_with_admin(
 
     let body = format!(
         "Your Admin PIN has {retries} retries remaining.\n\n\
-         This will launch GPG to unblock your User PIN using the Admin PIN.\n\
-         You will be prompted to enter your Admin PIN and choose a new User PIN.\n\n\
-         Press ENTER to proceed or ESC to go back."
+         Press ENTER to enter PINs in-TUI, or ESC to go back."
     );
 
     render_operation_screen(frame, area, "Unblock with Admin PIN", &body, state);
