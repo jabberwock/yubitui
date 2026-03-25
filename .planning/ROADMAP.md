@@ -94,7 +94,13 @@ Plans:
 
 **Done when:** No operation causes the terminal to hand off to an external interactive process. All user feedback during operations is rendered inside the TUI.
 
-**Plans:** TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — GPG status-fd parser, PIN input widget, progress popup (foundation)
+- [ ] 04-02-PLAN.md — Non-interactive PIN operations with in-TUI input and feedback
+- [ ] 04-03-PLAN.md — Key generation wizard and non-interactive import with auto-map
+- [ ] 04-04-PLAN.md — Audit and fix all remaining escape sites, remove deprecated functions
 
 **Requirements:** [NO-ESCAPE-01, IN-TUI-FEEDBACK-01]
 
