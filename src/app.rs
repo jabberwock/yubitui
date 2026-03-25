@@ -218,15 +218,31 @@ impl App {
                             self.key_state.screen = KeyScreen::ViewStatus;
                         }
                         KeyCode::Char('i') => {
-                            self.key_state.screen = KeyScreen::ImportKey;
+                            // TUI import: load keys, then collect admin PIN in-TUI
                             self.key_state.selected_key_index = 0;
-                            // Load available keys
                             if let Ok(keys) = crate::yubikey::key_operations::list_gpg_keys() {
                                 self.key_state.available_keys = keys;
                             }
+                            if !self.key_state.available_keys.is_empty() {
+                                use crate::ui::widgets::pin_input::PinInputState;
+                                self.key_state.pin_input = Some(PinInputState::new(
+                                    "Import Key — Admin PIN",
+                                    &["Admin PIN"],
+                                ));
+                                self.key_state.screen = KeyScreen::KeyImportPinInput;
+                            } else {
+                                self.key_state.message =
+                                    Some("No GPG keys found in keyring.".to_string());
+                                self.key_state.screen = KeyScreen::ImportKey;
+                            }
                         }
                         KeyCode::Char('g') => {
-                            self.key_state.screen = KeyScreen::GenerateKey;
+                            // Launch key generation wizard
+                            let date_str = current_date_ymd();
+                            self.key_state.keygen_wizard =
+                                Some(crate::ui::keys::KeyGenWizard::new(&date_str));
+                            self.key_state.message = None;
+                            self.key_state.screen = KeyScreen::KeyGenWizardActive;
                         }
                         KeyCode::Char('e') => {
                             self.key_state.screen = KeyScreen::ExportSSH;
@@ -345,6 +361,37 @@ impl App {
                             self.key_state.screen = KeyScreen::Main;
                         }
                     }
+                }
+                KeyScreen::KeyGenWizardActive => {
+                    self.handle_keygen_wizard_key(key.code)?;
+                }
+                KeyScreen::KeyImportPinInput => {
+                    use crate::ui::widgets::pin_input::PinInputAction;
+                    let action = if let Some(pin_input) = self.key_state.pin_input.as_mut() {
+                        pin_input.handle_key(key.code)
+                    } else {
+                        PinInputAction::Cancel
+                    };
+                    match action {
+                        PinInputAction::Submit => {
+                            self.execute_key_import()?;
+                        }
+                        PinInputAction::Cancel => {
+                            self.key_state.pin_input = None;
+                            self.key_state.screen = KeyScreen::Main;
+                            self.key_state.message = None;
+                        }
+                        PinInputAction::Continue => {}
+                    }
+                }
+                KeyScreen::KeyOperationResult => {
+                    // Any key returns to main
+                    self.key_state.screen = KeyScreen::Main;
+                    self.key_state.keygen_wizard = None;
+                    self.key_state.pin_input = None;
+                    self.key_state.operation_status = None;
+                    self.key_state.import_result = None;
+                    self.key_state.message = None;
                 }
                 _ => match key.code {
                     KeyCode::Enter => {
@@ -806,41 +853,20 @@ impl App {
         Ok(())
     }
 
-    // TODO(04-03-task2): Remove #[allow(deprecated)] once generate_key_batch and
-    // import_key_programmatic are wired in Task 2 of Plan 04-03.
-    #[allow(deprecated)]
     fn execute_key_operation(&mut self) -> Result<()> {
         use crate::yubikey::key_operations;
         use ui::keys::KeyScreen;
 
-        // Switch to alternate screen to run operations interactively
-        crossterm::terminal::disable_raw_mode()?;
-        crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
-
+        // GenerateKey and ImportKey now use the TUI wizard — only ViewStatus
+        // and ExportSSH still fall through to the old interactive path.
         let result = match self.key_state.screen {
-            KeyScreen::ViewStatus => key_operations::view_card_status(),
-            KeyScreen::ImportKey => {
-                if self.key_state.available_keys.is_empty() {
-                    Ok("No keys available to import".to_string())
-                } else {
-                    let idx = if self.key_state.selected_key_index
-                        < self.key_state.available_keys.len()
-                    {
-                        self.key_state.selected_key_index
-                    } else {
-                        0
-                    };
-                    key_operations::import_key_to_card(&self.key_state.available_keys[idx])
-                }
+            KeyScreen::ViewStatus => {
+                // View status is non-interactive (piped), no terminal escape needed
+                key_operations::view_card_status()
             }
-            KeyScreen::GenerateKey => key_operations::generate_key_on_card(),
             KeyScreen::ExportSSH => key_operations::export_ssh_public_key(),
             _ => Ok("No operation".to_string()),
         };
-
-        // Restore TUI
-        crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
-        crossterm::terminal::enable_raw_mode()?;
 
         // Update state
         match result {
@@ -858,6 +884,403 @@ impl App {
         }
 
         self.key_state.screen = KeyScreen::Main;
+        Ok(())
+    }
+
+    /// Handle key events for the key generation wizard.
+    /// Routes based on wizard.step and advances through the 7-step flow.
+    fn handle_keygen_wizard_key(&mut self, code: KeyCode) -> Result<()> {
+        use crate::ui::keys::{KeyGenStep, KeyScreen};
+        use crate::ui::widgets::pin_input::{PinInputAction, PinInputState};
+
+        // If PIN input is active (Confirm step), route keys to it
+        if self.key_state.pin_input.is_some() {
+            let action = self.key_state.pin_input.as_mut().unwrap().handle_key(code);
+            match action {
+                PinInputAction::Submit => {
+                    self.execute_keygen_batch()?;
+                }
+                PinInputAction::Cancel => {
+                    self.key_state.pin_input = None;
+                    // Return to Confirm step
+                    if let Some(ref mut w) = self.key_state.keygen_wizard {
+                        w.step = KeyGenStep::Confirm;
+                    }
+                }
+                PinInputAction::Continue => {}
+            }
+            return Ok(());
+        }
+
+        let step = self.key_state.keygen_wizard.as_ref().map(|w| w.step);
+
+        match step {
+            Some(KeyGenStep::Algorithm) => {
+                match code {
+                    KeyCode::Up => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.algorithm_index > 0 { w.algorithm_index -= 1; }
+                        }
+                    }
+                    KeyCode::Down => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.algorithm_index < 2 { w.algorithm_index += 1; }
+                        }
+                    }
+                    KeyCode::Enter => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            w.step = KeyGenStep::Expiry;
+                        }
+                    }
+                    KeyCode::Esc => {
+                        self.key_state.keygen_wizard = None;
+                        self.key_state.screen = KeyScreen::Main;
+                        self.key_state.message = None;
+                    }
+                    _ => {}
+                }
+            }
+            Some(KeyGenStep::Expiry) => {
+                match code {
+                    KeyCode::Up => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if !w.editing_custom_expiry && w.expiry_index > 0 {
+                                w.expiry_index -= 1;
+                            }
+                        }
+                    }
+                    KeyCode::Down => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if !w.editing_custom_expiry && w.expiry_index < 3 {
+                                w.expiry_index += 1;
+                            }
+                        }
+                    }
+                    KeyCode::Enter => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.expiry_index == 3 {
+                                // Custom date
+                                if !w.editing_custom_expiry {
+                                    w.editing_custom_expiry = true;
+                                } else if !w.custom_expiry.is_empty() {
+                                    w.editing_custom_expiry = false;
+                                    w.step = KeyGenStep::Identity;
+                                }
+                            } else {
+                                w.step = KeyGenStep::Identity;
+                            }
+                        }
+                    }
+                    KeyCode::Char(c) => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.editing_custom_expiry && (c.is_ascii_digit() || c == '-') {
+                                w.custom_expiry.push(c);
+                            }
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.editing_custom_expiry {
+                                w.custom_expiry.pop();
+                            }
+                        }
+                    }
+                    KeyCode::Esc => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.editing_custom_expiry {
+                                w.editing_custom_expiry = false;
+                            } else {
+                                w.step = KeyGenStep::Algorithm;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Some(KeyGenStep::Identity) => {
+                match code {
+                    KeyCode::Tab => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            w.active_field = 1 - w.active_field; // toggle 0/1
+                        }
+                    }
+                    KeyCode::Enter => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.active_field == 0 {
+                                w.active_field = 1;
+                            } else if !w.name.is_empty() && !w.email.is_empty() {
+                                w.step = KeyGenStep::Backup;
+                            }
+                        }
+                    }
+                    KeyCode::Char(c) if c.is_ascii_graphic() || c == ' ' => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.active_field == 0 {
+                                w.name.push(c);
+                            } else {
+                                w.email.push(c);
+                            }
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.active_field == 0 {
+                                w.name.pop();
+                            } else {
+                                w.email.pop();
+                            }
+                        }
+                    }
+                    KeyCode::Esc => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            w.step = KeyGenStep::Expiry;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Some(KeyGenStep::Backup) => {
+                match code {
+                    KeyCode::Char('y') | KeyCode::Char('Y') => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if !w.editing_path {
+                                w.backup = true;
+                            }
+                        }
+                    }
+                    KeyCode::Char('n') | KeyCode::Char('N') => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if !w.editing_path {
+                                w.backup = false;
+                            }
+                        }
+                    }
+                    KeyCode::Enter => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.editing_path {
+                                w.editing_path = false;
+                            } else if w.backup {
+                                // Enter while backup=true and not editing: go to edit path or confirm
+                                w.editing_path = true;
+                            } else {
+                                w.step = KeyGenStep::Confirm;
+                            }
+                        }
+                    }
+                    KeyCode::Char(c) if c.is_ascii_graphic() || c == ' ' => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.editing_path {
+                                w.backup_path.push(c);
+                            }
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.editing_path {
+                                w.backup_path.pop();
+                            }
+                        }
+                    }
+                    KeyCode::Esc => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if w.editing_path {
+                                w.editing_path = false;
+                            } else {
+                                w.step = KeyGenStep::Identity;
+                            }
+                        }
+                    }
+                    _ => {
+                        // Advance to confirm on any other key when not editing
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            if !w.editing_path && code == KeyCode::Enter {
+                                w.step = KeyGenStep::Confirm;
+                            }
+                        }
+                    }
+                }
+            }
+            Some(KeyGenStep::Confirm) => {
+                match code {
+                    KeyCode::Enter => {
+                        // Show admin PIN input
+                        self.key_state.pin_input = Some(PinInputState::new(
+                            "Key Generation — Admin PIN",
+                            &["Admin PIN"],
+                        ));
+                    }
+                    KeyCode::Esc => {
+                        if let Some(ref mut w) = self.key_state.keygen_wizard {
+                            w.step = KeyGenStep::Backup;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Some(KeyGenStep::Result) | Some(KeyGenStep::Running) => {
+                // Any key returns to Main from result
+                if code == KeyCode::Enter || code == KeyCode::Esc || code == KeyCode::Char(' ') {
+                    self.key_state.screen = KeyScreen::Main;
+                    self.key_state.keygen_wizard = None;
+                    self.key_state.pin_input = None;
+                    self.key_state.operation_status = None;
+                    self.key_state.message = None;
+                }
+            }
+            None => {
+                self.key_state.screen = KeyScreen::Main;
+            }
+        }
+        Ok(())
+    }
+
+    /// Execute key generation batch using wizard parameters and collected admin PIN.
+    fn execute_keygen_batch(&mut self) -> Result<()> {
+        use crate::ui::keys::{KeyGenStep, KeyScreen};
+        use crate::yubikey::key_operations::{generate_key_batch, KeyAlgorithm, KeyGenParams};
+
+        let admin_pin = self
+            .key_state
+            .pin_input
+            .as_ref()
+            .and_then(|p| p.values().into_iter().next().map(|s| s.to_owned()))
+            .unwrap_or_default();
+
+        let (algorithm, expire_date, name, email, backup, backup_path) = {
+            let w = match self.key_state.keygen_wizard.as_ref() {
+                Some(w) => w,
+                None => return Ok(()),
+            };
+            let algo = match w.algorithm_index {
+                0 => KeyAlgorithm::Ed25519,
+                1 => KeyAlgorithm::Rsa2048,
+                _ => KeyAlgorithm::Rsa4096,
+            };
+            let expiry = match w.expiry_index {
+                0 => "0".to_string(),
+                1 => "1y".to_string(),
+                2 => "2y".to_string(),
+                _ => w.custom_expiry.clone(),
+            };
+            (
+                algo,
+                expiry,
+                w.name.clone(),
+                w.email.clone(),
+                w.backup,
+                if w.backup { Some(w.backup_path.clone()) } else { None },
+            )
+        };
+
+        let params = KeyGenParams {
+            algorithm,
+            expire_date,
+            name,
+            email,
+            backup,
+            backup_path,
+        };
+
+        // Update state to show running
+        if let Some(ref mut w) = self.key_state.keygen_wizard {
+            w.step = KeyGenStep::Running;
+        }
+        self.key_state.operation_status = Some("Generating key...".to_string());
+        self.key_state.pin_input = None;
+
+        // Execute (synchronous)
+        match generate_key_batch(&params, &admin_pin) {
+            Ok(result) => {
+                let msg = if result.success {
+                    let mut parts = result.messages.clone();
+                    if let Some(fp) = &result.fingerprint {
+                        parts.push(format!("Fingerprint: {}", fp));
+                    }
+                    if parts.is_empty() {
+                        "Key generated successfully.".to_string()
+                    } else {
+                        parts.join("\n")
+                    }
+                } else {
+                    let msgs = if result.messages.is_empty() {
+                        vec!["Key generation failed.".to_string()]
+                    } else {
+                        result.messages
+                    };
+                    msgs.join("\n")
+                };
+                self.key_state.message = Some(msg);
+                if let Some(ref mut w) = self.key_state.keygen_wizard {
+                    w.step = KeyGenStep::Result;
+                }
+                self.key_state.screen = KeyScreen::KeyOperationResult;
+                // Refresh YubiKey state
+                self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                if self.selected_yubikey_idx >= self.yubikey_states.len() {
+                    self.selected_yubikey_idx = 0;
+                }
+            }
+            Err(e) => {
+                self.key_state.message = Some(format!("Key generation error: {}", e));
+                self.key_state.screen = KeyScreen::KeyOperationResult;
+            }
+        }
+        self.key_state.operation_status = None;
+        Ok(())
+    }
+
+    /// Execute key import using admin PIN collected by the TUI PIN input widget.
+    fn execute_key_import(&mut self) -> Result<()> {
+        use crate::ui::keys::KeyScreen;
+        use crate::yubikey::key_operations::import_key_programmatic;
+
+        let admin_pin = self
+            .key_state
+            .pin_input
+            .as_ref()
+            .and_then(|p| p.values().into_iter().next().map(|s| s.to_owned()))
+            .unwrap_or_default();
+
+        let idx = self
+            .key_state
+            .selected_key_index
+            .min(self.key_state.available_keys.len().saturating_sub(1));
+        let key_id = match self.key_state.available_keys.get(idx) {
+            Some(k) => k.clone(),
+            None => {
+                self.key_state.message = Some("No key selected.".to_string());
+                self.key_state.screen = KeyScreen::Main;
+                return Ok(());
+            }
+        };
+
+        self.key_state.screen = KeyScreen::KeyImportRunning;
+        self.key_state.operation_status = Some("Importing key to card...".to_string());
+        self.key_state.pin_input = None;
+
+        match import_key_programmatic(&key_id, &admin_pin) {
+            Ok(result) => {
+                let slots = result.format_slots();
+                let msg = if result.messages.is_empty() {
+                    format!("Key imported successfully.\nSlots: {}", slots)
+                } else {
+                    format!("{}\nSlots: {}", result.messages.join("\n"), slots)
+                };
+                self.key_state.message = Some(msg);
+                self.key_state.import_result = Some(slots);
+                self.key_state.screen = KeyScreen::KeyOperationResult;
+                // Refresh YubiKey state
+                self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                if self.selected_yubikey_idx >= self.yubikey_states.len() {
+                    self.selected_yubikey_idx = 0;
+                }
+            }
+            Err(e) => {
+                self.key_state.message = Some(format!("Import error: {}", e));
+                self.key_state.screen = KeyScreen::KeyOperationResult;
+            }
+        }
+        self.key_state.operation_status = None;
         Ok(())
     }
 
@@ -1030,4 +1453,29 @@ impl App {
     pub fn diagnostics(&self) -> &Diagnostics {
         &self.diagnostics
     }
+}
+
+/// Return current date as "YYYY-MM-DD" string using only std::time (no chrono).
+fn current_date_ymd() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    // Days since epoch → calendar date (Gregorian, proleptic)
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let days = secs / 86400;
+
+    // Algorithm: https://howardhinnant.github.io/date_algorithms.html
+    let z = days as i64 + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+
+    format!("{:04}-{:02}-{:02}", y, m, d)
 }

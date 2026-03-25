@@ -5,18 +5,66 @@ use ratatui::{
 
 use crate::yubikey::YubiKeyState;
 
+/// Steps in the key generation wizard (per D-09).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum KeyGenStep {
+    Algorithm,  // (1) algorithm selection
+    Expiry,     // (2) expiry selection
+    Identity,   // (3) name + email fields
+    Backup,     // (4) backup yes/no + path
+    Confirm,    // (5) summary + admin PIN entry
+    Running,    // (6) operation in progress
+    Result,     // (7) result display
+}
+
+/// Wizard state for key generation (per D-09).
+pub struct KeyGenWizard {
+    pub step: KeyGenStep,
+    pub algorithm_index: usize,    // 0=Ed25519, 1=RSA2048, 2=RSA4096
+    pub expiry_index: usize,       // 0=None, 1=1yr, 2=2yr, 3=Custom
+    pub custom_expiry: String,     // for custom date input
+    pub name: String,
+    pub email: String,
+    pub backup: bool,
+    pub backup_path: String,
+    pub active_field: usize,       // for identity step (0=name, 1=email)
+    pub editing_path: bool,        // true when editing backup path
+    pub editing_custom_expiry: bool, // true when editing custom expiry date
+}
+
+impl KeyGenWizard {
+    pub fn new(default_backup_date: &str) -> Self {
+        Self {
+            step: KeyGenStep::Algorithm,
+            algorithm_index: 0,
+            expiry_index: 0,
+            custom_expiry: String::new(),
+            name: String::new(),
+            email: String::new(),
+            backup: false,
+            backup_path: format!("~/yubikey-backup-{}.gpg", default_backup_date),
+            active_field: 0,
+            editing_path: false,
+            editing_custom_expiry: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum KeyScreen {
     Main,
     ViewStatus,
-    ImportKey,
-    GenerateKey,
+    ImportKey,      // legacy: shows key list for selection (pre-wizard)
     ExportSSH,
-    KeyAttributes,        // read-only key algorithm display per slot
-    SshPubkeyPopup,       // in-TUI SSH public key viewer
-    SetTouchPolicy,       // slot selection
-    SetTouchPolicySelect, // policy selection
-    SetTouchPolicyConfirm, // irreversibility confirmation
+    KeyAttributes,          // read-only key algorithm display per slot
+    SshPubkeyPopup,         // in-TUI SSH public key viewer
+    SetTouchPolicy,         // slot selection
+    SetTouchPolicySelect,   // policy selection
+    SetTouchPolicyConfirm,  // irreversibility confirmation
+    KeyGenWizardActive,     // wizard is driving the UI
+    KeyImportRunning,       // import operation in progress
+    KeyImportPinInput,      // collecting admin PIN for import
+    KeyOperationResult,     // showing result after keygen or import
 }
 
 pub struct KeyState {
@@ -29,6 +77,12 @@ pub struct KeyState {
     pub touch_slot_index: usize,   // 0=sig, 1=enc, 2=aut, 3=att
     pub touch_policy_index: usize, // 0=Off, 1=On, 2=Fixed, 3=Cached, 4=CachedFixed
     pub attestation_popup: Option<String>, // PEM content for popup display
+    // Key generation wizard state
+    pub keygen_wizard: Option<KeyGenWizard>,
+    pub pin_input: Option<crate::ui::widgets::pin_input::PinInputState>,
+    pub operation_status: Option<String>,
+    pub progress_tick: usize,
+    pub import_result: Option<String>,   // formatted SIG/ENC/AUT result
     // Reserved for future context menu integration (Plan 02-04)
     #[allow(dead_code)]
     pub show_context_menu: bool,
@@ -48,6 +102,11 @@ impl Default for KeyState {
             touch_slot_index: 0,
             touch_policy_index: 0,
             attestation_popup: None,
+            keygen_wizard: None,
+            pin_input: None,
+            operation_status: None,
+            progress_tick: 0,
+            import_result: None,
             show_context_menu: false,
             menu_selected_index: 0,
         }
@@ -96,13 +155,16 @@ pub fn render(
         KeyScreen::Main => render_main(frame, area, yubikey_state, state),
         KeyScreen::ViewStatus => render_view_status(frame, area, yubikey_state, state),
         KeyScreen::ImportKey => render_import_key(frame, area, state),
-        KeyScreen::GenerateKey => render_generate_key(frame, area, state),
         KeyScreen::ExportSSH => render_export_ssh(frame, area, state),
         KeyScreen::KeyAttributes => render_key_attributes(frame, area, state),
         KeyScreen::SshPubkeyPopup => render_ssh_pubkey_popup(frame, area, yubikey_state, state),
         KeyScreen::SetTouchPolicy => render_set_touch_policy(frame, area, state),
         KeyScreen::SetTouchPolicySelect => render_set_touch_policy_select(frame, area, state),
         KeyScreen::SetTouchPolicyConfirm => render_set_touch_policy_confirm(frame, area, state),
+        KeyScreen::KeyGenWizardActive => render_keygen_wizard(frame, area, state),
+        KeyScreen::KeyImportPinInput => render_key_import_pin_input(frame, area, state),
+        KeyScreen::KeyImportRunning => render_key_operation_running(frame, area, "Importing key...", state),
+        KeyScreen::KeyOperationResult => render_key_operation_result(frame, area, state),
     }
 
     // Attestation popup overlays any other screen
@@ -338,6 +400,7 @@ fn render_import_key(frame: &mut Frame, area: Rect, state: &KeyState) {
     frame.render_widget(hint, chunks[3]);
 }
 
+#[allow(dead_code)]
 fn render_generate_key(frame: &mut Frame, area: Rect, state: &KeyState) {
     render_operation_screen(
         frame,
@@ -622,5 +685,404 @@ fn render_attestation_popup(frame: &mut Frame, area: Rect, state: &KeyState) {
             80,
             20,
         );
+    }
+}
+
+// ── Key generation wizard render functions (Plan 04-03) ──────────────────────
+
+/// Render the appropriate wizard step based on wizard.step.
+fn render_keygen_wizard(frame: &mut Frame, area: Rect, state: &KeyState) {
+    let Some(ref wizard) = state.keygen_wizard else {
+        // Fallback: no wizard state — return to main
+        render_main_placeholder(frame, area);
+        return;
+    };
+
+    match wizard.step {
+        KeyGenStep::Algorithm => render_keygen_algorithm(frame, area, wizard),
+        KeyGenStep::Expiry => render_keygen_expiry(frame, area, wizard),
+        KeyGenStep::Identity => render_keygen_identity(frame, area, wizard),
+        KeyGenStep::Backup => render_keygen_backup(frame, area, wizard),
+        KeyGenStep::Confirm => render_keygen_confirm(frame, area, wizard),
+        KeyGenStep::Running => render_key_operation_running(frame, area, "Generating key...", state),
+        KeyGenStep::Result => render_key_operation_result(frame, area, state),
+    }
+
+    // Overlay PIN input if active
+    if state.pin_input.is_some() {
+        if let Some(ref pin_state) = state.pin_input {
+            crate::ui::widgets::pin_input::render_pin_input(frame, area, pin_state);
+        }
+    }
+}
+
+fn render_main_placeholder(frame: &mut Frame, area: Rect) {
+    let p = Paragraph::new("Loading...").block(Block::default().borders(Borders::ALL));
+    frame.render_widget(p, area);
+}
+
+/// Step 1: Algorithm selection.
+pub fn render_keygen_algorithm(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
+    let algorithms = [
+        "> Ed25519/Cv25519 (recommended)",
+        "  RSA 2048",
+        "  RSA 4096",
+    ];
+    let descriptions = [
+        "Modern elliptic curve — small keys, fast, recommended for new keys",
+        "Classic RSA — widely compatible, larger key size",
+        "Classic RSA — widest compatibility, slowest, largest key size",
+    ];
+
+    let mut lines: Vec<Line> = vec![
+        Line::from(vec![Span::styled(
+            "Step 1/5: Select Key Algorithm",
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+    ];
+
+    for (i, algo) in algorithms.iter().enumerate() {
+        let is_selected = i == wizard.algorithm_index;
+        let prefix = if is_selected { "> " } else { "  " };
+        let display = format!("{}{}", prefix, algo.trim_start_matches("> ").trim_start_matches("  "));
+        if is_selected {
+            lines.push(Line::from(vec![Span::styled(
+                display,
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(Line::from(vec![Span::styled(
+                format!("    {}", descriptions[i]),
+                Style::default().fg(Color::DarkGray),
+            )]));
+        } else {
+            lines.push(Line::from(vec![Span::raw(display)]));
+        }
+        lines.push(Line::from(""));
+    }
+
+    lines.push(Line::from(vec![Span::styled(
+        "[Up/Down] Select  [Enter] Confirm  [Esc] Cancel",
+        Style::default().fg(Color::DarkGray),
+    )]));
+
+    let p = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title("Generate Key — Algorithm"))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    frame.render_widget(p, area);
+}
+
+/// Step 2: Expiry selection.
+fn render_keygen_expiry(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
+    let options = ["No expiry", "1 year", "2 years", "Custom date"];
+
+    let mut lines: Vec<Line> = vec![
+        Line::from(vec![Span::styled(
+            "Step 2/5: Select Key Expiry",
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+    ];
+
+    for (i, opt) in options.iter().enumerate() {
+        let is_selected = i == wizard.expiry_index;
+        let prefix = if is_selected { "> " } else { "  " };
+        let style = if is_selected {
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
+        lines.push(Line::from(vec![Span::styled(
+            format!("{}{}", prefix, opt),
+            style,
+        )]));
+    }
+
+    // Show custom date input if Custom selected
+    if wizard.expiry_index == 3 {
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![Span::styled(
+            "Enter date (YYYY-MM-DD):",
+            Style::default().fg(Color::Cyan),
+        )]));
+        let display = if wizard.editing_custom_expiry {
+            format!("{}\u{2588}", wizard.custom_expiry) // cursor block
+        } else {
+            wizard.custom_expiry.clone()
+        };
+        lines.push(Line::from(vec![Span::styled(
+            display,
+            Style::default().fg(Color::Yellow),
+        )]));
+    }
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![Span::styled(
+        "[Up/Down] Select  [Enter] Confirm  [Esc] Back",
+        Style::default().fg(Color::DarkGray),
+    )]));
+
+    let p = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title("Generate Key — Expiry"))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    frame.render_widget(p, area);
+}
+
+/// Step 3: Identity (name + email).
+fn render_keygen_identity(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
+    let mut lines: Vec<Line> = vec![
+        Line::from(vec![Span::styled(
+            "Step 3/5: Enter Identity",
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from(vec![Span::styled("Name:", Style::default().fg(Color::White))]),
+    ];
+
+    // Name field
+    let name_style = if wizard.active_field == 0 {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default()
+    };
+    let name_display = if wizard.active_field == 0 {
+        format!("{}\u{2588}", wizard.name)
+    } else {
+        wizard.name.clone()
+    };
+    lines.push(Line::from(vec![Span::styled(name_display, name_style)]));
+    lines.push(Line::from(""));
+
+    // Email field
+    lines.push(Line::from(vec![Span::styled("Email:", Style::default().fg(Color::White))]));
+    let email_style = if wizard.active_field == 1 {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default()
+    };
+    let email_display = if wizard.active_field == 1 {
+        format!("{}\u{2588}", wizard.email)
+    } else {
+        wizard.email.clone()
+    };
+    lines.push(Line::from(vec![Span::styled(email_display, email_style)]));
+    lines.push(Line::from(""));
+
+    let ready = !wizard.name.is_empty() && !wizard.email.is_empty();
+    let hint = if ready {
+        "[Tab] Switch field  [Enter] Continue  [Esc] Back"
+    } else {
+        "[Tab] Switch field  [Enter] Next field  [Esc] Back"
+    };
+    lines.push(Line::from(vec![Span::styled(hint, Style::default().fg(Color::DarkGray))]));
+
+    let p = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title("Generate Key — Identity"))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    frame.render_widget(p, area);
+}
+
+/// Step 4: Backup.
+fn render_keygen_backup(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
+    let mut lines: Vec<Line> = vec![
+        Line::from(vec![Span::styled(
+            "Step 4/5: Create Backup Copy?",
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from("A backup exports the secret key to a file before moving it to the"),
+        Line::from("card. Store in a secure location (e.g. encrypted drive)."),
+        Line::from(""),
+    ];
+
+    let yes_style = if wizard.backup {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+    let no_style = if !wizard.backup {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    lines.push(Line::from(vec![
+        Span::styled(if wizard.backup { "> [Y] Create backup" } else { "  [Y] Create backup" }, yes_style),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled(if !wizard.backup { "> [N] Skip backup" } else { "  [N] Skip backup" }, no_style),
+    ]));
+
+    if wizard.backup {
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![Span::styled("Backup path:", Style::default().fg(Color::White))]));
+        let path_style = if wizard.editing_path {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::Cyan)
+        };
+        let path_display = if wizard.editing_path {
+            format!("{}\u{2588}", wizard.backup_path)
+        } else {
+            format!("{} [Enter to edit]", wizard.backup_path)
+        };
+        lines.push(Line::from(vec![Span::styled(path_display, path_style)]));
+    }
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![Span::styled(
+        "[Y/N] Toggle  [Enter] Continue  [Esc] Back",
+        Style::default().fg(Color::DarkGray),
+    )]));
+
+    let p = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title("Generate Key — Backup"))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    frame.render_widget(p, area);
+}
+
+/// Step 5: Confirmation summary before generating.
+fn render_keygen_confirm(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
+    use crate::yubikey::key_operations::KeyAlgorithm;
+
+    let algo_names = ["Ed25519/Cv25519", "RSA 2048", "RSA 4096"];
+    let algo_display = match wizard.algorithm_index {
+        0 => KeyAlgorithm::Ed25519.to_string(),
+        1 => KeyAlgorithm::Rsa2048.to_string(),
+        _ => KeyAlgorithm::Rsa4096.to_string(),
+    };
+    let expiry_opts = ["No expiry", "1 year", "2 years"];
+    let expiry_display = if wizard.expiry_index < 3 {
+        expiry_opts[wizard.expiry_index].to_string()
+    } else {
+        format!("Custom: {}", wizard.custom_expiry)
+    };
+    let backup_display = if wizard.backup {
+        format!("Yes ({})", wizard.backup_path)
+    } else {
+        "No".to_string()
+    };
+
+    let _ = algo_names; // suppress unused warning
+
+    let lines: Vec<Line> = vec![
+        Line::from(vec![Span::styled(
+            "Step 5/5: Confirm Key Generation",
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Algorithm:  ", Style::default().fg(Color::White)),
+            Span::raw(&algo_display),
+        ]),
+        Line::from(vec![
+            Span::styled("Expiry:     ", Style::default().fg(Color::White)),
+            Span::raw(&expiry_display),
+        ]),
+        Line::from(vec![
+            Span::styled("Name:       ", Style::default().fg(Color::White)),
+            Span::raw(&wizard.name),
+        ]),
+        Line::from(vec![
+            Span::styled("Email:      ", Style::default().fg(Color::White)),
+            Span::raw(&wizard.email),
+        ]),
+        Line::from(vec![
+            Span::styled("Backup:     ", Style::default().fg(Color::White)),
+            Span::raw(&backup_display),
+        ]),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Press Enter to generate key. You will be prompted for the Admin PIN.",
+            Style::default().fg(Color::Yellow),
+        )]),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "[Enter] Generate  [Esc] Back",
+            Style::default().fg(Color::DarkGray),
+        )]),
+    ];
+
+    let _ = lines.iter(); // suppress unused warning
+    let p = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title("Generate Key — Confirm"))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    frame.render_widget(p, area);
+}
+
+/// Running state: progress popup overlay.
+fn render_key_operation_running(frame: &mut Frame, area: Rect, msg: &str, state: &KeyState) {
+    // Render main screen as background
+    let background_msg = "Operation in progress...";
+    let bg = Paragraph::new(background_msg)
+        .style(Style::default().fg(Color::DarkGray))
+        .block(Block::default().borders(Borders::ALL));
+    frame.render_widget(bg, area);
+
+    // Overlay progress popup
+    crate::ui::widgets::progress::render_progress_popup(
+        frame,
+        area,
+        "Key Operation",
+        state.operation_status.as_deref().unwrap_or(msg),
+        state.progress_tick,
+    );
+}
+
+/// Result screen after keygen or import completes.
+fn render_key_operation_result(frame: &mut Frame, area: Rect, state: &KeyState) {
+    let msg = state.message.as_deref().unwrap_or("Operation complete.");
+    let import_result = state.import_result.as_deref().unwrap_or("");
+
+    let mut lines: Vec<Line> = vec![
+        Line::from(vec![Span::styled(
+            "Operation Complete",
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+    ];
+
+    for line in msg.lines() {
+        lines.push(Line::from(vec![Span::raw(line.to_string())]));
+    }
+
+    if !import_result.is_empty() {
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![
+            Span::styled("Slots filled: ", Style::default().fg(Color::White)),
+            Span::styled(import_result.to_string(), Style::default().fg(Color::Yellow)),
+        ]));
+    }
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![Span::styled(
+        "Press any key to return.",
+        Style::default().fg(Color::DarkGray),
+    )]));
+
+    let p = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title("Result"))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    frame.render_widget(p, area);
+}
+
+/// Render admin PIN input for key import.
+fn render_key_import_pin_input(frame: &mut Frame, area: Rect, state: &KeyState) {
+    // Background
+    let available_keys = &state.available_keys;
+    let selected = state.selected_key_index;
+    let key_display = available_keys.get(selected).map(|k| k.as_str()).unwrap_or("(none)");
+    let bg_text = format!(
+        "Import key to card\n\nSelected key: {}\n\nEnter Admin PIN to proceed.",
+        key_display
+    );
+    let bg = Paragraph::new(bg_text)
+        .block(Block::default().borders(Borders::ALL).title("Import Key"))
+        .wrap(ratatui::widgets::Wrap { trim: true });
+    frame.render_widget(bg, area);
+
+    // Overlay PIN input
+    if let Some(ref pin_state) = state.pin_input {
+        crate::ui::widgets::pin_input::render_pin_input(frame, area, pin_state);
     }
 }
