@@ -3,19 +3,19 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gaps.
 status: Executing Phase 04
-last_updated: "2026-03-25T18:48:43.423Z"
+last_updated: "2026-03-25T19:00:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 15
-  completed_plans: 11
+  completed_plans: 13
 ---
 
 # Project State
 
 ## Current Phase
 
-**Phase 3** — Advanced YubiKey Features
+**Phase 4** — Programmatic Subprocess Control
 
 ## Status
 
@@ -23,15 +23,16 @@ active
 
 ## Current Plan
 
-Phase 3 — Plan 04 (03-04) [complete — all plans done]
+Phase 4 — Plan 03 (04-03) [next]
 
 ## Progress
 
-[██████████] 100%
+[████████░░] 87%
 
 - Phase 1: complete (all 3 plans complete)
 - Phase 2: complete (all 4 plans complete)
 - Phase 3: complete (all 4 plans complete)
+- Phase 4: in progress (2 of 4 plans complete)
 
 ## Completed Plans
 
@@ -45,6 +46,8 @@ Phase 3 — Plan 04 (03-04) [complete — all plans done]
 - 03-02: Touch policy and attestation backend — TouchPolicy enum, parse/set functions, attestation cert fetch, 12 unit tests (2026-03-24)
 - 03-03: Multi-key detection, touch policy UI + set flow, attestation popup — Vec<YubiKeyState> with Tab cycling (2026-03-24)
 - 03-04: CI 3-OS matrix and release workflow — GitHub Actions on Linux/macOS/Windows with clippy and tag-triggered binary releases (2026-03-24)
+- 04-01: Foundational modules — GPG status-fd parser (21 tests), PIN input widget, progress popup (2026-03-25)
+- 04-02: In-TUI PIN operations — programmatic gpg PIN functions with --pinentry-mode loopback, TUI PIN input, no terminal escape (2026-03-25)
 
 ## Decisions
 
@@ -69,10 +72,15 @@ Phase 3 — Plan 04 (03-04) [complete — all plans done]
 - [03-04]: libpcsclite-dev install is Linux-only conditional; macOS/Windows provide PCSC natively
 - [03-04]: Release artifact names encode OS to prevent download collisions; Windows binary has .exe extension
 - [03-04]: device-tests feature not enabled in any workflow — no YubiKey on CI runners
-- [Phase 03-03]: [03-03]: App evolves from single yubikey_state: Option<YubiKeyState> to yubikey_states: Vec + selected_yubikey_idx; accessor yubikey_state() preserved for backward compat
-- [Phase 03-03]: [03-03]: render() sites clone the selected state (.cloned()) rather than changing all render signatures
-- [Phase 03-03]: [03-03]: 'a' key remapped to attestation; 'k' now opens key attributes (was 'a')
-- [Phase 03-03]: [03-03]: detect_all_yubikey_states falls back to single detect_yubikey_state() -- gpg only sees one card
+- [Phase 03-03]: App evolves from single yubikey_state: Option<YubiKeyState> to yubikey_states: Vec + selected_yubikey_idx; accessor yubikey_state() preserved for backward compat
+- [Phase 03-03]: render() sites clone the selected state (.cloned()) rather than changing all render signatures
+- [Phase 03-03]: 'a' key remapped to attestation; 'k' now opens key attributes (was 'a')
+- [Phase 03-03]: detect_all_yubikey_states falls back to single detect_yubikey_state() -- gpg only sees one card
+- [04-01]: #[allow(dead_code)] applied to pub items in gpg_status and pin_input/progress — these are consumed by Plans 02-04, not yet wired
+- [04-01]: centered_area helper duplicated in pin_input.rs and progress.rs (as in popup.rs) rather than extracting to shared util — avoids changing existing popup.rs
+- [04-02]: TODO comment instead of #[deprecated] on old interactive fns — clippy -D warnings treats deprecated-fn usage as error while app.rs still called them
+- [04-02]: Background thread + mpsc channel for stderr reading in run_gpg_pin_operation — avoids single-thread deadlock from simultaneous stdin write + stderr read
+- [04-02]: OperationRunning renders synchronously (blocking call) — progress popup shown but spinner does not animate during blocking gpg call; acceptable for v1
 
 ## Notes
 
@@ -82,5 +90,5 @@ Phase 3 — Plan 04 (03-04) [complete — all plans done]
 
 ## Last Session
 
-- Stopped at: Completed 03-03-PLAN.md (multi-key detection, touch policy UI, attestation popup)
-- Date: 2026-03-24
+- Stopped at: Completed 04-02-PLAN.md (in-TUI PIN operations, programmatic gpg calls, no terminal escape)
+- Date: 2026-03-25
