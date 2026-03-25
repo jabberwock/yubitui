@@ -656,6 +656,7 @@ pub fn view_card_status() -> Result<String> {
 
 /// Import a key to YubiKey (interactive — use import_key_programmatic instead)
 #[deprecated(since = "0.2.0", note = "Use import_key_programmatic for non-interactive TUI import")]
+#[allow(dead_code)]
 pub fn import_key_to_card(key_id: &str) -> Result<String> {
     // Validate key_id: must be non-empty and must not start with '-' (GPG flag injection)
     if key_id.is_empty() {
@@ -690,6 +691,7 @@ pub fn import_key_to_card(key_id: &str) -> Result<String> {
 
 /// Generate a key on the YubiKey (interactive — use generate_key_batch instead)
 #[deprecated(since = "0.2.0", note = "Use generate_key_batch for non-interactive TUI generation")]
+#[allow(dead_code)]
 pub fn generate_key_on_card() -> Result<String> {
     let mut child = Command::new("gpg")
         .arg("--card-edit")
