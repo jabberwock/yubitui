@@ -10,34 +10,6 @@ pub struct PinOperationResult {
     pub messages: Vec<String>,
 }
 
-/// Change the User PIN interactively.
-/// TODO(04-04): Remove — superseded by change_user_pin_programmatic.
-#[allow(dead_code)]
-pub fn change_user_pin() -> Result<String> {
-    execute_gpg_card_edit(&["admin", "passwd", "1", "q"])
-}
-
-/// Change the Admin PIN interactively.
-/// TODO(04-04): Remove — superseded by change_admin_pin_programmatic.
-#[allow(dead_code)]
-pub fn change_admin_pin() -> Result<String> {
-    execute_gpg_card_edit(&["admin", "passwd", "3", "q"])
-}
-
-/// Set the Reset Code.
-/// TODO(04-04): Remove — superseded by set_reset_code_programmatic.
-#[allow(dead_code)]
-pub fn set_reset_code() -> Result<String> {
-    execute_gpg_card_edit(&["admin", "passwd", "4", "q"])
-}
-
-/// Unblock the User PIN.
-/// TODO(04-04): Remove — superseded by unblock_user_pin_programmatic.
-#[allow(dead_code)]
-pub fn unblock_user_pin() -> Result<String> {
-    execute_gpg_card_edit(&["admin", "passwd", "2", "q"])
-}
-
 /// Change User PIN non-interactively via gpg --pinentry-mode loopback.
 ///
 /// Collects current PIN, new PIN, and confirmation from the caller (TUI).
@@ -271,30 +243,3 @@ pub fn factory_reset_openpgp() -> Result<String> {
     }
 }
 
-/// Execute gpg --card-edit interactively in the terminal.
-/// TODO(04-04): Remove — called only by the deprecated interactive functions above.
-#[allow(dead_code)]
-fn execute_gpg_card_edit(commands: &[&str]) -> Result<String> {
-    use std::io::Write;
-
-    let mut child = Command::new("gpg")
-        .arg("--card-edit")
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .spawn()?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        for cmd in commands {
-            writeln!(stdin, "{}", cmd)?;
-        }
-    }
-
-    let output = child.wait()?;
-
-    if output.success() {
-        Ok("Operation completed successfully".to_string())
-    } else {
-        Ok("Operation cancelled or failed".to_string())
-    }
-}

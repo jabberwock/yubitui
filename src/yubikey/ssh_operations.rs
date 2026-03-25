@@ -131,7 +131,7 @@ pub fn restart_gpg_agent() -> Result<String> {
 /// Export SSH public key and save to file
 #[allow(dead_code)]
 pub fn export_ssh_key_to_file(path: &PathBuf) -> Result<String> {
-    let ssh_key = crate::yubikey::key_operations::export_ssh_public_key()?;
+    let ssh_key = crate::yubikey::key_operations::get_ssh_public_key_text()?;
 
     fs::write(path, ssh_key)?;
 
