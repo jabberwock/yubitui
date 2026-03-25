@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gaps.
 status: Executing Phase 04
-last_updated: "2026-03-25T19:00:00.000Z"
+last_updated: "2026-03-25T20:00:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Project State
@@ -23,16 +23,16 @@ active
 
 ## Current Plan
 
-Phase 4 — Plan 03 (04-03) [next]
+Phase 4 — Plan 04 (04-04) [next]
 
 ## Progress
 
-[████████░░] 87%
+[█████████░] 93%
 
 - Phase 1: complete (all 3 plans complete)
 - Phase 2: complete (all 4 plans complete)
 - Phase 3: complete (all 4 plans complete)
-- Phase 4: in progress (2 of 4 plans complete)
+- Phase 4: in progress (3 of 4 plans complete)
 
 ## Completed Plans
 
@@ -48,6 +48,7 @@ Phase 4 — Plan 03 (04-03) [next]
 - 03-04: CI 3-OS matrix and release workflow — GitHub Actions on Linux/macOS/Windows with clippy and tag-triggered binary releases (2026-03-24)
 - 04-01: Foundational modules — GPG status-fd parser (21 tests), PIN input widget, progress popup (2026-03-25)
 - 04-02: In-TUI PIN operations — programmatic gpg PIN functions with --pinentry-mode loopback, TUI PIN input, no terminal escape (2026-03-25)
+- 04-03: Key generation wizard (7-step TUI) + programmatic import via --command-fd auto-mapping subkeys by capability (2026-03-25)
 
 ## Decisions
 
@@ -81,6 +82,9 @@ Phase 4 — Plan 03 (04-03) [next]
 - [04-02]: TODO comment instead of #[deprecated] on old interactive fns — clippy -D warnings treats deprecated-fn usage as error while app.rs still called them
 - [04-02]: Background thread + mpsc channel for stderr reading in run_gpg_pin_operation — avoids single-thread deadlock from simultaneous stdin write + stderr read
 - [04-02]: OperationRunning renders synchronously (blocking call) — progress popup shown but spinner does not animate during blocking gpg call; acceptable for v1
+- [04-03]: GenerateKey KeyScreen variant removed after wizard added — no longer constructed; render_generate_key kept with #[allow(dead_code)] as fallback
+- [04-03]: import_key_programmatic writes all edit-key commands upfront then answers GET_HIDDEN via mpsc channel — same pattern as run_gpg_pin_operation
+- [04-03]: current_date_ymd() uses std::time + Gregorian day-of-epoch algorithm — avoids adding chrono to app logic (already in dev-deps)
 
 ## Notes
 
@@ -90,5 +94,5 @@ Phase 4 — Plan 03 (04-03) [next]
 
 ## Last Session
 
-- Stopped at: Completed 04-02-PLAN.md (in-TUI PIN operations, programmatic gpg calls, no terminal escape)
+- Stopped at: Completed 04-03-PLAN.md (key generation wizard, programmatic import, no terminal escape)
 - Date: 2026-03-25
