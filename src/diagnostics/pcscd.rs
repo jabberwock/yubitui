@@ -13,14 +13,14 @@ pub fn check_pcscd() -> Result<PcscdStatus> {
     let running = {
         // Check system domain via `launchctl print` (works without sudo on macOS 10.10+)
         let launchctl_check = Command::new("launchctl")
-            .args(&["print", "system/com.apple.ctkpcscd"])
+            .args(["print", "system/com.apple.ctkpcscd"])
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false);
 
         // Fallback: check for the process by its short name
         let pgrep_check = Command::new("pgrep")
-            .args(&["-x", "ctkpcscd"])
+            .args(["-x", "ctkpcscd"])
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false);

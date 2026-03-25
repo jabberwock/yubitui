@@ -1,21 +1,21 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gaps.
-status: Milestone complete
-last_updated: "2026-03-24T21:15:44.965Z"
+milestone: v2.0
+milestone_name: Phase 4 — Programmatic subprocess control (no more TUI escapes)
+status: active
+last_updated: "2026-03-25T18:53:00Z"
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 3
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 15
+  completed_plans: 12
 ---
 
 # Project State
 
 ## Current Phase
 
-**Phase 3** — Advanced YubiKey Features
+**Phase 4** — Programmatic Subprocess Control
 
 ## Status
 
@@ -23,15 +23,16 @@ active
 
 ## Current Plan
 
-Phase 3 — Plan 04 (03-04) [complete — all plans done]
+Phase 4 — Plan 02 (04-02)
 
 ## Progress
 
-[██████████] 100%
+[████████░░] 80%
 
 - Phase 1: complete (all 3 plans complete)
 - Phase 2: complete (all 4 plans complete)
 - Phase 3: complete (all 4 plans complete)
+- Phase 4: in progress (1/4 plans complete)
 
 ## Completed Plans
 
@@ -45,6 +46,7 @@ Phase 3 — Plan 04 (03-04) [complete — all plans done]
 - 03-02: Touch policy and attestation backend — TouchPolicy enum, parse/set functions, attestation cert fetch, 12 unit tests (2026-03-24)
 - 03-03: Multi-key detection, touch policy UI + set flow, attestation popup — Vec<YubiKeyState> with Tab cycling (2026-03-24)
 - 03-04: CI 3-OS matrix and release workflow — GitHub Actions on Linux/macOS/Windows with clippy and tag-triggered binary releases (2026-03-24)
+- 04-01: Foundational modules — GpgStatus parser (21 tests), PinInputState widget, render_progress_popup spinner (2026-03-25)
 
 ## Decisions
 
@@ -73,6 +75,8 @@ Phase 3 — Plan 04 (03-04) [complete — all plans done]
 - [Phase 03-03]: [03-03]: render() sites clone the selected state (.cloned()) rather than changing all render signatures
 - [Phase 03-03]: [03-03]: 'a' key remapped to attestation; 'k' now opens key attributes (was 'a')
 - [Phase 03-03]: [03-03]: detect_all_yubikey_states falls back to single detect_yubikey_state() -- gpg only sees one card
+- [04-01]: GpgStatus variants and parse/message functions use #[allow(dead_code)] — consumed by Plans 02-04
+- [04-01]: centered_area helper duplicated in pin_input.rs and progress.rs (not extracted) to avoid modifying popup.rs
 
 ## Notes
 
@@ -82,5 +86,5 @@ Phase 3 — Plan 04 (03-04) [complete — all plans done]
 
 ## Last Session
 
-- Stopped at: Completed 03-03-PLAN.md (multi-key detection, touch policy UI, attestation popup)
-- Date: 2026-03-24
+- Stopped at: Completed 04-01-PLAN.md (gpg status-fd parser, PIN input widget, progress popup)
+- Date: 2026-03-25
