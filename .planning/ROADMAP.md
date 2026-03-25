@@ -80,6 +80,45 @@ Plans:
 
 ---
 
+---
+
+## Phase 4: Programmatic Subprocess Control
+
+**Goal:** Eliminate all interactive subprocess escapes. Every gpg and ykman operation stays inside the TUI — no terminal handoff, no "base menu with no indicator of next steps."
+
+**Scope:**
+- Replace `gpg --card-edit` (interactive) with `--command-fd 0 --status-fd 1 --passphrase-fd 0` for all PIN operations (change user/admin PIN, unblock, set reset code)
+- Replace `gpg --card-edit` key generation flow with non-interactive equivalent
+- Surface gpg status output (progress, errors, confirmations) as in-TUI feedback
+- Audit all subprocess invocations: identify any remaining cases where control leaves the TUI
+
+**Done when:** No operation causes the terminal to hand off to an external interactive process. All user feedback during operations is rendered inside the TUI.
+
+**Plans:** TBD
+
+**Requirements:** [NO-ESCAPE-01, IN-TUI-FEEDBACK-01]
+
+---
+
+## Phase 5: Native Card Protocol (No External CLI Deps)
+
+**Goal:** Replace all gpg and ykman CLI calls with direct PC/SC + OpenPGP card protocol via Rust crates. yubitui requires no external binaries.
+
+**Scope:**
+- Integrate `pcsc` crate for card reader/card enumeration (replaces pcscd detection heuristics)
+- Integrate `openpgp-card` crate for card status, PIN operations, key generation, touch policy, attestation
+- Remove runtime dependency on `gpg`, `gpgconf`, `gpg-agent`, `ykman` binaries
+- Preserve cross-platform support: pcscd (Linux), PC/SC framework (macOS), winscard.dll (Windows)
+- Implement ykman OpenPGP operations natively (touch policy set/get, attestation, key info) using YubiKey OpenPGP extension APDUs as reference
+
+**Done when:** `cargo test` passes with no external binary stubs; app works on a clean system with only pcscd/PC/SC installed.
+
+**Plans:** TBD
+
+**Requirements:** [NATIVE-PCSC-01, NO-GPG-BIN-01, NO-YKMAN-BIN-01]
+
+---
+
 ## Backlog
 
 - FIDO2/WebAuthn status display (read-only, no management)
