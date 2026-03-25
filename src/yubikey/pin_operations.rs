@@ -12,24 +12,28 @@ pub struct PinOperationResult {
 
 /// Change the User PIN interactively.
 /// TODO(04-04): Remove — superseded by change_user_pin_programmatic.
+#[allow(dead_code)]
 pub fn change_user_pin() -> Result<String> {
     execute_gpg_card_edit(&["admin", "passwd", "1", "q"])
 }
 
 /// Change the Admin PIN interactively.
 /// TODO(04-04): Remove — superseded by change_admin_pin_programmatic.
+#[allow(dead_code)]
 pub fn change_admin_pin() -> Result<String> {
     execute_gpg_card_edit(&["admin", "passwd", "3", "q"])
 }
 
 /// Set the Reset Code.
 /// TODO(04-04): Remove — superseded by set_reset_code_programmatic.
+#[allow(dead_code)]
 pub fn set_reset_code() -> Result<String> {
     execute_gpg_card_edit(&["admin", "passwd", "4", "q"])
 }
 
 /// Unblock the User PIN.
 /// TODO(04-04): Remove — superseded by unblock_user_pin_programmatic.
+#[allow(dead_code)]
 pub fn unblock_user_pin() -> Result<String> {
     execute_gpg_card_edit(&["admin", "passwd", "2", "q"])
 }
@@ -267,7 +271,9 @@ pub fn factory_reset_openpgp() -> Result<String> {
     }
 }
 
-/// Execute gpg --card-edit interactively in the terminal
+/// Execute gpg --card-edit interactively in the terminal.
+/// TODO(04-04): Remove — called only by the deprecated interactive functions above.
+#[allow(dead_code)]
 fn execute_gpg_card_edit(commands: &[&str]) -> Result<String> {
     use std::io::Write;
 

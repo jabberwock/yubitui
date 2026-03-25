@@ -428,13 +428,34 @@ impl App {
             match self.pin_state.screen {
                 PinScreen::Main => match key.code {
                     KeyCode::Char('c') => {
-                        self.pin_state.screen = PinScreen::ChangeUserPin;
+                        // Transition to TUI PIN input for Change User PIN
+                        use crate::ui::widgets::pin_input::PinInputState;
+                        self.pin_state.pending_operation = Some(PinScreen::ChangeUserPin);
+                        self.pin_state.pin_input = Some(PinInputState::new(
+                            "Change User PIN",
+                            &["Current PIN", "New PIN", "Confirm New PIN"],
+                        ));
+                        self.pin_state.screen = PinScreen::PinInputActive;
                     }
                     KeyCode::Char('a') => {
-                        self.pin_state.screen = PinScreen::ChangeAdminPin;
+                        // Transition to TUI PIN input for Change Admin PIN
+                        use crate::ui::widgets::pin_input::PinInputState;
+                        self.pin_state.pending_operation = Some(PinScreen::ChangeAdminPin);
+                        self.pin_state.pin_input = Some(PinInputState::new(
+                            "Change Admin PIN",
+                            &["Current Admin PIN", "New Admin PIN", "Confirm New Admin PIN"],
+                        ));
+                        self.pin_state.screen = PinScreen::PinInputActive;
                     }
                     KeyCode::Char('r') => {
-                        self.pin_state.screen = PinScreen::SetResetCode;
+                        // Transition to TUI PIN input for Set Reset Code
+                        use crate::ui::widgets::pin_input::PinInputState;
+                        self.pin_state.pending_operation = Some(PinScreen::SetResetCode);
+                        self.pin_state.pin_input = Some(PinInputState::new(
+                            "Set Reset Code",
+                            &["Admin PIN", "New Reset Code", "Confirm Reset Code"],
+                        ));
+                        self.pin_state.screen = PinScreen::PinInputActive;
                     }
                     KeyCode::Char('u') => {
                         // Launch the unblock wizard instead of direct passthrough
@@ -447,6 +468,34 @@ impl App {
                     }
                     _ => {}
                 },
+                PinScreen::PinInputActive => {
+                    use crate::ui::widgets::pin_input::PinInputAction;
+                    let action = if let Some(pin_input) = self.pin_state.pin_input.as_mut() {
+                        pin_input.handle_key(key.code)
+                    } else {
+                        PinInputAction::Cancel
+                    };
+                    match action {
+                        PinInputAction::Submit => {
+                            self.execute_pin_operation_programmatic()?;
+                        }
+                        PinInputAction::Cancel => {
+                            self.pin_state.pin_input = None;
+                            self.pin_state.pending_operation = None;
+                            self.pin_state.screen = PinScreen::Main;
+                            self.pin_state.message = None;
+                        }
+                        PinInputAction::Continue => {}
+                    }
+                }
+                PinScreen::OperationResult => {
+                    // Any key returns to Main
+                    self.pin_state.screen = PinScreen::Main;
+                    self.pin_state.pin_input = None;
+                    self.pin_state.pending_operation = None;
+                    self.pin_state.operation_running = false;
+                    self.pin_state.operation_status = None;
+                }
                 PinScreen::UnblockWizardCheck => match key.code {
                     KeyCode::Char('1') => {
                         if let Some(yk) = self.yubikey_state() {
@@ -483,10 +532,38 @@ impl App {
                     }
                     _ => {}
                 },
-                PinScreen::UnblockWizardWithReset | PinScreen::UnblockWizardWithAdmin => {
+                PinScreen::UnblockWizardWithReset => {
                     match key.code {
                         KeyCode::Enter => {
-                            self.execute_pin_operation()?;
+                            // Transition to TUI PIN input for Unblock with Reset Code
+                            use crate::ui::widgets::pin_input::PinInputState;
+                            self.pin_state.pending_operation =
+                                Some(PinScreen::UnblockWizardWithReset);
+                            self.pin_state.pin_input = Some(PinInputState::new(
+                                "Unblock with Reset Code",
+                                &["Reset Code", "New User PIN", "Confirm New PIN"],
+                            ));
+                            self.pin_state.screen = PinScreen::PinInputActive;
+                        }
+                        KeyCode::Esc => {
+                            self.pin_state.screen = PinScreen::UnblockWizardCheck;
+                            self.pin_state.unblock_path = None;
+                        }
+                        _ => {}
+                    }
+                }
+                PinScreen::UnblockWizardWithAdmin => {
+                    match key.code {
+                        KeyCode::Enter => {
+                            // Transition to TUI PIN input for Unblock with Admin PIN
+                            use crate::ui::widgets::pin_input::PinInputState;
+                            self.pin_state.pending_operation =
+                                Some(PinScreen::UnblockWizardWithAdmin);
+                            self.pin_state.pin_input = Some(PinInputState::new(
+                                "Unblock with Admin PIN",
+                                &["Admin PIN", "New User PIN", "Confirm New PIN"],
+                            ));
+                            self.pin_state.screen = PinScreen::PinInputActive;
                         }
                         KeyCode::Esc => {
                             self.pin_state.screen = PinScreen::UnblockWizardCheck;
@@ -536,16 +613,9 @@ impl App {
                     }
                 }
                 _ => {
-                    match key.code {
-                        KeyCode::Enter => {
-                            // Execute the operation
-                            self.execute_pin_operation()?;
-                        }
-                        KeyCode::Esc => {
-                            self.pin_state.screen = PinScreen::Main;
-                            self.pin_state.message = None;
-                        }
-                        _ => {}
+                    if key.code == KeyCode::Esc {
+                        self.pin_state.screen = PinScreen::Main;
+                        self.pin_state.message = None;
                     }
                 }
             }
@@ -632,33 +702,95 @@ impl App {
         Ok(())
     }
 
-    fn execute_pin_operation(&mut self) -> Result<()> {
+    /// Execute the current PIN operation programmatically using PINs collected
+    /// by the TUI PIN input widget.  No terminal escape occurs.
+    fn execute_pin_operation_programmatic(&mut self) -> Result<()> {
         use crate::yubikey::pin_operations;
         use ui::pin::PinScreen;
 
-        // Switch to alternate screen to run GPG interactively
-        crossterm::terminal::disable_raw_mode()?;
-        crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
+        // Extract PIN values before mutably borrowing self.
+        let values: Vec<String> = self
+            .pin_state
+            .pin_input
+            .as_ref()
+            .map(|p| p.values().into_iter().map(|s| s.to_owned()).collect())
+            .unwrap_or_default();
 
-        let result = match self.pin_state.screen {
-            PinScreen::ChangeUserPin => pin_operations::change_user_pin(),
-            PinScreen::ChangeAdminPin => pin_operations::change_admin_pin(),
-            PinScreen::SetResetCode => pin_operations::set_reset_code(),
-            PinScreen::UnblockUserPin => pin_operations::unblock_user_pin(),
-            PinScreen::UnblockWizardWithReset | PinScreen::UnblockWizardWithAdmin => {
-                pin_operations::unblock_user_pin()
+        let pending = self.pin_state.pending_operation;
+
+        // Show a brief "working" state (synchronous call — no actual async here).
+        self.pin_state.screen = PinScreen::OperationRunning;
+        self.pin_state.operation_running = true;
+        self.pin_state.operation_status = Some("Verifying PIN...".to_string());
+
+        let op_result = match pending {
+            Some(PinScreen::ChangeUserPin) => {
+                let (current, new_pin) = (
+                    values.first().map(String::as_str).unwrap_or(""),
+                    values.get(1).map(String::as_str).unwrap_or(""),
+                );
+                pin_operations::change_user_pin_programmatic(current, new_pin)
             }
-            _ => Ok("No operation".to_string()),
+            Some(PinScreen::ChangeAdminPin) => {
+                let (current, new_pin) = (
+                    values.first().map(String::as_str).unwrap_or(""),
+                    values.get(1).map(String::as_str).unwrap_or(""),
+                );
+                pin_operations::change_admin_pin_programmatic(current, new_pin)
+            }
+            Some(PinScreen::SetResetCode) => {
+                let (admin, reset) = (
+                    values.first().map(String::as_str).unwrap_or(""),
+                    values.get(1).map(String::as_str).unwrap_or(""),
+                );
+                pin_operations::set_reset_code_programmatic(admin, reset)
+            }
+            Some(PinScreen::UnblockWizardWithReset) => {
+                let (code, new_pin) = (
+                    values.first().map(String::as_str).unwrap_or(""),
+                    values.get(1).map(String::as_str).unwrap_or(""),
+                );
+                pin_operations::unblock_user_pin_programmatic(code, new_pin)
+            }
+            Some(PinScreen::UnblockWizardWithAdmin) => {
+                let (admin, new_pin) = (
+                    values.first().map(String::as_str).unwrap_or(""),
+                    values.get(1).map(String::as_str).unwrap_or(""),
+                );
+                pin_operations::unblock_user_pin_programmatic(admin, new_pin)
+            }
+            _ => {
+                self.pin_state.screen = PinScreen::Main;
+                self.pin_state.operation_running = false;
+                return Ok(());
+            }
         };
 
-        // Restore TUI
-        crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
-        crossterm::terminal::enable_raw_mode()?;
+        // Clear input state
+        self.pin_state.pin_input = None;
+        self.pin_state.pending_operation = None;
+        self.pin_state.operation_running = false;
+        self.pin_state.operation_status = None;
 
-        // Update state
-        match result {
-            Ok(msg) => {
-                self.pin_state.message = Some(msg);
+        // Update state based on result
+        match op_result {
+            Ok(result) => {
+                let msg = if result.success {
+                    result.messages.join("\n")
+                } else {
+                    let mut lines = vec!["Operation failed:".to_string()];
+                    lines.extend(result.messages);
+                    lines.join("\n")
+                };
+                self.pin_state.message = Some(if msg.is_empty() {
+                    if result.success {
+                        "Operation completed successfully".to_string()
+                    } else {
+                        "Operation failed".to_string()
+                    }
+                } else {
+                    msg
+                });
                 // Refresh YubiKey state to get updated PIN counters
                 self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
                 if self.selected_yubikey_idx >= self.yubikey_states.len() {
@@ -670,7 +802,7 @@ impl App {
             }
         }
 
-        self.pin_state.screen = PinScreen::Main;
+        self.pin_state.screen = PinScreen::OperationResult;
         Ok(())
     }
 
