@@ -21,6 +21,12 @@ pub struct SshState {
     pub ssh_enabled: bool,
     pub shell_configured: bool,
     pub agent_running: bool,
+    /// Username field for TestConnection screen
+    pub test_conn_user: String,
+    /// Hostname field for TestConnection screen
+    pub test_conn_host: String,
+    /// Which field is focused: 0 = username, 1 = hostname
+    pub test_conn_focused: u8,
 }
 
 impl Default for SshState {
@@ -31,6 +37,9 @@ impl Default for SshState {
             ssh_enabled: false,
             shell_configured: false,
             agent_running: false,
+            test_conn_user: String::new(),
+            test_conn_host: String::new(),
+            test_conn_focused: 0,
         }
     }
 }
@@ -180,18 +189,69 @@ fn render_export_key(frame: &mut Frame, area: Rect, state: &SshState) {
 }
 
 fn render_test_connection(frame: &mut Frame, area: Rect, state: &SshState) {
-    render_operation_screen(
-        frame,
-        area,
-        "Test SSH Connection",
-        "Test SSH connection to a remote server.\n\n\
-         You will be prompted for:\n\
-         - Username\n\
-         - Hostname\n\n\
-         The connection will use your YubiKey for authentication.\n\n\
-         Press ENTER to test or ESC to cancel.",
-        state,
-    );
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Length(3),
+            Constraint::Length(3),
+            Constraint::Min(0),
+        ])
+        .split(area);
+
+    let title_widget = Paragraph::new("Test SSH Connection")
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(Block::default().borders(Borders::ALL));
+    frame.render_widget(title_widget, chunks[0]);
+
+    let user_style = if state.test_conn_focused == 0 {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let user_widget = Paragraph::new(state.test_conn_user.as_str())
+        .style(user_style)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Username (Tab to switch, Enter to test)"),
+        );
+    frame.render_widget(user_widget, chunks[1]);
+
+    let host_style = if state.test_conn_focused == 1 {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let host_widget = Paragraph::new(state.test_conn_host.as_str())
+        .style(host_style)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Hostname (Enter to test, ESC to cancel)"),
+        );
+    frame.render_widget(host_widget, chunks[2]);
+
+    let mut help_lines = vec![
+        Line::from("Type username and hostname, then press Enter to test."),
+        Line::from("Tab switches between fields. ESC cancels."),
+        Line::from("Uses BatchMode=yes (no password prompts, YubiKey auth only)."),
+    ];
+    if let Some(ref msg) = state.message {
+        help_lines.push(Line::from(""));
+        help_lines.push(Line::from(vec![
+            Span::styled("Result: ", Style::default().fg(Color::Yellow)),
+            Span::raw(msg.as_str()),
+        ]));
+    }
+    let help_widget = Paragraph::new(help_lines)
+        .block(Block::default().borders(Borders::ALL).title("Info"))
+        .wrap(ratatui::widgets::Wrap { trim: true });
+    frame.render_widget(help_widget, chunks[3]);
 }
 
 fn render_operation_screen(

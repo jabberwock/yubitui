@@ -133,10 +133,12 @@ pub fn parse_touch_policies(output: &str) -> TouchPolicies {
     policies
 }
 
-/// Set the touch policy for a given OpenPGP slot.
+/// Set the touch policy for a given OpenPGP slot non-interactively.
 ///
 /// Spawns `ykman openpgp keys set-touch <slot> <policy> --force` with
-/// inherited stdio so the interactive Admin PIN prompt is visible.
+/// piped IO (no terminal escape). The `--force` flag suppresses the Admin
+/// PIN prompt — the caller must ensure ykman has stored credentials or that
+/// the device does not require PIN confirmation for this operation.
 /// If `serial` is provided, prepends `--device <serial>` to select a specific key.
 ///
 /// Valid slots: "sig", "enc", "aut", "att"
@@ -145,7 +147,7 @@ pub fn set_touch_policy(
     slot: &str,
     policy: &TouchPolicy,
     serial: Option<u32>,
-) -> Result<std::process::Child> {
+) -> Result<String> {
     match slot {
         "sig" | "enc" | "aut" | "att" => {}
         other => anyhow::bail!(
@@ -170,12 +172,18 @@ pub fn set_touch_policy(
         "--force",
     ]);
 
-    cmd.stdin(std::process::Stdio::inherit())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit());
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
 
-    let child = cmd.spawn()?;
-    Ok(child)
+    let output = cmd.output()?;
+
+    if output.status.success() {
+        Ok(format!("Touch policy set to {} for {}", policy, slot))
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("Failed to set touch policy: {}", stderr.trim())
+    }
 }
 
 #[cfg(test)]

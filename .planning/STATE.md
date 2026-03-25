@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gaps.
-status: Executing Phase 04
-last_updated: "2026-03-25T20:00:00.000Z"
+status: Phase 04 complete
+last_updated: "2026-03-25T19:28:43Z"
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 15
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -23,16 +23,16 @@ active
 
 ## Current Plan
 
-Phase 4 — Plan 04 (04-04) [next]
+Phase 4 — Plan 04 (04-04) [complete — all plans done]
 
 ## Progress
 
-[█████████░] 93%
+[██████████] 100%
 
 - Phase 1: complete (all 3 plans complete)
 - Phase 2: complete (all 4 plans complete)
 - Phase 3: complete (all 4 plans complete)
-- Phase 4: in progress (3 of 4 plans complete)
+- Phase 4: complete (all 4 plans complete)
 
 ## Completed Plans
 
@@ -49,6 +49,7 @@ Phase 4 — Plan 04 (04-04) [next]
 - 04-01: Foundational modules — GPG status-fd parser (21 tests), PIN input widget, progress popup (2026-03-25)
 - 04-02: In-TUI PIN operations — programmatic gpg PIN functions with --pinentry-mode loopback, TUI PIN input, no terminal escape (2026-03-25)
 - 04-03: Key generation wizard (7-step TUI) + programmatic import via --command-fd auto-mapping subkeys by capability (2026-03-25)
+- 04-04: Terminal escape audit and cleanup — zero Stdio::inherit in yubikey modules, TUI SSH test connection input, deprecated functions removed (2026-03-25)
 
 ## Decisions
 
@@ -85,6 +86,11 @@ Phase 4 — Plan 04 (04-04) [next]
 - [04-03]: GenerateKey KeyScreen variant removed after wizard added — no longer constructed; render_generate_key kept with #[allow(dead_code)] as fallback
 - [04-03]: import_key_programmatic writes all edit-key commands upfront then answers GET_HIDDEN via mpsc channel — same pattern as run_gpg_pin_operation
 - [04-03]: current_date_ymd() uses std::time + Gregorian day-of-epoch algorithm — avoids adding chrono to app logic (already in dev-deps)
+- [04-04]: set_touch_policy returns Result<String> (not Result<Child>) — callers get outcome immediately without managing child lifetime; --force means no interactive PIN needed
+- [04-04]: test_ssh_connection uses BatchMode=yes + ConnectTimeout=10 + Stdio::piped — non-interactive, never hangs, all output captured for TUI display
+- [04-04]: SSH ExportKey routes to Screen::Keys + KeyScreen::SshPubkeyPopup (existing TUI popup) from execute_ssh_operation
+- [04-04]: TestConnection screen gains TUI text input fields (test_conn_user/host/focused in SshState); Tab switches focus; Enter submits
+- [04-04]: Deprecated interactive functions fully removed (not just #[allow(dead_code)]) — clean break, no legacy code
 
 ## Notes
 
@@ -94,5 +100,5 @@ Phase 4 — Plan 04 (04-04) [next]
 
 ## Last Session
 
-- Stopped at: Completed 04-03-PLAN.md (key generation wizard, programmatic import, no terminal escape)
+- Stopped at: Completed 04-04-PLAN.md (terminal escape audit, zero Stdio::inherit, deprecated function removal)
 - Date: 2026-03-25

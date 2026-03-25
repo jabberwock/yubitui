@@ -131,7 +131,7 @@ pub fn restart_gpg_agent() -> Result<String> {
 /// Export SSH public key and save to file
 #[allow(dead_code)]
 pub fn export_ssh_key_to_file(path: &PathBuf) -> Result<String> {
-    let ssh_key = crate::yubikey::key_operations::export_ssh_public_key()?;
+    let ssh_key = crate::yubikey::key_operations::get_ssh_public_key_text()?;
 
     fs::write(path, ssh_key)?;
 
@@ -151,8 +151,8 @@ pub fn add_to_remote_authorized_keys(ssh_key: &str, user: &str, host: &str) -> R
         .arg(host)
         .arg("mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys")
         .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
         .spawn()?;
 
     if let Some(mut stdin) = child.stdin.take() {
@@ -169,27 +169,32 @@ pub fn add_to_remote_authorized_keys(ssh_key: &str, user: &str, host: &str) -> R
     }
 }
 
-/// Test SSH connection
+/// Test SSH connection non-interactively.
+///
+/// Uses `-o BatchMode=yes` to prevent SSH from prompting for passwords and
+/// `-o ConnectTimeout=10` to avoid hanging indefinitely. All IO is piped so
+/// the TUI is never escaped.
 pub fn test_ssh_connection(user: &str, host: &str) -> Result<String> {
     validate_ssh_target(user, host)?;
 
-    let mut child = Command::new("ssh")
+    let output = Command::new("ssh")
+        .arg("-o").arg("BatchMode=yes")
+        .arg("-o").arg("ConnectTimeout=10")
         .arg("-l")
         .arg(user)
         .arg("--")
         .arg(host)
         .arg("echo 'SSH connection successful'")
-        .stdin(std::process::Stdio::inherit())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .spawn()?;
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .output()?;
 
-    let output = child.wait()?;
-
-    if output.success() {
+    if output.status.success() {
         Ok("SSH connection test successful".to_string())
     } else {
-        Ok("SSH connection test failed".to_string())
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Ok(format!("SSH connection test failed: {}", stderr.trim()))
     }
 }
 
