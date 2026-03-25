@@ -94,7 +94,7 @@ Plans:
 
 **Done when:** No operation causes the terminal to hand off to an external interactive process. All user feedback during operations is rendered inside the TUI.
 
-**Plans:** 4 plans
+**Plans:** 3/4 plans executed
 
 Plans:
 - [x] 04-01-PLAN.md — GPG status-fd parser, PIN input widget, progress popup (foundation)
