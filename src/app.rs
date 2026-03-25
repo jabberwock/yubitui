@@ -806,6 +806,9 @@ impl App {
         Ok(())
     }
 
+    // TODO(04-03-task2): Remove #[allow(deprecated)] once generate_key_batch and
+    // import_key_programmatic are wired in Task 2 of Plan 04-03.
+    #[allow(deprecated)]
     fn execute_key_operation(&mut self) -> Result<()> {
         use crate::yubikey::key_operations;
         use ui::keys::KeyScreen;
