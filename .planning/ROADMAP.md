@@ -130,3 +130,4 @@ Plans:
 - FIDO2/WebAuthn status display (read-only, no management)
 - Configurable refresh interval
 - Export key directly to clipboard
+- Migrate UI layer to reactive ratatui framework (user is building a Textual-style reactive rendering engine on top of ratatui — app.rs God struct needs componentization, wizard screens and popup widgets map well, src/yubikey/ unaffected)
