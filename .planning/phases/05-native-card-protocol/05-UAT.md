@@ -123,53 +123,60 @@ skipped: 1
   reason: "User reported: still can't import keys and it's not clear why. No idea if the admin pin is bad or what. Error: Card removed -- reinsert and retry / Smartcard operation failed / ENC slot import failed / Slots filled: SIG — ENC — AUT —"
   severity: blocker
   test: 2b
-  artifacts: []
-  missing: []
+  root_cause: "ScOpFailure(6) (wrong Admin PIN on YubiKey) not mapped — falls into same catch-all as ScOpFailure(0) (card disconnect). CardCtrl(3) suppressed entirely. Fix: map ScOpFailure(6) → 'Wrong Admin PIN', track CardCtrl(3) to surface disconnect message separately."
+  artifacts: [src/yubikey/gpg_status.rs, src/yubikey/key_operations.rs, src/app.rs]
+  missing: [ScOpFailure(6) mapping, CardCtrl(3) surfacing on failure]
 
 - truth: "Key Attributes screen ([K]) should display touch policy per slot (On/Off/Fixed/Cached)"
   status: failed
   reason: "Key Attributes screen shows [empty] for all slots. Touch policies only appear in main Key Management view."
   severity: major
   test: 3
-  artifacts: []
-  missing: []
+  root_cause: "SlotInfo struct has no touch policy field. render_key_attributes() only receives &KeyState (no YubiKeyState with touch_policies). Touch policy data exists in YubiKeyState.touch_policies but is not passed to the renderer."
+  artifacts: [src/yubikey/key_operations.rs, src/ui/keys.rs]
+  missing: [touch policy in SlotInfo or YubiKeyState passed to render_key_attributes]
 
 - truth: "PIV/certificates section shows which PIV slots are occupied vs empty"
   status: failed
   reason: "No PIV screen in UI. piv.rs exists with dead_code types but is not wired to any screen or navigation."
   severity: major
   test: 5
-  artifacts: [src/yubikey/piv.rs]
-  missing: [PIV screen, navigation entry]
+  root_cause: "Backend fully implemented (get_piv_state() works, YubiKeyState.piv is populated on scan). Entire gap is UI layer: no Screen::Piv variant, no ui/piv.rs, no navigation keybind or menu entry."
+  artifacts: [src/yubikey/piv.rs, src/app.rs, src/ui/mod.rs]
+  missing: [Screen::Piv enum variant, src/ui/piv.rs render file, keyboard/menu navigation]
 
 - truth: "SSH Setup Wizard shows accurate status on initial load without requiring user action"
   status: failed
   reason: "gpg-agent.conf status showed ❌ on initial load even though enable-ssh-support was present. Re-read only triggered by running an action."
   severity: major
   test: 6
-  artifacts: []
-  missing: [correct initial status read in SSH setup screen]
+  root_cause: "refresh_ssh_status() is never called when navigating to Screen::SshWizard. SshState::default() hard-codes all booleans to false. Navigation handlers (key '5', dashboard menu) set the screen but never trigger a refresh."
+  artifacts: [src/app.rs (lines 760, 802)]
+  missing: [refresh_ssh_status() call on screen entry]
 
 - truth: "[V] View full card status displays detailed card information after confirmation"
   status: failed
   reason: "After pressing Enter on confirmation screen, returns silently to main Key Management view. No card detail is displayed."
   severity: major
   test: E7
-  artifacts: []
-  missing: []
+  root_cause: "execute_key_operation stores result in key_state.message then immediately routes to KeyScreen::Main. Result is buried inline in the 'Keys on Card' paragraph with no visual distinction. No dedicated result screen used (unlike [K] which has KeyScreen::KeyAttributes)."
+  artifacts: [src/app.rs (lines 931-946), src/ui/keys.rs (lines 296-306)]
+  missing: [route to KeyScreen::KeyOperationResult instead of Main after fetching status]
 
 - truth: "[E] Export SSH public key shows error when no auth key is present"
   status: failed
   reason: "With no auth key set, silently returns to main view after confirming instead of showing an error message."
   severity: minor
   test: E8
-  artifacts: []
-  missing: []
+  root_cause: "Error arm at line 955 routes to KeyScreen::Main instead of KeyScreen::SshPubkeyPopup. The SshPubkeyPopup renderer already handles None ssh_pubkey with 'No authentication key found' — one-line fix."
+  artifacts: [src/app.rs (lines 948-959)]
+  missing: [route Err arm to KeyScreen::SshPubkeyPopup instead of Main]
 
 - truth: "Action error messages are cleared when navigating to a different action"
   status: failed
   reason: "Attestation error persisted and appeared on the View Card Status confirmation screen."
   severity: minor
   test: E9
-  artifacts: []
-  missing: []
+  root_cause: "key_state.message is shared across all Key Management sub-screens and not cleared on navigation. [V], [K], [E], [S], [A] handlers don't clear it. Only [G] and [T] do. Fix: add key_state.message = None in each affected navigation arm (or clear unconditionally at top of KeyScreen::Main handler)."
+  artifacts: [src/app.rs (KeyScreen::Main input handler)]
+  missing: [message clear on navigation for [V], [K], [E], [S], [A] arms]

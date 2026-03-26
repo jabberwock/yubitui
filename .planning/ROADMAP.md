@@ -121,7 +121,7 @@ Plans:
 
 **Done when:** `cargo test` passes; app works on a clean system with only pcscd/PC/SC installed; no ykman binary required.
 
-**Plans:** 6 plans
+**Plans:** 3/6 plans executed
 
 Plans:
 - [x] 05-01-PLAN.md — PC/SC primitives (card.rs) + replace detection, PIN, OpenPGP, key attribute reads

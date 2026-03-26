@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gaps.
 status: Executing Phase 05 — gap closure plans in progress
-last_updated: "2026-03-26T10:00:00.000Z"
+last_updated: "2026-03-26T15:11:54.015Z"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -99,6 +99,12 @@ Phase 5 — Plan 04 (05-04) [complete]
 - [05-01]: tlv_find() BER-TLV walker used for DO 0x6E fingerprints and algorithm attributes; no flat-offset parsing
 - [05-01]: apdu_error_message(sw, context) maps all SW codes to plain English; raw SW goes to tracing::debug! only
 - [05-01]: detect_all_yubikey_states() builds full YubiKeyState from single card connection per reader
+- [Phase 05]: render_key_attributes now receives &Option<YubiKeyState> — same pattern as render_ssh_pubkey_popup; no new imports needed
+- [Phase 05]: refresh_ssh_status() called at both SSH Wizard entry points without resetting SshState fields — preserves sub-screen state
+- [Phase 05-native-card-protocol]: [05-04]: ExportSSH Err arm sets ssh_pubkey=None and routes to SshPubkeyPopup — renderer already handles None with 'No authentication key found on card.'
+- [Phase 05-native-card-protocol]: [05-04]: CardCtrl(3) gets its own arm in run_keytocard_session; other CardCtrl codes remain in catch-all (scdaemon noise)
+- [Phase 05-06]: #[allow(dead_code)] retained on SlotInfo.algorithm/subject — used by backend but not yet displayed in piv.rs UI
+- [Phase 05-06]: Context menu Help shifts to index 5 to insert PIV Certificates at index 4; Screen::Piv accessible via key '6' and menu
 
 ## Pending Todos
 
