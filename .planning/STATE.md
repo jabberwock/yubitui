@@ -52,6 +52,7 @@ Phase 5 — Plan 01 (05-01) [complete]
 - 04-03: Key generation wizard (7-step TUI) + programmatic import via --command-fd auto-mapping subkeys by capability (2026-03-25)
 - 04-04: Terminal escape audit and cleanup — zero Stdio::inherit in yubikey modules, TUI SSH test connection input, deprecated functions removed (2026-03-25)
 - 05-01: PC/SC APDU primitives module (card.rs) + native card reads for detection, PIN status, OpenPGP state, key attributes — no gpg/ykman subprocess for card reads (2026-03-25)
+- 05-05: Touch policy display in Key Attributes screen + SSH Wizard status refresh on entry (2026-03-26)
 
 ## Decisions
 
@@ -111,5 +112,5 @@ Phase 5 — Plan 01 (05-01) [complete]
 
 ## Last Session
 
-- Stopped at: Completed 05-01-PLAN.md (PC/SC primitives, native detection/pin/openpgp/key_operations)
-- Date: 2026-03-25
+- Stopped at: Completed 05-05-PLAN.md (touch policy display in key attributes, SSH status refresh on entry)
+- Date: 2026-03-26
