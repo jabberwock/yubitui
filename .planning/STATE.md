@@ -1,9 +1,9 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gaps.
-status: Milestone complete
-last_updated: "2026-03-26T15:21:48.639Z"
+milestone_name: Production-Ready
+status: Shipped
+last_updated: "2026-03-26"
 progress:
   total_phases: 5
   completed_phases: 5
@@ -110,7 +110,7 @@ Phase 5 — Plan 04 (05-04) [complete]
 
 ## Pending Todos
 
-- [Fix wrong model when management AID unavailable](.planning/todos/pending/2026-03-26-fix-wrong-model-when-management-aid-unavailable.md) — YubiKey 4/5 shown as "YubiKey NEO" when mgmt AID query fails; OpenPGP spec v3.4 ≠ firmware v3.x
+_None_
 
 ## Notes
 
@@ -118,7 +118,14 @@ Phase 5 — Plan 04 (05-04) [complete]
 - Security rules: no sensitive values in logs, no shell injection, no hardcoded paths
 - Always run `cargo clippy -- -D warnings` before committing
 
+## Project Reference
+
+See: .planning/PROJECT.md (updated 2026-03-26)
+
+**Core value:** Zero-friction YubiKey management — detect problems automatically, guide users through fixes
+**Current focus:** v1.0 shipped — planning next milestone
+
 ## Last Session
 
-- Stopped at: Gap closure wave 1 complete — 05-04, 05-05, 05-06 all merged
+- Stopped at: v1.0 milestone archived and tagged
 - Date: 2026-03-26

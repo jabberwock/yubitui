@@ -1,8 +1,8 @@
 use anyhow::Result;
 use pcsc::{Context, Protocols, Scope, ShareMode};
 
-use super::{FormFactor, Model, Version, YubiKeyInfo, YubiKeyState};
 use super::card;
+use super::{FormFactor, Model, Version, YubiKeyInfo, YubiKeyState};
 
 /// Detect all connected YubiKeys by enumerating PC/SC readers.
 ///
@@ -15,8 +15,7 @@ use super::card;
 /// Returns a Vec with one YubiKeyState per reader with a valid OpenPGP app.
 /// Returns an empty vec if no YubiKey is found (no error).
 pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
-    let ctx = Context::establish(Scope::User)
-        .map_err(|e| anyhow::anyhow!("PC/SC error: {e}"))?;
+    let ctx = Context::establish(Scope::User).map_err(|e| anyhow::anyhow!("PC/SC error: {e}"))?;
 
     let mut readers_buf = [0u8; 2048];
     let readers: Vec<_> = match ctx.list_readers(&mut readers_buf) {
@@ -68,14 +67,13 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         let openpgp = read_openpgp_state_from_card(&card).ok();
 
         // Read PIN status (DO 0xC4 PW Status Bytes) — AFTER fingerprints
-        let pin_status = read_pin_status_from_card(&card)
-            .unwrap_or(super::pin::PinStatus {
-                user_pin_retries: 3,
-                admin_pin_retries: 3,
-                reset_code_retries: 0,
-                user_pin_blocked: false,
-                admin_pin_blocked: false,
-            });
+        let pin_status = read_pin_status_from_card(&card).unwrap_or(super::pin::PinStatus {
+            user_pin_retries: 3,
+            admin_pin_retries: 3,
+            reset_code_retries: 0,
+            user_pin_blocked: false,
+            admin_pin_blocked: false,
+        });
 
         // Touch policies — also read before any other AID SELECT changes app context.
         let touch_policies = super::touch_policy::get_touch_policies_native(&card).ok();
@@ -89,27 +87,78 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         // only now that all OpenPGP reads are done (reading 0x4F first causes 0x6B00
         // on C5 on YubiKey 5 hardware).
         let info = if let Some(ref di) = dev_info {
-            let fw = di.firmware.clone().unwrap_or(Version { major: 0, minor: 0, patch: 0 });
-            let ff_byte = di.form_factor_byte.unwrap_or(0);
-            let (model, form_factor) = model_from_form_factor(ff_byte, fw.major);
-            let sn = di.serial.unwrap_or(0);
-            YubiKeyInfo { serial: sn, version: fw, model, form_factor }
+            if let Some(fw) = di.firmware.clone() {
+                let ff_byte = di.form_factor_byte.unwrap_or(0);
+                let (model, form_factor) = model_from_form_factor(ff_byte, fw.major);
+                let sn = di.serial.unwrap_or(0);
+                YubiKeyInfo {
+                    serial: sn,
+                    version: fw,
+                    model,
+                    form_factor,
+                }
+            } else {
+                // Management AID responded but TLV parsing found no firmware tag.
+                // Do NOT fall back to openpgp_version — that is the OpenPGP spec
+                // version (e.g. 3.4 for YubiKey 5 series), not hardware firmware.
+                // Mapping spec-major 3 → NEO is wrong; show Unknown instead.
+                tracing::debug!("get_device_info returned Some but firmware=None; showing Unknown model");
+                let sn = di.serial.unwrap_or(0);
+                YubiKeyInfo {
+                    serial: sn,
+                    version: Version {
+                        major: 0,
+                        minor: 0,
+                        patch: 0,
+                    },
+                    model: Model::Unknown,
+                    form_factor: FormFactor::Unknown,
+                }
+            }
         } else {
             // Fallback: read 0x4F now (safe — all OpenPGP DOs already read)
             let (serial, openpgp_version) = match card::get_data(&card, 0x00, 0x4F) {
                 Ok(aid) => {
                     let s = card::serial_from_aid(&aid).unwrap_or(0);
                     let v = if aid.len() >= 8 {
-                        Version { major: aid[6], minor: aid[7], patch: 0 }
+                        Version {
+                            major: aid[6],
+                            minor: aid[7],
+                            patch: 0,
+                        }
                     } else {
-                        Version { major: 0, minor: 0, patch: 0 }
+                        Version {
+                            major: 0,
+                            minor: 0,
+                            patch: 0,
+                        }
                     };
                     (s, v)
                 }
-                Err(_) => (0, Version { major: 0, minor: 0, patch: 0 }),
+                Err(_) => (
+                    0,
+                    Version {
+                        major: 0,
+                        minor: 0,
+                        patch: 0,
+                    },
+                ),
             };
-            let model = detect_model_from_version(&openpgp_version);
-            YubiKeyInfo { serial, version: openpgp_version, model, form_factor: FormFactor::UsbA }
+            // The version from 0x4F is the OpenPGP *spec* version, not hardware firmware.
+            // YubiKey 5 series reports OpenPGP spec 3.4; the actual NEO reports 2.x.
+            // Mapping spec-major 3 → NEO via detect_model_from_version is wrong here,
+            // so use Unknown when management AID was unavailable and spec major ≥ 3.
+            let model = if openpgp_version.major >= 3 {
+                Model::Unknown
+            } else {
+                detect_model_from_version(&openpgp_version)
+            };
+            YubiKeyInfo {
+                serial,
+                version: openpgp_version,
+                model,
+                form_factor: FormFactor::UsbA,
+            }
         };
 
         // Get PIV state (best-effort, no error on failure)
@@ -124,10 +173,7 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         });
     }
 
-    tracing::info!(
-        "PC/SC reader enumeration found {} YubiKey(s)",
-        states.len()
-    );
+    tracing::info!("PC/SC reader enumeration found {} YubiKey(s)", states.len());
 
     // If we had to kill scdaemon to get exclusive access, restart it now so
     // subsequent gpg operations (key import, PIN change) don't need to cold-start it.
@@ -153,10 +199,7 @@ pub fn detect_yubikey_state() -> Result<Option<YubiKeyState>> {
 fn read_pin_status_from_card(card: &pcsc::Card) -> Result<super::pin::PinStatus> {
     let data = card::get_data(card, 0x00, 0xC4)?;
     if data.len() < 7 {
-        anyhow::bail!(
-            "Unexpected PW Status Bytes length: {}",
-            data.len()
-        );
+        anyhow::bail!("Unexpected PW Status Bytes length: {}", data.len());
     }
     Ok(super::pin::PinStatus {
         user_pin_retries: data[4],
@@ -177,9 +220,7 @@ fn read_pin_status_from_card(card: &pcsc::Card) -> Result<super::pin::PinStatus>
 /// The 0x6E response may or may not include the outer 0x6E tag. Sub-DOs may be
 /// directly in the 0x6E value or nested inside a 0x73 (Discretionary Data Objects)
 /// container. Both layouts are handled.
-fn read_openpgp_state_from_card(
-    card: &pcsc::Card,
-) -> Result<super::openpgp::OpenPgpState> {
+fn read_openpgp_state_from_card(card: &pcsc::Card) -> Result<super::openpgp::OpenPgpState> {
     let version = String::new();
 
     // Read Application Related Data — card::get_data handles T=0 GET RESPONSE chaining.
@@ -204,9 +245,27 @@ fn read_openpgp_state_from_card(
 
     // C5 — Fingerprints: 60 bytes = SIG(20) | ENC(20) | AUT(20).
     let c5 = find_do(0xC5);
-    let sig_fp = c5.as_deref().and_then(|b| if b.len() >= 20 { Some(b[..20].to_vec()) } else { None });
-    let enc_fp = c5.as_deref().and_then(|b| if b.len() >= 40 { Some(b[20..40].to_vec()) } else { None });
-    let aut_fp = c5.as_deref().and_then(|b| if b.len() >= 60 { Some(b[40..60].to_vec()) } else { None });
+    let sig_fp = c5.as_deref().and_then(|b| {
+        if b.len() >= 20 {
+            Some(b[..20].to_vec())
+        } else {
+            None
+        }
+    });
+    let enc_fp = c5.as_deref().and_then(|b| {
+        if b.len() >= 40 {
+            Some(b[20..40].to_vec())
+        } else {
+            None
+        }
+    });
+    let aut_fp = c5.as_deref().and_then(|b| {
+        if b.len() >= 60 {
+            Some(b[40..60].to_vec())
+        } else {
+            None
+        }
+    });
 
     // C1/C2/C3 — Algorithm attributes per slot.
     let sig_algo_raw = find_do(0xC1);
@@ -223,21 +282,33 @@ fn read_openpgp_state_from_card(
         .or_else(|| card::get_data(card, 0x00, 0x65).ok())
         .and_then(|ch_data| {
             let inner = if ch_data.first() == Some(&0x65) {
-                card::tlv_find(&ch_data, 0x65).map(|v| v.to_vec()).unwrap_or(ch_data)
+                card::tlv_find(&ch_data, 0x65)
+                    .map(|v| v.to_vec())
+                    .unwrap_or(ch_data)
             } else {
                 ch_data
             };
             card::tlv_find(&inner, 0x5B).and_then(|name_bytes| {
                 let name = String::from_utf8_lossy(name_bytes).trim().to_string();
-                if name.is_empty() { None } else { Some(name) }
+                if name.is_empty() {
+                    None
+                } else {
+                    Some(name)
+                }
             })
         });
 
     // 0x5F50 — URL of public key (extended 2-byte tag, not in 0x6E container).
-    let public_key_url = card::get_data_2byte_tag(card, 0x5F, 0x50).ok().and_then(|url_bytes| {
-        let url = String::from_utf8_lossy(&url_bytes).trim().to_string();
-        if url.is_empty() { None } else { Some(url) }
-    });
+    let public_key_url = card::get_data_2byte_tag(card, 0x5F, 0x50)
+        .ok()
+        .and_then(|url_bytes| {
+            let url = String::from_utf8_lossy(&url_bytes).trim().to_string();
+            if url.is_empty() {
+                None
+            } else {
+                Some(url)
+            }
+        });
 
     Ok(super::openpgp::OpenPgpState {
         card_present: true,
@@ -323,18 +394,18 @@ pub fn model_from_form_factor(ff_byte: u8, fw_major: u8) -> (Model, FormFactor) 
     let nfc = ff_byte & 0x80 != 0;
     let connector = ff_byte & 0x7F;
     match (fw_major, connector, nfc) {
-        (5.., 0x01, true)  => (Model::YubiKey5NFC,  FormFactor::UsbA),
-        (5.., 0x01, false) => (Model::YubiKey5,     FormFactor::UsbA),
-        (5.., 0x02, _)     => (Model::YubiKey5Nano, FormFactor::Nano),
-        (5.., 0x03, true)  => (Model::YubiKey5CNFC, FormFactor::UsbC),
-        (5.., 0x03, false) => (Model::YubiKey5C,    FormFactor::UsbC),
-        (5.., 0x04, _)     => (Model::YubiKey5CNano,FormFactor::Nano),
-        (5.., 0x05, _)     => (Model::YubiKey5Ci,   FormFactor::UsbC),
-        (4, 0x01, _)       => (Model::YubiKey4,     FormFactor::UsbA),
-        (4, 0x03, _)       => (Model::YubiKey4C,    FormFactor::UsbC),
-        (4, 0x02, _)       => (Model::YubiKey4Nano, FormFactor::Nano),
-        (3, _, _)          => (Model::YubiKeyNeo,   FormFactor::UsbA),
-        _                  => (Model::Unknown,       FormFactor::Unknown),
+        (5.., 0x01, true) => (Model::YubiKey5NFC, FormFactor::UsbA),
+        (5.., 0x01, false) => (Model::YubiKey5, FormFactor::UsbA),
+        (5.., 0x02, _) => (Model::YubiKey5Nano, FormFactor::Nano),
+        (5.., 0x03, true) => (Model::YubiKey5CNFC, FormFactor::UsbC),
+        (5.., 0x03, false) => (Model::YubiKey5C, FormFactor::UsbC),
+        (5.., 0x04, _) => (Model::YubiKey5CNano, FormFactor::Nano),
+        (5.., 0x05, _) => (Model::YubiKey5Ci, FormFactor::UsbC),
+        (4, 0x01, _) => (Model::YubiKey4, FormFactor::UsbA),
+        (4, 0x03, _) => (Model::YubiKey4C, FormFactor::UsbC),
+        (4, 0x02, _) => (Model::YubiKey4Nano, FormFactor::Nano),
+        (3, _, _) => (Model::YubiKeyNeo, FormFactor::UsbA),
+        _ => (Model::Unknown, FormFactor::Unknown),
     }
 }
 
@@ -359,30 +430,46 @@ pub fn detect_model_from_version(version: &Version) -> Model {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::Version;
+    use super::*;
 
     #[test]
     fn test_detect_model_yubikey5() {
-        let v = Version { major: 5, minor: 2, patch: 7 };
+        let v = Version {
+            major: 5,
+            minor: 2,
+            patch: 7,
+        };
         assert_eq!(detect_model_from_version(&v), Model::YubiKey5);
     }
 
     #[test]
     fn test_detect_model_yubikey4() {
-        let v = Version { major: 4, minor: 3, patch: 0 };
+        let v = Version {
+            major: 4,
+            minor: 3,
+            patch: 0,
+        };
         assert_eq!(detect_model_from_version(&v), Model::YubiKey4);
     }
 
     #[test]
     fn test_detect_model_neo() {
-        let v = Version { major: 3, minor: 1, patch: 0 };
+        let v = Version {
+            major: 3,
+            minor: 1,
+            patch: 0,
+        };
         assert_eq!(detect_model_from_version(&v), Model::YubiKeyNeo);
     }
 
     #[test]
     fn test_detect_model_unknown() {
-        let v = Version { major: 1, minor: 0, patch: 0 };
+        let v = Version {
+            major: 1,
+            minor: 0,
+            patch: 0,
+        };
         assert_eq!(detect_model_from_version(&v), Model::Unknown);
     }
 

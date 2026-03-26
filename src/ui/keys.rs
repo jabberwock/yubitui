@@ -155,7 +155,7 @@ pub fn render(
         KeyScreen::SetTouchPolicy => render_set_touch_policy(frame, area, yubikey_state, state),
         KeyScreen::SetTouchPolicySelect => render_set_touch_policy_select(frame, area, state),
         KeyScreen::SetTouchPolicyConfirm => render_set_touch_policy_confirm(frame, area, state),
-        KeyScreen::SetTouchPolicyPinInput => render_key_import_pin_input(frame, area, state),
+        KeyScreen::SetTouchPolicyPinInput => render_touch_policy_pin_input(frame, area, state),
         KeyScreen::KeyGenWizardActive => render_keygen_wizard(frame, area, state),
         KeyScreen::KeyImportPinInput => render_key_import_pin_input(frame, area, state),
         KeyScreen::KeyImportRunning => {
@@ -255,9 +255,9 @@ fn render_main(
 
         // Touch policy display
         if let Some(ref tp) = yk.touch_policies {
-            let has_sig = yk.openpgp.as_ref().map_or(false, |o| o.signature_key.is_some());
-            let has_enc = yk.openpgp.as_ref().map_or(false, |o| o.encryption_key.is_some());
-            let has_aut = yk.openpgp.as_ref().map_or(false, |o| o.authentication_key.is_some());
+            let has_sig = yk.openpgp.as_ref().is_some_and(|o| o.signature_key.is_some());
+            let has_enc = yk.openpgp.as_ref().is_some_and(|o| o.encryption_key.is_some());
+            let has_aut = yk.openpgp.as_ref().is_some_and(|o| o.authentication_key.is_some());
             lines.push(Line::from(""));
             lines.push(Line::from(vec![Span::styled(
                 "Touch Policies:",
@@ -561,9 +561,9 @@ fn render_key_attributes(
     // Touch policies from YubiKeyState
     if let Some(ref yk) = yubikey_state {
         if let Some(ref tp) = yk.touch_policies {
-            let has_sig = yk.openpgp.as_ref().map_or(false, |o| o.signature_key.is_some());
-            let has_enc = yk.openpgp.as_ref().map_or(false, |o| o.encryption_key.is_some());
-            let has_aut = yk.openpgp.as_ref().map_or(false, |o| o.authentication_key.is_some());
+            let has_sig = yk.openpgp.as_ref().is_some_and(|o| o.signature_key.is_some());
+            let has_enc = yk.openpgp.as_ref().is_some_and(|o| o.encryption_key.is_some());
+            let has_aut = yk.openpgp.as_ref().is_some_and(|o| o.authentication_key.is_some());
             lines.push(Line::from(""));
             lines.push(Line::from(vec![Span::styled(
                 "Touch Policies:",
@@ -668,9 +668,9 @@ fn render_operation_screen(
 fn render_set_touch_policy(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState>, state: &KeyState) {
     let openpgp = yubikey_state.as_ref().and_then(|yk| yk.openpgp.as_ref());
     let slot_has_key = [
-        openpgp.map_or(false, |o| o.signature_key.is_some()),
-        openpgp.map_or(false, |o| o.encryption_key.is_some()),
-        openpgp.map_or(false, |o| o.authentication_key.is_some()),
+        openpgp.is_some_and(|o| o.signature_key.is_some()),
+        openpgp.is_some_and(|o| o.encryption_key.is_some()),
+        openpgp.is_some_and(|o| o.authentication_key.is_some()),
         true, // attestation slot is factory-programmed, always present
     ];
     let slots = [
@@ -1288,6 +1288,24 @@ fn render_key_operation_result(frame: &mut Frame, area: Rect, state: &KeyState) 
         .block(Block::default().borders(Borders::ALL).title("Result"))
         .wrap(ratatui::widgets::Wrap { trim: false });
     frame.render_widget(p, area);
+}
+
+/// Render admin PIN input for touch policy — shows touch policy context as background.
+fn render_touch_policy_pin_input(frame: &mut Frame, area: Rect, state: &KeyState) {
+    let slot_display = touch_slot_display(state.touch_slot_index);
+    let policy = touch_policy_from_index(state.touch_policy_index);
+    let bg_text = format!(
+        "Set Touch Policy\n\nSlot: {}\nPolicy: {}\n\nEnter Admin PIN to apply.",
+        slot_display, policy
+    );
+    let bg = Paragraph::new(bg_text)
+        .block(Block::default().borders(Borders::ALL).title("Set Touch Policy"))
+        .wrap(ratatui::widgets::Wrap { trim: true });
+    frame.render_widget(bg, area);
+
+    if let Some(ref pin_state) = state.pin_input {
+        crate::ui::widgets::pin_input::render_pin_input(frame, area, pin_state);
+    }
 }
 
 /// Render admin PIN input for key import.

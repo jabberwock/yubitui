@@ -328,10 +328,25 @@ pub fn get_device_info(card: &pcsc::Card) -> Option<DeviceInfo> {
     if apdu_sw(resp) != 0x9000 {
         return None;
     }
-    // GET DEVICE INFO response: first byte is a length prefix (not a TLV tag).
-    // Skip it before walking the TLV pairs.
-    let raw = &resp[..resp.len().saturating_sub(2)];
-    let data = if raw.is_empty() { raw } else { &raw[1..] };
+    // GET DEVICE INFO response layout (from ykman management.py):
+    //   Newer firmware wraps inner TLV pairs in an outer 0x71 container tag.
+    //   Older firmware starts with a bare length-prefix byte (not a TLV tag).
+    // Detect which layout: if the first byte is 0x71, unwrap via tlv_find;
+    // otherwise skip the leading length byte to reach the inner TLV pairs.
+    let raw = &resp[..resp.len().saturating_sub(2)]; // strip SW bytes
+    let data: &[u8] = if raw.first() == Some(&0x71) {
+        tlv_find(raw, 0x71).unwrap_or(&[])
+    } else if raw.is_empty() {
+        raw
+    } else {
+        &raw[1..] // skip length-prefix byte
+    };
+    tracing::debug!(
+        "get_device_info: raw_len={} first_byte={:02X?} data_len={}",
+        raw.len(),
+        raw.first(),
+        data.len()
+    );
 
     // Tag 0x05: firmware version (3 bytes: major.minor.patch)
     let firmware = tlv_find(data, 0x05).and_then(|v| {
