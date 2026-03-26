@@ -205,8 +205,13 @@ pub fn set_touch_policy(
         );
     }
 
-    // Verify the write actually took effect by reading back the DO.
-    let readback = super::card::get_data(&card, 0x00, do_tag)
+    // Verify persistence by reconnecting and reading back on a fresh connection.
+    // Same-session readback is unreliable — YubiKey accepts PUT DATA for empty slots
+    // (returns 0x9000) but doesn't commit to persistent storage. A fresh connection
+    // bypasses any in-session cache and tests what is actually stored on the card.
+    drop(card);
+    let (card2, _) = super::card::connect_to_openpgp_card()?;
+    let readback = super::card::get_data(&card2, 0x00, do_tag)
         .ok()
         .and_then(|d| d.first().copied())
         .map(TouchPolicy::from_byte);
@@ -216,13 +221,13 @@ pub fn set_touch_policy(
             Ok(format!("Touch policy set to {} for slot {}", policy, slot))
         }
         Some(actual) => anyhow::bail!(
-            "Card accepted the command but touch policy reads back as {} (expected {}). \
-             A key must be loaded in this slot before touch policy takes effect.",
-            actual, policy
+            "Touch policy did not persist (reads back as {} after reconnect). \
+             A key must be loaded in slot {} before touch policy can be set.",
+            actual, slot
         ),
         None => anyhow::bail!(
-            "Card accepted the command but could not read back touch policy for slot {}. \
-             A key must be loaded in this slot before touch policy takes effect.",
+            "Could not verify touch policy for slot {} after reconnect. \
+             A key must be loaded in this slot before touch policy can be set.",
             slot
         ),
     }
