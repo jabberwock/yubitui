@@ -20,8 +20,7 @@ pub const YUBIKEY_MGMT_AID: &[u8] = &[0xA0, 0x00, 0x00, 0x05, 0x27, 0x47, 0x11, 
 /// SELECT YubiKey Management AID APDU (with Le=00 to request response data).
 #[allow(dead_code)]
 pub const SELECT_MGMT: &[u8] = &[
-    0x00, 0xA4, 0x04, 0x00, 0x08,
-    0xA0, 0x00, 0x00, 0x05, 0x27, 0x47, 0x11, 0x17, 0x00,
+    0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x05, 0x27, 0x47, 0x11, 0x17, 0x00,
 ];
 
 /// GET DEVICE INFO APDU (INS=0x1D, returns firmware version, form factor, serial).
@@ -35,8 +34,7 @@ pub const PIV_AID: &[u8] = &[0xA0, 0x00, 0x00, 0x03, 0x08, 0x00, 0x00, 0x10, 0x0
 /// Full SELECT PIV APDU: CLA=00 INS=A4 P1=04 P2=00 Lc=09 [AID].
 #[allow(dead_code)]
 pub const SELECT_PIV: &[u8] = &[
-    0x00, 0xA4, 0x04, 0x00, 0x09,
-    0xA0, 0x00, 0x00, 0x03, 0x08, 0x00, 0x00, 0x10, 0x00, 0x01,
+    0x00, 0xA4, 0x04, 0x00, 0x09, 0xA0, 0x00, 0x00, 0x03, 0x08, 0x00, 0x00, 0x10, 0x00, 0x01,
 ];
 
 /// Kill scdaemon so it releases the card channel before we connect exclusively.
@@ -63,9 +61,9 @@ pub fn connect_to_openpgp_card() -> Result<(pcsc::Card, Vec<u8>)> {
     use pcsc::{Context, Protocols, Scope, ShareMode};
 
     kill_scdaemon();
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
-    let ctx = Context::establish(Scope::User)
-        .map_err(|e| anyhow::anyhow!("PC/SC error: {e}"))?;
+    let ctx = Context::establish(Scope::User).map_err(|e| anyhow::anyhow!("PC/SC error: {e}"))?;
 
     let mut readers_buf = [0u8; 2048];
     let readers: Vec<_> = ctx
@@ -141,7 +139,12 @@ pub fn get_data(card: &pcsc::Card, p1: u8, p2: u8) -> Result<Vec<u8>> {
             } else if rsw >> 8 == 0x61 {
                 pending = (rsw & 0xFF) as u8;
             } else {
-                tracing::debug!("GET RESPONSE SW {:04X} after GET DATA {:02X}{:02X}", rsw, p1, p2);
+                tracing::debug!(
+                    "GET RESPONSE SW {:04X} after GET DATA {:02X}{:02X}",
+                    rsw,
+                    p1,
+                    p2
+                );
                 break; // partial data — return what we have
             }
         }
@@ -149,7 +152,10 @@ pub fn get_data(card: &pcsc::Card, p1: u8, p2: u8) -> Result<Vec<u8>> {
     }
 
     tracing::debug!("GET DATA {:02X}{:02X} SW {:04X}", p1, p2, sw);
-    anyhow::bail!("{}", apdu_error_message(sw, &format!("reading DO {:02X}{:02X}", p1, p2)));
+    anyhow::bail!(
+        "{}",
+        apdu_error_message(sw, &format!("reading DO {:02X}{:02X}", p1, p2))
+    );
 }
 
 /// GET DATA for a 2-byte extended tag (e.g., 0x5F50 for URL).
@@ -330,7 +336,11 @@ pub fn get_device_info(card: &pcsc::Card) -> Option<DeviceInfo> {
     // Tag 0x05: firmware version (3 bytes: major.minor.patch)
     let firmware = tlv_find(data, 0x05).and_then(|v| {
         if v.len() >= 3 {
-            Some(crate::yubikey::Version { major: v[0], minor: v[1], patch: v[2] })
+            Some(crate::yubikey::Version {
+                major: v[0],
+                minor: v[1],
+                patch: v[2],
+            })
         } else {
             None
         }
@@ -348,8 +358,17 @@ pub fn get_device_info(card: &pcsc::Card) -> Option<DeviceInfo> {
         }
     });
 
-    tracing::debug!("get_device_info: firmware={:?} ff_byte={:?} serial={:?}", firmware, form_factor_byte, serial);
-    Some(DeviceInfo { firmware, form_factor_byte, serial })
+    tracing::debug!(
+        "get_device_info: firmware={:?} ff_byte={:?} serial={:?}",
+        firmware,
+        form_factor_byte,
+        serial
+    );
+    Some(DeviceInfo {
+        firmware,
+        form_factor_byte,
+        serial,
+    })
 }
 
 #[cfg(test)]
@@ -389,7 +408,10 @@ mod tests {
     #[test]
     fn test_apdu_error_message_success_no_failed() {
         let msg = apdu_error_message(0x9000, "test");
-        assert!(!msg.contains("failed"), "9000 message should not contain 'failed': {msg}");
+        assert!(
+            !msg.contains("failed"),
+            "9000 message should not contain 'failed': {msg}"
+        );
     }
 
     #[test]
@@ -488,7 +510,10 @@ mod tests {
         // TLV: tag=0xC4 len=0x07 val=[0x01,0x7F,0x7F,0x7F,0x03,0x00,0x03]
         let data = [0xC4u8, 0x07, 0x01, 0x7F, 0x7F, 0x7F, 0x03, 0x00, 0x03];
         let result = tlv_find(&data, 0xC4);
-        assert_eq!(result, Some([0x01, 0x7F, 0x7F, 0x7F, 0x03, 0x00, 0x03].as_slice()));
+        assert_eq!(
+            result,
+            Some([0x01, 0x7F, 0x7F, 0x7F, 0x03, 0x00, 0x03].as_slice())
+        );
     }
 
     #[test]

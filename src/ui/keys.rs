@@ -8,27 +8,27 @@ use crate::yubikey::YubiKeyState;
 /// Steps in the key generation wizard (per D-09).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum KeyGenStep {
-    Algorithm,  // (1) algorithm selection
-    Expiry,     // (2) expiry selection
-    Identity,   // (3) name + email fields
-    Backup,     // (4) backup yes/no + path
-    Confirm,    // (5) summary + admin PIN entry
-    Running,    // (6) operation in progress
-    Result,     // (7) result display
+    Algorithm, // (1) algorithm selection
+    Expiry,    // (2) expiry selection
+    Identity,  // (3) name + email fields
+    Backup,    // (4) backup yes/no + path
+    Confirm,   // (5) summary + admin PIN entry
+    Running,   // (6) operation in progress
+    Result,    // (7) result display
 }
 
 /// Wizard state for key generation (per D-09).
 pub struct KeyGenWizard {
     pub step: KeyGenStep,
-    pub algorithm_index: usize,    // 0=Ed25519, 1=RSA2048, 2=RSA4096
-    pub expiry_index: usize,       // 0=None, 1=1yr, 2=2yr, 3=Custom
-    pub custom_expiry: String,     // for custom date input
+    pub algorithm_index: usize, // 0=Ed25519, 1=RSA2048, 2=RSA4096
+    pub expiry_index: usize,    // 0=None, 1=1yr, 2=2yr, 3=Custom
+    pub custom_expiry: String,  // for custom date input
     pub name: String,
     pub email: String,
     pub backup: bool,
     pub backup_path: String,
-    pub active_field: usize,       // for identity step (0=name, 1=email)
-    pub editing_path: bool,        // true when editing backup path
+    pub active_field: usize,         // for identity step (0=name, 1=email)
+    pub editing_path: bool,          // true when editing backup path
     pub editing_custom_expiry: bool, // true when editing custom expiry date
 }
 
@@ -54,7 +54,7 @@ impl KeyGenWizard {
 pub enum KeyScreen {
     Main,
     ViewStatus,
-    ImportKey,      // legacy: shows key list for selection (pre-wizard)
+    ImportKey, // legacy: shows key list for selection (pre-wizard)
     ExportSSH,
     KeyAttributes,          // read-only key algorithm display per slot
     SshPubkeyPopup,         // in-TUI SSH public key viewer
@@ -75,20 +75,15 @@ pub struct KeyState {
     pub selected_key_index: usize,
     pub key_attributes: Option<crate::yubikey::key_operations::KeyAttributes>,
     pub ssh_pubkey: Option<String>,
-    pub touch_slot_index: usize,   // 0=sig, 1=enc, 2=aut, 3=att
-    pub touch_policy_index: usize, // 0=Off, 1=On, 2=Fixed, 3=Cached, 4=CachedFixed
+    pub touch_slot_index: usize,           // 0=sig, 1=enc, 2=aut, 3=att
+    pub touch_policy_index: usize,         // 0=Off, 1=On, 2=Fixed, 3=Cached, 4=CachedFixed
     pub attestation_popup: Option<String>, // PEM content for popup display
     // Key generation wizard state
     pub keygen_wizard: Option<KeyGenWizard>,
     pub pin_input: Option<crate::ui::widgets::pin_input::PinInputState>,
     pub operation_status: Option<String>,
     pub progress_tick: usize,
-    pub import_result: Option<String>,   // formatted SIG/ENC/AUT result
-    // Reserved for future context menu integration (Plan 02-04)
-    #[allow(dead_code)]
-    pub show_context_menu: bool,
-    #[allow(dead_code)]
-    pub menu_selected_index: usize,
+    pub import_result: Option<String>, // formatted SIG/ENC/AUT result
 }
 
 impl Default for KeyState {
@@ -108,8 +103,6 @@ impl Default for KeyState {
             operation_status: None,
             progress_tick: 0,
             import_result: None,
-            show_context_menu: false,
-            menu_selected_index: 0,
         }
     }
 }
@@ -165,7 +158,9 @@ pub fn render(
         KeyScreen::SetTouchPolicyPinInput => render_key_import_pin_input(frame, area, state),
         KeyScreen::KeyGenWizardActive => render_keygen_wizard(frame, area, state),
         KeyScreen::KeyImportPinInput => render_key_import_pin_input(frame, area, state),
-        KeyScreen::KeyImportRunning => render_key_operation_running(frame, area, "Importing key...", state),
+        KeyScreen::KeyImportRunning => {
+            render_key_operation_running(frame, area, "Importing key...", state)
+        }
         KeyScreen::KeyOperationResult => render_key_operation_result(frame, area, state),
     }
 
@@ -206,7 +201,12 @@ fn render_main(
             if let Some(ref sig) = openpgp.signature_key {
                 lines.push(Line::from(vec![
                     Span::styled("Signature:      ", Style::default().fg(Color::Green)),
-                    Span::raw(sig.fingerprint.get(..16).unwrap_or(&sig.fingerprint).to_string()),
+                    Span::raw(
+                        sig.fingerprint
+                            .get(..16)
+                            .unwrap_or(&sig.fingerprint)
+                            .to_string(),
+                    ),
                     Span::raw("..."),
                 ]));
             } else {
@@ -219,7 +219,12 @@ fn render_main(
             if let Some(ref enc) = openpgp.encryption_key {
                 lines.push(Line::from(vec![
                     Span::styled("Encryption:     ", Style::default().fg(Color::Green)),
-                    Span::raw(enc.fingerprint.get(..16).unwrap_or(&enc.fingerprint).to_string()),
+                    Span::raw(
+                        enc.fingerprint
+                            .get(..16)
+                            .unwrap_or(&enc.fingerprint)
+                            .to_string(),
+                    ),
                     Span::raw("..."),
                 ]));
             } else {
@@ -232,7 +237,12 @@ fn render_main(
             if let Some(ref auth) = openpgp.authentication_key {
                 lines.push(Line::from(vec![
                     Span::styled("Authentication: ", Style::default().fg(Color::Green)),
-                    Span::raw(auth.fingerprint.get(..16).unwrap_or(&auth.fingerprint).to_string()),
+                    Span::raw(
+                        auth.fingerprint
+                            .get(..16)
+                            .unwrap_or(&auth.fingerprint)
+                            .to_string(),
+                    ),
                     Span::raw("..."),
                 ]));
             } else {
@@ -248,7 +258,9 @@ fn render_main(
             lines.push(Line::from(""));
             lines.push(Line::from(vec![Span::styled(
                 "Touch Policies:",
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             )]));
             lines.push(Line::from(vec![
                 Span::styled("  Signature:      ", Style::default().fg(Color::Yellow)),
@@ -284,9 +296,10 @@ fn render_main(
                     ]));
                     first = false;
                 } else {
-                    lines.push(Line::from(vec![
-                        Span::raw(format!("        {}", text_line)),
-                    ]));
+                    lines.push(Line::from(vec![Span::raw(format!(
+                        "        {}",
+                        text_line
+                    ))]));
                 }
             }
         }
@@ -301,18 +314,13 @@ fn render_main(
             // Split multi-line messages (e.g. card status output) into separate
             // Lines — ratatui does not break Span::raw on embedded \n characters.
             for text_line in msg.lines() {
-                content.push(Line::from(vec![
-                    Span::raw(text_line.to_string()),
-                ]));
+                content.push(Line::from(vec![Span::raw(text_line.to_string())]));
             }
         }
     }
 
-    let paragraph = Paragraph::new(content).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title("Keys on Card"),
-    );
+    let paragraph =
+        Paragraph::new(content).block(Block::default().borders(Borders::ALL).title("Keys on Card"));
     frame.render_widget(paragraph, chunks[1]);
 
     let actions = vec![
@@ -470,7 +478,12 @@ fn render_export_ssh(frame: &mut Frame, area: Rect, state: &KeyState) {
     );
 }
 
-fn render_key_attributes(frame: &mut Frame, area: Rect, yubikey_state: &Option<crate::yubikey::YubiKeyState>, state: &KeyState) {
+fn render_key_attributes(
+    frame: &mut Frame,
+    area: Rect,
+    yubikey_state: &Option<crate::yubikey::YubiKeyState>,
+    state: &KeyState,
+) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(0)])
@@ -548,7 +561,9 @@ fn render_key_attributes(frame: &mut Frame, area: Rect, yubikey_state: &Option<c
             lines.push(Line::from(""));
             lines.push(Line::from(vec![Span::styled(
                 "Touch Policies:",
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             )]));
             lines.push(Line::from(vec![
                 Span::styled("  Signature:      ", Style::default().fg(Color::Yellow)),
@@ -645,25 +660,39 @@ fn render_operation_screen(
 }
 
 fn render_set_touch_policy(frame: &mut Frame, area: Rect, state: &KeyState) {
-    let slots = ["Signature (sig)", "Encryption (enc)", "Authentication (aut)", "Attestation (att)"];
+    let slots = [
+        "Signature (sig)",
+        "Encryption (enc)",
+        "Authentication (aut)",
+        "Attestation (att)",
+    ];
     let mut lines: Vec<Line> = vec![
         Line::from(vec![Span::styled(
             "Select slot for touch policy:",
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
     ];
     for (i, slot) in slots.iter().enumerate() {
         if i == state.touch_slot_index {
             lines.push(Line::from(vec![
-                Span::styled("> ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                Span::styled(*slot, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "> ",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    *slot,
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
             ]));
         } else {
-            lines.push(Line::from(vec![
-                Span::raw("  "),
-                Span::raw(*slot),
-            ]));
+            lines.push(Line::from(vec![Span::raw("  "), Span::raw(*slot)]));
         }
     }
     lines.push(Line::from(""));
@@ -673,32 +702,51 @@ fn render_set_touch_policy(frame: &mut Frame, area: Rect, state: &KeyState) {
     )]));
 
     let paragraph = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title("Set Touch Policy"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Set Touch Policy"),
+        )
         .wrap(ratatui::widgets::Wrap { trim: false });
     frame.render_widget(paragraph, area);
 }
 
 fn render_set_touch_policy_select(frame: &mut Frame, area: Rect, state: &KeyState) {
     let slot_display = touch_slot_display(state.touch_slot_index);
-    let policies = ["Off", "On", "Fixed (IRREVERSIBLE)", "Cached", "Cached-Fixed (IRREVERSIBLE)"];
+    let policies = [
+        "Off",
+        "On",
+        "Fixed (IRREVERSIBLE)",
+        "Cached",
+        "Cached-Fixed (IRREVERSIBLE)",
+    ];
     let mut lines: Vec<Line> = vec![
         Line::from(vec![Span::styled(
             format!("Select touch policy for {}:", slot_display),
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
     ];
     for (i, policy) in policies.iter().enumerate() {
         if i == state.touch_policy_index {
             lines.push(Line::from(vec![
-                Span::styled("> ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                Span::styled(*policy, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "> ",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    *policy,
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
             ]));
         } else {
-            lines.push(Line::from(vec![
-                Span::raw("  "),
-                Span::raw(*policy),
-            ]));
+            lines.push(Line::from(vec![Span::raw("  "), Span::raw(*policy)]));
         }
     }
     lines.push(Line::from(""));
@@ -708,7 +756,11 @@ fn render_set_touch_policy_select(frame: &mut Frame, area: Rect, state: &KeyStat
     )]));
 
     let paragraph = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title("Set Touch Policy"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Set Touch Policy"),
+        )
         .wrap(ratatui::widgets::Wrap { trim: false });
     frame.render_widget(paragraph, area);
 }
@@ -725,7 +777,11 @@ fn render_set_touch_policy_confirm(frame: &mut Frame, area: Rect, state: &KeySta
     );
     let paragraph = Paragraph::new(text)
         .style(Style::default().fg(Color::Red))
-        .block(Block::default().borders(Borders::ALL).title("Confirm IRREVERSIBLE Change"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Confirm IRREVERSIBLE Change"),
+        )
         .wrap(ratatui::widgets::Wrap { trim: true });
     frame.render_widget(paragraph, area);
 }
@@ -760,7 +816,9 @@ fn render_keygen_wizard(frame: &mut Frame, area: Rect, state: &KeyState) {
         KeyGenStep::Identity => render_keygen_identity(frame, area, wizard),
         KeyGenStep::Backup => render_keygen_backup(frame, area, wizard),
         KeyGenStep::Confirm => render_keygen_confirm(frame, area, wizard),
-        KeyGenStep::Running => render_key_operation_running(frame, area, "Generating key...", state),
+        KeyGenStep::Running => {
+            render_key_operation_running(frame, area, "Generating key...", state)
+        }
         KeyGenStep::Result => render_key_operation_result(frame, area, state),
     }
 
@@ -793,7 +851,9 @@ pub fn render_keygen_algorithm(frame: &mut Frame, area: Rect, wizard: &KeyGenWiz
     let mut lines: Vec<Line> = vec![
         Line::from(vec![Span::styled(
             "Step 1/5: Select Key Algorithm",
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
     ];
@@ -801,11 +861,17 @@ pub fn render_keygen_algorithm(frame: &mut Frame, area: Rect, wizard: &KeyGenWiz
     for (i, algo) in algorithms.iter().enumerate() {
         let is_selected = i == wizard.algorithm_index;
         let prefix = if is_selected { "> " } else { "  " };
-        let display = format!("{}{}", prefix, algo.trim_start_matches("> ").trim_start_matches("  "));
+        let display = format!(
+            "{}{}",
+            prefix,
+            algo.trim_start_matches("> ").trim_start_matches("  ")
+        );
         if is_selected {
             lines.push(Line::from(vec![Span::styled(
                 display,
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             )]));
             lines.push(Line::from(vec![Span::styled(
                 format!("    {}", descriptions[i]),
@@ -823,7 +889,11 @@ pub fn render_keygen_algorithm(frame: &mut Frame, area: Rect, wizard: &KeyGenWiz
     )]));
 
     let p = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title("Generate Key — Algorithm"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Generate Key — Algorithm"),
+        )
         .wrap(ratatui::widgets::Wrap { trim: false });
     frame.render_widget(p, area);
 }
@@ -835,7 +905,9 @@ fn render_keygen_expiry(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
     let mut lines: Vec<Line> = vec![
         Line::from(vec![Span::styled(
             "Step 2/5: Select Key Expiry",
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
     ];
@@ -844,7 +916,9 @@ fn render_keygen_expiry(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
         let is_selected = i == wizard.expiry_index;
         let prefix = if is_selected { "> " } else { "  " };
         let style = if is_selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default()
         };
@@ -879,7 +953,11 @@ fn render_keygen_expiry(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
     )]));
 
     let p = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title("Generate Key — Expiry"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Generate Key — Expiry"),
+        )
         .wrap(ratatui::widgets::Wrap { trim: false });
     frame.render_widget(p, area);
 }
@@ -889,10 +967,15 @@ fn render_keygen_identity(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) 
     let mut lines: Vec<Line> = vec![
         Line::from(vec![Span::styled(
             "Step 3/5: Enter Identity",
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
-        Line::from(vec![Span::styled("Name:", Style::default().fg(Color::White))]),
+        Line::from(vec![Span::styled(
+            "Name:",
+            Style::default().fg(Color::White),
+        )]),
     ];
 
     // Name field
@@ -910,7 +993,10 @@ fn render_keygen_identity(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) 
     lines.push(Line::from(""));
 
     // Email field
-    lines.push(Line::from(vec![Span::styled("Email:", Style::default().fg(Color::White))]));
+    lines.push(Line::from(vec![Span::styled(
+        "Email:",
+        Style::default().fg(Color::White),
+    )]));
     let email_style = if wizard.active_field == 1 {
         Style::default().fg(Color::Yellow)
     } else {
@@ -930,10 +1016,17 @@ fn render_keygen_identity(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) 
     } else {
         "[Tab] Switch field  [Enter] Next field  [Esc] Back"
     };
-    lines.push(Line::from(vec![Span::styled(hint, Style::default().fg(Color::DarkGray))]));
+    lines.push(Line::from(vec![Span::styled(
+        hint,
+        Style::default().fg(Color::DarkGray),
+    )]));
 
     let p = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title("Generate Key — Identity"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Generate Key — Identity"),
+        )
         .wrap(ratatui::widgets::Wrap { trim: false });
     frame.render_widget(p, area);
 }
@@ -943,7 +1036,9 @@ fn render_keygen_backup(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
     let mut lines: Vec<Line> = vec![
         Line::from(vec![Span::styled(
             "Step 4/5: Create Backup Copy?",
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
         Line::from("A backup exports the secret key to a file before moving it to the"),
@@ -952,26 +1047,43 @@ fn render_keygen_backup(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
     ];
 
     let yes_style = if wizard.backup {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::DarkGray)
     };
     let no_style = if !wizard.backup {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::DarkGray)
     };
 
-    lines.push(Line::from(vec![
-        Span::styled(if wizard.backup { "> [Y] Create backup" } else { "  [Y] Create backup" }, yes_style),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled(if !wizard.backup { "> [N] Skip backup" } else { "  [N] Skip backup" }, no_style),
-    ]));
+    lines.push(Line::from(vec![Span::styled(
+        if wizard.backup {
+            "> [Y] Create backup"
+        } else {
+            "  [Y] Create backup"
+        },
+        yes_style,
+    )]));
+    lines.push(Line::from(vec![Span::styled(
+        if !wizard.backup {
+            "> [N] Skip backup"
+        } else {
+            "  [N] Skip backup"
+        },
+        no_style,
+    )]));
 
     if wizard.backup {
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![Span::styled("Backup path:", Style::default().fg(Color::White))]));
+        lines.push(Line::from(vec![Span::styled(
+            "Backup path:",
+            Style::default().fg(Color::White),
+        )]));
         let path_style = if wizard.editing_path {
             Style::default().fg(Color::Yellow)
         } else {
@@ -992,7 +1104,11 @@ fn render_keygen_backup(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
     )]));
 
     let p = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title("Generate Key — Backup"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Generate Key — Backup"),
+        )
         .wrap(ratatui::widgets::Wrap { trim: false });
     frame.render_widget(p, area);
 }
@@ -1024,7 +1140,9 @@ fn render_keygen_confirm(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
     let lines: Vec<Line> = vec![
         Line::from(vec![Span::styled(
             "Step 5/5: Confirm Key Generation",
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
         Line::from(vec![
@@ -1061,7 +1179,11 @@ fn render_keygen_confirm(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
 
     let _ = lines.iter(); // suppress unused warning
     let p = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title("Generate Key — Confirm"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Generate Key — Confirm"),
+        )
         .wrap(ratatui::widgets::Wrap { trim: false });
     frame.render_widget(p, area);
 }
@@ -1093,7 +1215,9 @@ fn render_key_operation_result(frame: &mut Frame, area: Rect, state: &KeyState) 
     let mut lines: Vec<Line> = vec![
         Line::from(vec![Span::styled(
             "Operation Complete",
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
     ];
@@ -1106,7 +1230,10 @@ fn render_key_operation_result(frame: &mut Frame, area: Rect, state: &KeyState) 
         lines.push(Line::from(""));
         lines.push(Line::from(vec![
             Span::styled("Slots filled: ", Style::default().fg(Color::White)),
-            Span::styled(import_result.to_string(), Style::default().fg(Color::Yellow)),
+            Span::styled(
+                import_result.to_string(),
+                Style::default().fg(Color::Yellow),
+            ),
         ]));
     }
 
@@ -1127,7 +1254,10 @@ fn render_key_import_pin_input(frame: &mut Frame, area: Rect, state: &KeyState) 
     // Background
     let available_keys = &state.available_keys;
     let selected = state.selected_key_index;
-    let key_display = available_keys.get(selected).map(|k| k.as_str()).unwrap_or("(none)");
+    let key_display = available_keys
+        .get(selected)
+        .map(|k| k.as_str())
+        .unwrap_or("(none)");
     let bg_text = format!(
         "Import key to card\n\nSelected key: {}\n\nEnter Admin PIN to proceed.",
         key_display

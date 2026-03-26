@@ -40,7 +40,9 @@ pub struct App {
     key_state: ui::keys::KeyState,
     ssh_state: ui::ssh::SshState,
     dashboard_state: ui::dashboard::DashboardState,
-    import_task: Option<std::sync::mpsc::Receiver<anyhow::Result<crate::yubikey::key_operations::ImportResult>>>,
+    import_task: Option<
+        std::sync::mpsc::Receiver<anyhow::Result<crate::yubikey::key_operations::ImportResult>>,
+    >,
 }
 
 impl App {
@@ -285,6 +287,7 @@ impl App {
                         }
                         KeyCode::Char('t') => {
                             // Enter touch policy slot selection
+                            self.key_state.message = None;
                             self.key_state.screen = KeyScreen::SetTouchPolicy;
                             self.key_state.touch_slot_index = 0;
                         }
@@ -313,29 +316,27 @@ impl App {
                         self.key_state.message = None;
                     }
                 }
-                KeyScreen::SetTouchPolicy => {
-                    match key.code {
-                        KeyCode::Up => {
-                            if self.key_state.touch_slot_index > 0 {
-                                self.key_state.touch_slot_index -= 1;
-                            }
+                KeyScreen::SetTouchPolicy => match key.code {
+                    KeyCode::Up => {
+                        if self.key_state.touch_slot_index > 0 {
+                            self.key_state.touch_slot_index -= 1;
                         }
-                        KeyCode::Down => {
-                            if self.key_state.touch_slot_index < 3 {
-                                self.key_state.touch_slot_index += 1;
-                            }
-                        }
-                        KeyCode::Enter => {
-                            self.key_state.touch_policy_index = 0;
-                            self.key_state.screen = KeyScreen::SetTouchPolicySelect;
-                        }
-                        KeyCode::Esc => {
-                            self.key_state.screen = KeyScreen::Main;
-                            self.key_state.message = None;
-                        }
-                        _ => {}
                     }
-                }
+                    KeyCode::Down => {
+                        if self.key_state.touch_slot_index < 3 {
+                            self.key_state.touch_slot_index += 1;
+                        }
+                    }
+                    KeyCode::Enter => {
+                        self.key_state.touch_policy_index = 0;
+                        self.key_state.screen = KeyScreen::SetTouchPolicySelect;
+                    }
+                    KeyCode::Esc => {
+                        self.key_state.screen = KeyScreen::Main;
+                        self.key_state.message = None;
+                    }
+                    _ => {}
+                },
                 KeyScreen::SetTouchPolicySelect => {
                     match key.code {
                         KeyCode::Up => {
@@ -349,7 +350,9 @@ impl App {
                             }
                         }
                         KeyCode::Enter => {
-                            let policy = ui::keys::touch_policy_from_index(self.key_state.touch_policy_index);
+                            let policy = ui::keys::touch_policy_from_index(
+                                self.key_state.touch_policy_index,
+                            );
                             if policy.is_irreversible() {
                                 self.key_state.screen = KeyScreen::SetTouchPolicyConfirm;
                             } else {
@@ -400,8 +403,11 @@ impl App {
                                 .as_ref()
                                 .and_then(|p| p.values().into_iter().next().map(|s| s.to_owned()))
                                 .unwrap_or_default();
-                            let slot = ui::keys::touch_slot_name(self.key_state.touch_slot_index).to_string();
-                            let policy = ui::keys::touch_policy_from_index(self.key_state.touch_policy_index);
+                            let slot = ui::keys::touch_slot_name(self.key_state.touch_slot_index)
+                                .to_string();
+                            let policy = ui::keys::touch_policy_from_index(
+                                self.key_state.touch_policy_index,
+                            );
                             self.key_state.pin_input = None;
                             self.execute_touch_policy_set(&slot, &policy, &admin_pin)?;
                         }
@@ -520,8 +526,7 @@ impl App {
                         self.ssh_state.test_conn_focused = 0;
                     }
                     KeyCode::Tab => {
-                        self.ssh_state.test_conn_focused =
-                            1 - self.ssh_state.test_conn_focused;
+                        self.ssh_state.test_conn_focused = 1 - self.ssh_state.test_conn_focused;
                     }
                     KeyCode::Backspace => {
                         if self.ssh_state.test_conn_focused == 0 {
@@ -575,7 +580,11 @@ impl App {
                         self.pin_state.pending_operation = Some(PinScreen::ChangeAdminPin);
                         self.pin_state.pin_input = Some(PinInputState::new(
                             "Change Admin PIN",
-                            &["Current Admin PIN", "New Admin PIN", "Confirm New Admin PIN"],
+                            &[
+                                "Current Admin PIN",
+                                "New Admin PIN",
+                                "Confirm New Admin PIN",
+                            ],
                         ));
                         self.pin_state.screen = PinScreen::PinInputActive;
                     }
@@ -709,7 +718,8 @@ impl App {
                                 match result {
                                     Ok(msg) => {
                                         self.pin_state.message = Some(msg);
-                                        self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                                        self.yubikey_states =
+                                            YubiKeyState::detect_all().unwrap_or_default();
                                         if self.selected_yubikey_idx >= self.yubikey_states.len() {
                                             self.selected_yubikey_idx = 0;
                                         }
@@ -803,7 +813,8 @@ impl App {
             KeyCode::Tab => {
                 // Switch active YubiKey on Dashboard
                 if self.current_screen == Screen::Dashboard && !self.yubikey_states.is_empty() {
-                    self.selected_yubikey_idx = (self.selected_yubikey_idx + 1) % self.yubikey_states.len();
+                    self.selected_yubikey_idx =
+                        (self.selected_yubikey_idx + 1) % self.yubikey_states.len();
                 }
             }
             KeyCode::Char('1') => self.current_screen = Screen::Dashboard,
@@ -1013,31 +1024,33 @@ impl App {
         let step = self.key_state.keygen_wizard.as_ref().map(|w| w.step);
 
         match step {
-            Some(KeyGenStep::Algorithm) => {
-                match code {
-                    KeyCode::Up => {
-                        if let Some(ref mut w) = self.key_state.keygen_wizard {
-                            if w.algorithm_index > 0 { w.algorithm_index -= 1; }
+            Some(KeyGenStep::Algorithm) => match code {
+                KeyCode::Up => {
+                    if let Some(ref mut w) = self.key_state.keygen_wizard {
+                        if w.algorithm_index > 0 {
+                            w.algorithm_index -= 1;
                         }
                     }
-                    KeyCode::Down => {
-                        if let Some(ref mut w) = self.key_state.keygen_wizard {
-                            if w.algorithm_index < 2 { w.algorithm_index += 1; }
-                        }
-                    }
-                    KeyCode::Enter => {
-                        if let Some(ref mut w) = self.key_state.keygen_wizard {
-                            w.step = KeyGenStep::Expiry;
-                        }
-                    }
-                    KeyCode::Esc => {
-                        self.key_state.keygen_wizard = None;
-                        self.key_state.screen = KeyScreen::Main;
-                        self.key_state.message = None;
-                    }
-                    _ => {}
                 }
-            }
+                KeyCode::Down => {
+                    if let Some(ref mut w) = self.key_state.keygen_wizard {
+                        if w.algorithm_index < 2 {
+                            w.algorithm_index += 1;
+                        }
+                    }
+                }
+                KeyCode::Enter => {
+                    if let Some(ref mut w) = self.key_state.keygen_wizard {
+                        w.step = KeyGenStep::Expiry;
+                    }
+                }
+                KeyCode::Esc => {
+                    self.key_state.keygen_wizard = None;
+                    self.key_state.screen = KeyScreen::Main;
+                    self.key_state.message = None;
+                }
+                _ => {}
+            },
             Some(KeyGenStep::Expiry) => {
                 match code {
                     KeyCode::Up => {
@@ -1266,7 +1279,11 @@ impl App {
                 w.name.clone(),
                 w.email.clone(),
                 w.backup,
-                if w.backup { Some(w.backup_path.clone()) } else { None },
+                if w.backup {
+                    Some(w.backup_path.clone())
+                } else {
+                    None
+                },
             )
         };
 
@@ -1359,9 +1376,8 @@ impl App {
         };
 
         self.key_state.screen = KeyScreen::KeyImportRunning;
-        self.key_state.operation_status = Some(
-            "Importing key to card... (touch YubiKey if it is flashing)".to_string(),
-        );
+        self.key_state.operation_status =
+            Some("Importing key to card... (touch YubiKey if it is flashing)".to_string());
         self.key_state.pin_input = None;
 
         let (tx, rx) = std::sync::mpsc::channel();

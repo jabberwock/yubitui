@@ -23,8 +23,7 @@ pub const PIV_AID: &[u8] = &[0xA0, 0x00, 0x00, 0x03, 0x08, 0x00, 0x00, 0x10, 0x0
 /// CLA=00 INS=A4 P1=04 P2=00 Lc=09 [PIV AID bytes]
 #[allow(dead_code)]
 pub const SELECT_PIV: &[u8] = &[
-    0x00, 0xA4, 0x04, 0x00, 0x09,
-    0xA0, 0x00, 0x00, 0x03, 0x08, 0x00, 0x00, 0x10, 0x00, 0x01,
+    0x00, 0xA4, 0x04, 0x00, 0x09, 0xA0, 0x00, 0x00, 0x03, 0x08, 0x00, 0x00, 0x10, 0x00, 0x01,
 ];
 
 /// Detect which PIV slots have a key present using native PC/SC APDUs.
@@ -39,9 +38,9 @@ pub const SELECT_PIV: &[u8] = &[
 /// Returns PivState with empty slots if no PIV-capable card is found.
 pub fn get_piv_state() -> Result<PivState> {
     super::card::kill_scdaemon();
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
-    let ctx = Context::establish(Scope::User)
-        .map_err(|e| anyhow::anyhow!("PC/SC error: {e}"))?;
+    let ctx = Context::establish(Scope::User).map_err(|e| anyhow::anyhow!("PC/SC error: {e}"))?;
 
     let mut readers_buf = [0u8; 2048];
     let readers: Vec<_> = match ctx.list_readers(&mut readers_buf) {
@@ -55,7 +54,8 @@ pub fn get_piv_state() -> Result<PivState> {
 
     // Connect to first available reader
     let card = match readers.into_iter().find_map(|reader| {
-        ctx.connect(reader, ShareMode::Exclusive, Protocols::T0 | Protocols::T1).ok()
+        ctx.connect(reader, ShareMode::Exclusive, Protocols::T0 | Protocols::T1)
+            .ok()
     }) {
         Some(c) => c,
         None => return Ok(PivState { slots: vec![] }),
@@ -63,9 +63,7 @@ pub fn get_piv_state() -> Result<PivState> {
 
     // SELECT PIV AID
     let mut buf = [0u8; 256];
-    let resp = card
-        .transmit(SELECT_PIV, &mut buf)
-        .unwrap_or(&[0x6A, 0x82]);
+    let resp = card.transmit(SELECT_PIV, &mut buf).unwrap_or(&[0x6A, 0x82]);
     if super::card::apdu_sw(resp) != 0x9000 {
         // PIV application not available (best-effort per D-14)
         return Ok(PivState { slots: vec![] });
@@ -75,10 +73,22 @@ pub fn get_piv_state() -> Result<PivState> {
     // Format: CLA=00 INS=CB P1=3F P2=FF Lc=05 5C 03 5F C1 XX
     // where XX is the slot object ID byte
     let piv_slots: &[(&str, [u8; 10])] = &[
-        ("9a", [0x00, 0xCB, 0x3F, 0xFF, 0x05, 0x5C, 0x03, 0x5F, 0xC1, 0x05]),
-        ("9c", [0x00, 0xCB, 0x3F, 0xFF, 0x05, 0x5C, 0x03, 0x5F, 0xC1, 0x0A]),
-        ("9d", [0x00, 0xCB, 0x3F, 0xFF, 0x05, 0x5C, 0x03, 0x5F, 0xC1, 0x0B]),
-        ("9e", [0x00, 0xCB, 0x3F, 0xFF, 0x05, 0x5C, 0x03, 0x5F, 0xC1, 0x01]),
+        (
+            "9a",
+            [0x00, 0xCB, 0x3F, 0xFF, 0x05, 0x5C, 0x03, 0x5F, 0xC1, 0x05],
+        ),
+        (
+            "9c",
+            [0x00, 0xCB, 0x3F, 0xFF, 0x05, 0x5C, 0x03, 0x5F, 0xC1, 0x0A],
+        ),
+        (
+            "9d",
+            [0x00, 0xCB, 0x3F, 0xFF, 0x05, 0x5C, 0x03, 0x5F, 0xC1, 0x0B],
+        ),
+        (
+            "9e",
+            [0x00, 0xCB, 0x3F, 0xFF, 0x05, 0x5C, 0x03, 0x5F, 0xC1, 0x01],
+        ),
     ];
 
     let mut slots = Vec::new();
