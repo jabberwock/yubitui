@@ -123,6 +123,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState) 
         ListItem::new("  [3] Key Management    View and manage OpenPGP/PIV keys"),
         ListItem::new("  [4] PIN Management    Change PINs, view retry counters"),
         ListItem::new("  [5] SSH Setup         Configure SSH authentication"),
+        ListItem::new("  [6] PIV Certificates  View PIV slot occupancy"),
         ListItem::new(""),
         ListItem::new("  [R] Refresh          [Q] Quit          [?] Help          [m] Menu"),
     ];
@@ -143,6 +144,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState) 
             "Key Management",
             "PIN Management",
             "SSH Setup Wizard",
+            "PIV Certificates",
             "Help",
         ];
         crate::ui::widgets::popup::render_context_menu(

@@ -3,13 +3,11 @@ use pcsc::{Context, Protocols, Scope, ShareMode};
 
 #[derive(Debug, Clone)]
 pub struct PivState {
-    #[allow(dead_code)]
     pub slots: Vec<SlotInfo>,
 }
 
 #[derive(Debug, Clone)]
 pub struct SlotInfo {
-    #[allow(dead_code)]
     pub slot: String,
     #[allow(dead_code)]
     pub algorithm: Option<String>,

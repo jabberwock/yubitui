@@ -26,6 +26,7 @@ pub enum Screen {
     Keys,
     PinManagement,
     SshWizard,
+    Piv,
 }
 
 pub struct App {
@@ -116,6 +117,10 @@ impl App {
                 ui::pin::render(frame, chunks[0], &yk, &self.pin_state)
             }
             Screen::SshWizard => ui::ssh::render(frame, chunks[0], self, &self.ssh_state),
+            Screen::Piv => {
+                let yk = self.yubikey_state().cloned();
+                ui::piv::render(frame, chunks[0], &yk)
+            }
         }
 
         // Render status bar
@@ -160,7 +165,7 @@ impl App {
                 if self.current_screen == Screen::Dashboard
                     && self.dashboard_state.show_context_menu
                 {
-                    if self.dashboard_state.menu_selected_index < 4 {
+                    if self.dashboard_state.menu_selected_index < 5 {
                         self.dashboard_state.menu_selected_index += 1;
                     }
                 } else if self.current_screen == Screen::Keys
@@ -753,7 +758,7 @@ impl App {
                     }
                 }
                 KeyCode::Down => {
-                    if self.dashboard_state.menu_selected_index < 4 {
+                    if self.dashboard_state.menu_selected_index < 5 {
                         self.dashboard_state.menu_selected_index += 1;
                     }
                 }
@@ -763,7 +768,8 @@ impl App {
                         1 => Screen::Keys,
                         2 => Screen::PinManagement,
                         3 => Screen::SshWizard,
-                        4 => Screen::Help,
+                        4 => Screen::Piv,
+                        5 => Screen::Help,
                         _ => Screen::Dashboard,
                     };
                     self.dashboard_state.show_context_menu = false;
@@ -811,6 +817,7 @@ impl App {
                 self.current_screen = Screen::SshWizard;
                 self.refresh_ssh_status()?;
             }
+            KeyCode::Char('6') => self.current_screen = Screen::Piv,
             KeyCode::Char('r') => {
                 // Refresh: re-run diagnostics and detect YubiKeys
                 self.diagnostics = Diagnostics::run()?;

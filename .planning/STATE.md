@@ -54,6 +54,7 @@ Phase 5 — Plan 04 (05-04) [complete]
 - 05-01: PC/SC APDU primitives module (card.rs) + native card reads for detection, PIN status, OpenPGP state, key attributes — no gpg/ykman subprocess for card reads (2026-03-25)
 - 05-04: Key import error reporting and nav bugs — ScOpFailure(6) "Wrong Admin PIN", CardCtrl(3) surfaced, ViewStatus->KeyOperationResult, ExportSSH error->SshPubkeyPopup, stale message clear (2026-03-26)
 - 05-05: Touch policy display in Key Attributes screen + SSH Wizard status refresh on entry (2026-03-26)
+- 05-06: PIV screen UI — Screen::Piv via key '6' and dashboard menu, renders 9a/9c/9d/9e slot occupancy from native PC/SC piv_state (2026-03-26)
 
 ## Decisions
 
@@ -119,5 +120,5 @@ Phase 5 — Plan 04 (05-04) [complete]
 
 ## Last Session
 
-- Stopped at: Gap closure wave 1 — 05-04, 05-05, 05-06 all complete
+- Stopped at: Gap closure wave 1 complete — 05-04, 05-05, 05-06 all merged
 - Date: 2026-03-26
