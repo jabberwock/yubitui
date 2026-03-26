@@ -244,6 +244,9 @@ pub fn factory_reset_openpgp() -> Result<String> {
     let _ = std::process::Command::new("gpgconf")
         .args(["--kill", "scdaemon"])
         .output();
+    // 50ms grace period — scdaemon process termination is async; the OS may not
+    // release the exclusive card lock until the process fully exits.
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
     let ctx = Context::establish(Scope::User)
         .map_err(|e| anyhow::anyhow!("PC/SC error: {e}"))?;

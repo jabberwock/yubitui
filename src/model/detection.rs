@@ -35,6 +35,10 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
     // re-selecting the OpenPGP application. Kill scdaemon once before the loop and
     // always restart it after so gpg operations continue to work.
     card::kill_scdaemon();
+    // 50ms grace period — scdaemon process termination is async; the OS may not
+    // release the exclusive card lock until the process fully exits. Without this
+    // sleep, ctx.connect() can return SW 0x6B00 "card busy" on Linux.
+    std::thread::sleep(std::time::Duration::from_millis(50));
 
     for reader in readers {
         let card = match ctx.connect(reader, ShareMode::Exclusive, Protocols::T0 | Protocols::T1) {
