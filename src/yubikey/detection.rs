@@ -29,27 +29,18 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         return Ok(vec![]);
     }
 
-    // Track whether we had to kill scdaemon to get exclusive access, so we can
-    // restart it afterward and keep gpg operations working.
-    let mut killed_scdaemon = false;
-
     let mut states = Vec::new();
 
+    // Always use exclusive mode — shared mode causes GET DATA 0xC5 (fingerprints)
+    // to return SW 0x6B00 when scdaemon is co-holding the card channel, even after
+    // re-selecting the OpenPGP application. Kill scdaemon once before the loop and
+    // always restart it after so gpg operations continue to work.
+    card::kill_scdaemon();
+
     for reader in readers {
-        // Try shared mode first — avoids killing scdaemon if it's running (e.g.
-        // during a gpg key import). Fall back to exclusive only if shared fails.
-        let card = match ctx.connect(reader, ShareMode::Shared, Protocols::T0 | Protocols::T1) {
+        let card = match ctx.connect(reader, ShareMode::Exclusive, Protocols::T0 | Protocols::T1) {
             Ok(c) => c,
-            Err(_) => {
-                // Shared failed (scdaemon likely holds exclusive lock). Kill it,
-                // retry with exclusive, and remember to restart it after.
-                card::kill_scdaemon();
-                killed_scdaemon = true;
-                match ctx.connect(reader, ShareMode::Exclusive, Protocols::T0 | Protocols::T1) {
-                    Ok(c) => c,
-                    Err(_) => continue,
-                }
-            }
+            Err(_) => continue,
         };
 
         // SELECT OpenPGP AID
@@ -63,20 +54,12 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
             continue;
         }
 
-        // Query management AID first — before any other state changes.
-        // get_piv_state() later opens its own exclusive connection (killing scdaemon),
-        // which can invalidate this card handle; do management reads while it's clean.
-        let dev_info = card::get_device_info(&card);
+        // Read all OpenPGP DOs immediately after SELECT, before any other AID is
+        // selected. The management AID query below (get_device_info) issues SELECT MGMT,
+        // which changes the active app and causes subsequent GET DATA 0xC5 to return
+        // SW 0x6B00 even after re-selecting OpenPGP. Reading here avoids that.
 
-        // Re-select OpenPGP after management AID query (SELECT changes the active app).
-        let mut buf2 = [0u8; 256];
-        let reselect = card.transmit(card::SELECT_OPENPGP, &mut buf2);
-        if reselect.map(card::apdu_sw).unwrap_or(0) != 0x9000 {
-            continue;
-        }
-
-        // GET DATA 0x004F — full AID (more reliable than parsing SELECT response,
-        // which many YubiKey firmwares return as SW-only with no data body).
+        // GET DATA 0x004F — full AID (serial, OpenPGP spec version).
         let (serial, openpgp_version) = match card::get_data(&card, 0x00, 0x4F) {
             Ok(aid) => {
                 let s = card::serial_from_aid(&aid).unwrap_or(0);
@@ -90,6 +73,26 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
             Err(_) => (0, Version { major: 0, minor: 0, patch: 0 }),
         };
 
+        // Read PIN status (DO 0xC4 PW Status Bytes)
+        let pin_status = read_pin_status_from_card(&card)
+            .unwrap_or(super::pin::PinStatus {
+                user_pin_retries: 3,
+                admin_pin_retries: 3,
+                reset_code_retries: 0,
+                user_pin_blocked: false,
+                admin_pin_blocked: false,
+            });
+
+        // Read OpenPGP state (fingerprints, algorithm attrs) while OpenPGP is selected.
+        let openpgp = read_openpgp_state_from_card(&card).ok();
+
+        // Touch policies — also read before any other AID SELECT changes app context.
+        let touch_policies = super::touch_policy::get_touch_policies_native(&card).ok();
+
+        // Query management AID for firmware version and form factor.
+        // This issues SELECT MGMT so do it AFTER all OpenPGP reads above.
+        let dev_info = card::get_device_info(&card);
+
         // Prefer management AID data (actual firmware + form factor) over OpenPGP AID
         // data (OpenPGP spec version, no form factor info).
         let info = if let Some(ref di) = dev_info {
@@ -102,23 +105,6 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
             let model = detect_model_from_version(&openpgp_version);
             YubiKeyInfo { serial, version: openpgp_version, model, form_factor: FormFactor::UsbA }
         };
-
-        // Read PIN status (DO 0xC4 PW Status Bytes)
-        let pin_status = read_pin_status_from_card(&card)
-            .unwrap_or(super::pin::PinStatus {
-                user_pin_retries: 3,
-                admin_pin_retries: 3,
-                reset_code_retries: 0,
-                user_pin_blocked: false,
-                admin_pin_blocked: false,
-            });
-
-        // Read OpenPGP state via direct GET DATA DOs
-        let openpgp = read_openpgp_state_from_card(&card).ok();
-
-        // Touch policies — read BEFORE get_piv_state(), which opens its own exclusive
-        // connection and can invalidate this card handle (SELECT PIV changes active AID).
-        let touch_policies = super::touch_policy::get_touch_policies_native(&card).ok();
 
         // Get PIV state (best-effort, no error on failure)
         let piv = super::piv::get_piv_state().ok();
@@ -139,11 +125,9 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
 
     // If we had to kill scdaemon to get exclusive access, restart it now so
     // subsequent gpg operations (key import, PIN change) don't need to cold-start it.
-    if killed_scdaemon {
-        let _ = std::process::Command::new("gpgconf")
-            .args(["--launch", "scdaemon"])
-            .output();
-    }
+    let _ = std::process::Command::new("gpgconf")
+        .args(["--launch", "scdaemon"])
+        .output();
 
     Ok(states)
 }
@@ -185,12 +169,11 @@ fn read_pin_status_from_card(card: &pcsc::Card) -> Result<super::pin::PinStatus>
 fn read_openpgp_state_from_card(
     card: &pcsc::Card,
 ) -> Result<super::openpgp::OpenPgpState> {
-    // Version from GET DATA 0x004F (AID) — bytes 6-7 are the OpenPGP app version.
-    let version = card::get_data(card, 0x00, 0x4F)
-        .ok()
-        .filter(|aid| aid.len() >= 8)
-        .map(|aid| format!("{}.{}", aid[6], aid[7]))
-        .unwrap_or_default();
+    // Version is already read by the caller via GET DATA 0x4F. Reading it again
+    // here can corrupt the DO access state on some YubiKey firmwares causing
+    // subsequent C5 reads to return SW 0x6B00. Use empty string; the caller
+    // fills in the real version from the outer openpgp_version field.
+    let version = String::new();
 
     // GET DATA 0x00C5 — Fingerprints: 60 bytes = SIG(20) | ENC(20) | AUT(20).
     // Direct DO access avoids the 0x6E/0x73 TLV nesting issue.

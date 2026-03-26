@@ -308,13 +308,22 @@ pub fn import_key_programmatic(key_id: &str, key_passphrase: &str, admin_pin: &s
         // Clear any stale gpg-agent shadow stub for this keygrip before attempting
         // card transfer. If a previous failed keytocard left the agent believing
         // the key lives on the card, it will refuse to export with "Unusable secret
-        // key". DELETE_KEY removes the agent's in-memory/on-disk stub so it re-reads
-        // the key material fresh from the keybox.
+        // key". Only call DELETE_KEY when the key file is a shadow stub (contains
+        // "(shadowed") — never when it holds real private material, since
+        // DELETE_KEY --force would delete that material from disk before we import it.
         if !keygrip.is_empty() {
-            let _ = Command::new("gpg-connect-agent")
-                .arg(format!("DELETE_KEY {}", keygrip))
-                .arg("/bye")
-                .output();
+            let is_stub = crate::utils::config::gnupg_home()
+                .ok()
+                .map(|h| h.join("private-keys-v1.d").join(format!("{}.key", keygrip)))
+                .and_then(|p| std::fs::read_to_string(p).ok())
+                .map(|s| s.contains("(shadowed"))
+                .unwrap_or(false);
+            if is_stub {
+                let _ = Command::new("gpg-connect-agent")
+                    .arg(format!("DELETE_KEY --force {}", keygrip))
+                    .arg("/bye")
+                    .output();
+            }
         }
 
         let ok = run_keytocard_session(key_id, key_passphrase, admin_pin, subkey_idx, slot, &mut all_messages)?;
@@ -451,10 +460,11 @@ fn run_keytocard_session(
                     }
                     KtcState::WaitForResult => {
                         // gpg 2.4.9 does not emit SC_OP_SUCCESS — it returns to keyedit.prompt
-                        // after a successful card write. Send "save" to commit; if the card
-                        // write actually happened, gpg will confirm with keyedit.save.okay.
+                        // after a successful card write. Reaching keyedit.prompt here without
+                        // SC_OP_FAILURE means the card write succeeded. Mark success and save.
                         dbg_log!("SEND: save (keyedit.prompt in WaitForResult — gpg 2.4.9 no SC_OP_SUCCESS)");
                         let _ = writeln!(stdin, "save");
+                        success = true;
                         state = KtcState::Done;
                     }
                     KtcState::SendSave => {
@@ -553,6 +563,9 @@ fn run_keytocard_session(
                 let _ = writeln!(stdin, "quit");
                 state = KtcState::Done;
             }
+            // CardCtrl events (card inserted/removed) are scdaemon connection noise
+            // between sessions. Suppress them — the operation result speaks for itself.
+            crate::yubikey::gpg_status::GpgStatus::CardCtrl(_) => {}
             _ => {
                 let msg = crate::yubikey::gpg_status::status_to_message(&status);
                 if !msg.is_empty()
