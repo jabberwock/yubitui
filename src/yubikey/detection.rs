@@ -92,9 +92,8 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         // Get PIV state (best-effort, no error on failure)
         let piv = super::piv::get_piv_state().ok();
 
-        // Touch policies — read via card GET DATA (Plan 2 will wire this;
-        // for now attempt to read via ykman if available, else None)
-        let touch_policies = read_touch_policies_from_card(&card).ok();
+        // Touch policies — read via native GET DATA 0xD6-0xD9
+        let touch_policies = super::touch_policy::get_touch_policies_native(&card).ok();
 
         states.push(YubiKeyState {
             info,
@@ -219,53 +218,6 @@ fn read_openpgp_state_from_card(
         cardholder_name,
         public_key_url,
     })
-}
-
-/// Read touch policies from the card via GET DATA DOs 0xD6/0xD7/0xD8.
-/// Returns None for any slot where the GET DATA fails (e.g., older firmware).
-fn read_touch_policies_from_card(
-    card: &pcsc::Card,
-) -> Result<super::touch_policy::TouchPolicies> {
-    let sig_policy = card::get_data(card, 0x00, 0xD6)
-        .ok()
-        .and_then(|d| d.first().copied())
-        .map(policy_byte_to_touch_policy);
-    let enc_policy = card::get_data(card, 0x00, 0xD7)
-        .ok()
-        .and_then(|d| d.first().copied())
-        .map(policy_byte_to_touch_policy);
-    let aut_policy = card::get_data(card, 0x00, 0xD8)
-        .ok()
-        .and_then(|d| d.first().copied())
-        .map(policy_byte_to_touch_policy);
-    let att_policy = card::get_data(card, 0x00, 0xD9)
-        .ok()
-        .and_then(|d| d.first().copied())
-        .map(policy_byte_to_touch_policy);
-
-    // Only return Some(TouchPolicies) if we got at least one policy
-    if sig_policy.is_none() && enc_policy.is_none() && aut_policy.is_none() {
-        anyhow::bail!("No touch policy data available");
-    }
-
-    Ok(super::touch_policy::TouchPolicies {
-        signature: sig_policy.unwrap_or(super::touch_policy::TouchPolicy::Off),
-        encryption: enc_policy.unwrap_or(super::touch_policy::TouchPolicy::Off),
-        authentication: aut_policy.unwrap_or(super::touch_policy::TouchPolicy::Off),
-        attestation: att_policy.unwrap_or(super::touch_policy::TouchPolicy::Off),
-    })
-}
-
-/// Map a raw touch policy byte to the TouchPolicy enum.
-fn policy_byte_to_touch_policy(byte: u8) -> super::touch_policy::TouchPolicy {
-    match byte {
-        0x00 => super::touch_policy::TouchPolicy::Off,
-        0x01 => super::touch_policy::TouchPolicy::On,
-        0x02 => super::touch_policy::TouchPolicy::Fixed,
-        0x03 => super::touch_policy::TouchPolicy::Cached,
-        0x04 => super::touch_policy::TouchPolicy::CachedFixed,
-        _ => super::touch_policy::TouchPolicy::Off,
-    }
 }
 
 /// Build a KeyInfo from raw fingerprint bytes and algorithm attribute bytes.

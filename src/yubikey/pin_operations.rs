@@ -226,6 +226,9 @@ fn run_gpg_pin_operation(
 }
 
 /// Find ykman binary. Tries PATH first, then well-known Windows location.
+///
+/// Kept for use by factory_reset_openpgp; Plan 03 will fully remove this.
+#[allow(dead_code)]
 pub fn find_ykman() -> Result<PathBuf> {
     // Try PATH first -- spawn a simple version check
     if let Ok(output) = Command::new("ykman").arg("--version").output() {

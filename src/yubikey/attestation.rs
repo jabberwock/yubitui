@@ -1,5 +1,6 @@
 use anyhow::Result;
-use std::process::Command;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine;
 
 /// Valid slots for attestation (att slot cannot self-attest).
 pub const VALID_ATTEST_SLOTS: &[&str] = &["sig", "enc", "aut"];
@@ -15,27 +16,87 @@ pub fn slot_display_name(slot: &str) -> &str {
     }
 }
 
-/// Fetch attestation certificate for a given OpenPGP slot.
-/// Returns PEM-encoded certificate string on success.
-/// Fails if: slot is invalid, key was imported (not generated on-device), or PIN is blocked.
+/// Map an OpenPGP slot name to the CRT tag used by the YubiKey ATTEST command.
+///
+/// INS=0xFB (YubiKey proprietary ATTEST), P1 = CRT tag per slot.
+fn slot_to_crt_tag(slot: &str) -> Option<u8> {
+    match slot {
+        "sig" => Some(0xB6),
+        "enc" => Some(0xB8),
+        "aut" => Some(0xA4),
+        _ => None,
+    }
+}
+
+/// Fetch the attestation certificate for a given OpenPGP slot via native PC/SC.
+///
+/// Uses the YubiKey-proprietary ATTEST command: INS=0xFB, P1=CRT_TAG, P2=0x00.
+/// Returns a PEM-encoded certificate string on success.
+///
+/// Fails if:
+///   - slot is invalid (not sig/enc/aut)
+///   - key was imported rather than generated on-device (SW 0x6A88)
+///   - card error occurs
+///
+/// `serial` is kept for API compatibility but unused (connect_to_openpgp_card
+/// connects to the first OpenPGP card; Plan 3 may add per-serial selection).
 #[allow(dead_code)]
-pub fn get_attestation_cert(slot: &str, serial: Option<u32>) -> Result<String> {
+pub fn get_attestation_cert(slot: &str, _serial: Option<u32>) -> Result<String> {
     if !VALID_ATTEST_SLOTS.contains(&slot) {
         anyhow::bail!("Invalid attestation slot '{}'. Valid: sig, enc, aut", slot);
     }
 
-    let ykman = crate::yubikey::pin_operations::find_ykman()?;
-    let mut cmd = Command::new(&ykman);
-    if let Some(s) = serial {
-        cmd.args(["--device", &s.to_string()]);
-    }
-    cmd.args(["openpgp", "keys", "attest", slot, "-"]);
-    let output = cmd.output()?;
+    let crt_tag = slot_to_crt_tag(slot)
+        .ok_or_else(|| anyhow::anyhow!("Unknown slot: {}", slot))?;
 
-    parse_attestation_result(slot, &output.status, &output.stdout, &output.stderr)
+    let (card, _aid) = super::card::connect_to_openpgp_card()?;
+
+    // YubiKey proprietary ATTEST: CLA=00 INS=FB P1=CRT_TAG P2=00 Le=00
+    let attest_apdu = [0x00u8, 0xFB, crt_tag, 0x00, 0x00];
+    let mut buf = [0u8; 4096];
+    let resp = card
+        .transmit(&attest_apdu, &mut buf)
+        .map_err(|e| anyhow::anyhow!("ATTEST transmit error: {e}"))?;
+
+    let sw = super::card::apdu_sw(resp);
+    if sw != 0x9000 {
+        let msg = if sw == 0x6A88 {
+            format!(
+                "Key not generated on this YubiKey — attestation requires on-device key generation ({})",
+                slot
+            )
+        } else {
+            super::card::apdu_error_message(sw, &format!("attesting slot {}", slot))
+        };
+        anyhow::bail!("{}", msg);
+    }
+
+    // Response data is DER-encoded certificate (strip 2-byte SW trailer)
+    let der = &resp[..resp.len().saturating_sub(2)];
+    if der.is_empty() {
+        anyhow::bail!("Attestation returned empty certificate for slot {}", slot);
+    }
+
+    // Encode DER to PEM
+    let b64 = BASE64_STANDARD.encode(der);
+    // Wrap at 64 chars per line (PEM convention)
+    let wrapped: String = b64
+        .as_bytes()
+        .chunks(64)
+        .map(|chunk| std::str::from_utf8(chunk).unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    Ok(format!(
+        "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----",
+        wrapped
+    ))
 }
 
 /// Parse the result of ykman openpgp keys attest. Separated for testability.
+///
+/// Kept with `#[allow(dead_code)]` so existing unit tests remain valid.
+#[allow(dead_code)]
 pub fn parse_attestation_result(
     slot: &str,
     status: &std::process::ExitStatus,
@@ -56,6 +117,7 @@ pub fn parse_attestation_result(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
 
     fn success_status() -> std::process::ExitStatus {
         #[cfg(windows)]
@@ -100,6 +162,15 @@ mod tests {
         assert_eq!(slot_display_name("enc"), "Encryption");
         assert_eq!(slot_display_name("aut"), "Authentication");
         assert_eq!(slot_display_name("att"), "Unknown");
+    }
+
+    #[test]
+    fn test_slot_to_crt_tag() {
+        assert_eq!(slot_to_crt_tag("sig"), Some(0xB6));
+        assert_eq!(slot_to_crt_tag("enc"), Some(0xB8));
+        assert_eq!(slot_to_crt_tag("aut"), Some(0xA4));
+        assert_eq!(slot_to_crt_tag("att"), None);
+        assert_eq!(slot_to_crt_tag("bad"), None);
     }
 
     #[test]
