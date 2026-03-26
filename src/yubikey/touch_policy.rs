@@ -205,7 +205,27 @@ pub fn set_touch_policy(
         );
     }
 
-    Ok(format!("Touch policy updated to {} for slot {}", policy, slot))
+    // Verify the write actually took effect by reading back the DO.
+    let readback = super::card::get_data(&card, 0x00, do_tag)
+        .ok()
+        .and_then(|d| d.first().copied())
+        .map(TouchPolicy::from_byte);
+
+    match readback {
+        Some(ref actual) if actual == policy => {
+            Ok(format!("Touch policy set to {} for slot {}", policy, slot))
+        }
+        Some(actual) => anyhow::bail!(
+            "Card accepted the command but touch policy reads back as {} (expected {}). \
+             A key must be loaded in this slot before touch policy takes effect.",
+            actual, policy
+        ),
+        None => anyhow::bail!(
+            "Card accepted the command but could not read back touch policy for slot {}. \
+             A key must be loaded in this slot before touch policy takes effect.",
+            slot
+        ),
+    }
 }
 
 /// Parse touch policies from `ykman openpgp info` output.
