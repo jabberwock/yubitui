@@ -3,6 +3,7 @@ pub mod diagnostics;
 pub mod help;
 pub mod keys;
 pub mod pin;
+pub mod piv;
 pub mod ssh;
 pub mod widgets;
 
@@ -28,6 +29,7 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         Screen::Keys => "Key Management",
         Screen::PinManagement => "PIN Management",
         Screen::SshWizard => "SSH Setup Wizard",
+        Screen::Piv => "PIV Certificates",
     };
 
     let help_text = match app.current_screen() {
