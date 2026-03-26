@@ -50,9 +50,21 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
             continue;
         }
 
+        // Query management AID first — before any other state changes.
+        // get_piv_state() later opens its own exclusive connection (killing scdaemon),
+        // which can invalidate this card handle; do management reads while it's clean.
+        let dev_info = card::get_device_info(&card);
+
+        // Re-select OpenPGP after management AID query (SELECT changes the active app).
+        let mut buf2 = [0u8; 256];
+        let reselect = card.transmit(card::SELECT_OPENPGP, &mut buf2);
+        if reselect.map(card::apdu_sw).unwrap_or(0) != 0x9000 {
+            continue;
+        }
+
         // GET DATA 0x004F — full AID (more reliable than parsing SELECT response,
         // which many YubiKey firmwares return as SW-only with no data body).
-        let (serial, version) = match card::get_data(&card, 0x00, 0x4F) {
+        let (serial, openpgp_version) = match card::get_data(&card, 0x00, 0x4F) {
             Ok(aid) => {
                 let s = card::serial_from_aid(&aid).unwrap_or(0);
                 let v = if aid.len() >= 8 {
@@ -65,13 +77,17 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
             Err(_) => (0, Version { major: 0, minor: 0, patch: 0 }),
         };
 
-        let model = detect_model_from_version(&version);
-
-        let info = YubiKeyInfo {
-            serial,
-            version,
-            model,
-            form_factor: FormFactor::UsbA,
+        // Prefer management AID data (actual firmware + form factor) over OpenPGP AID
+        // data (OpenPGP spec version, no form factor info).
+        let info = if let Some(ref di) = dev_info {
+            let fw = di.firmware.clone().unwrap_or(openpgp_version);
+            let ff_byte = di.form_factor_byte.unwrap_or(0);
+            let (model, form_factor) = model_from_form_factor(ff_byte, fw.major);
+            let sn = di.serial.unwrap_or(serial);
+            YubiKeyInfo { serial: sn, version: fw, model, form_factor }
+        } else {
+            let model = detect_model_from_version(&openpgp_version);
+            YubiKeyInfo { serial, version: openpgp_version, model, form_factor: FormFactor::UsbA }
         };
 
         // Read PIN status (DO 0xC4 PW Status Bytes)
@@ -92,19 +108,6 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
 
         // Touch policies — read via native GET DATA 0xD6-0xD9
         let touch_policies = super::touch_policy::get_touch_policies_native(&card).ok();
-
-        // GET DEVICE INFO from YubiKey Management AID — actual firmware version,
-        // form factor, and NFC capability. Falls back gracefully on older firmware.
-        let dev_info = card::get_device_info(&card);
-        let info = if let Some(ref di) = dev_info {
-            let fw = di.firmware.clone().unwrap_or_else(|| info.version.clone());
-            let ff_byte = di.form_factor_byte.unwrap_or(0);
-            let (model, form_factor) = model_from_form_factor(ff_byte, fw.major);
-            let sn = di.serial.unwrap_or(info.serial);
-            YubiKeyInfo { serial: sn, version: fw, model, form_factor }
-        } else {
-            info
-        };
 
         states.push(YubiKeyState {
             info,
