@@ -291,7 +291,10 @@ pub fn get_device_info(card: &pcsc::Card) -> Option<DeviceInfo> {
     if apdu_sw(resp) != 0x9000 {
         return None;
     }
-    let data = &resp[..resp.len().saturating_sub(2)];
+    // GET DEVICE INFO response: first byte is a length prefix (not a TLV tag).
+    // Skip it before walking the TLV pairs.
+    let raw = &resp[..resp.len().saturating_sub(2)];
+    let data = if raw.is_empty() { raw } else { &raw[1..] };
 
     // Tag 0x05: firmware version (3 bytes: major.minor.patch)
     let firmware = tlv_find(data, 0x05).and_then(|v| {
@@ -314,6 +317,7 @@ pub fn get_device_info(card: &pcsc::Card) -> Option<DeviceInfo> {
         }
     });
 
+    tracing::debug!("get_device_info: firmware={:?} ff_byte={:?} serial={:?}", firmware, form_factor_byte, serial);
     Some(DeviceInfo { firmware, form_factor_byte, serial })
 }
 
