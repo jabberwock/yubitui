@@ -288,7 +288,7 @@ fn render_unblock_wizard_check(
     frame: &mut Frame,
     area: Rect,
     yubikey_state: &Option<YubiKeyState>,
-    state: &PinState,
+    _state: &PinState,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)

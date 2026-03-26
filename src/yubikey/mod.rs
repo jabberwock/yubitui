@@ -1,3 +1,4 @@
+pub mod card;
 pub mod gpg_status;
 pub mod detection;
 pub mod key_operations;

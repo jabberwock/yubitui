@@ -347,11 +347,8 @@ pub fn factory_reset_openpgp() -> Result<String> {
 }
 
 /// Extract the two-byte status word from an APDU response slice.
+/// Delegates to the canonical implementation in card.rs.
 fn apdu_sw(resp: &[u8]) -> u16 {
-    if resp.len() < 2 {
-        return 0;
-    }
-    let n = resp.len();
-    u16::from_be_bytes([resp[n - 2], resp[n - 1]])
+    super::card::apdu_sw(resp)
 }
 
