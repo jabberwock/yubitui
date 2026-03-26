@@ -92,7 +92,13 @@ pub fn generate_key_batch(params: &KeyGenParams, _admin_pin: &str) -> Result<Key
     use crate::model::gpg_status::{parse_status_line, GpgStatus};
     use std::io::BufRead;
 
-    // Build the batch parameter file content
+    // Build the batch parameter file content.
+    //
+    // gpg --batch --gen-key supports only one Subkey-Type (duplicate keywords are
+    // rejected). We generate a primary SIG key + one ENC subkey here, then add the
+    // AUT subkey separately with --quick-add-key after the fingerprint is known.
+    // That is the only reliable way to produce all three subkeys non-interactively
+    // with gpg 2.4.x.
     let (key_type, key_length, key_curve, subkey_type, subkey_length, subkey_curve) =
         match params.algorithm {
             KeyAlgorithm::Ed25519 => (
@@ -190,21 +196,76 @@ pub fn generate_key_batch(params: &KeyGenParams, _admin_pin: &str) -> Result<Key
         return Ok(KeyOperationResult { success: false, messages, fingerprint: None });
     }
 
+    // Add an authentication subkey for the YubiKey AUT slot (card slot 3).
+    //
+    // gpg --batch --gen-key only supports one Subkey-Type; a second declaration is
+    // rejected as "duplicate keyword". We use --quick-add-key after generation to
+    // attach the AUT subkey. The key was created %no-protection, so --passphrase ""
+    // with --pinentry-mode loopback decrypts the local key material without prompting.
+    //
+    // Algorithm choice mirrors the primary key: ed25519 for Ed25519 keys, rsa<bits>
+    // for RSA keys. The "auth" usage string tells gpg to mark the subkey with the
+    // Authentication capability flag, which import_key_programmatic uses to discover
+    // the subkey index for card slot 3.
+    if let Some(ref fp) = fingerprint {
+        let aut_algo = match params.algorithm {
+            KeyAlgorithm::Ed25519 => "ed25519".to_string(),
+            KeyAlgorithm::Rsa2048 => "rsa2048".to_string(),
+            KeyAlgorithm::Rsa4096 => "rsa4096".to_string(),
+        };
+        let quick_result = Command::new("gpg")
+            .arg("--batch")
+            .arg("--no-tty")
+            .arg("--pinentry-mode")
+            .arg("loopback")
+            .arg("--passphrase")
+            .arg("")
+            .arg("--quick-add-key")
+            .arg(fp)
+            .arg(&aut_algo)
+            .arg("auth")
+            .output();
+        match quick_result {
+            Ok(out) if out.status.success() => {
+                messages.push("Authentication subkey added".to_string());
+            }
+            Ok(out) => {
+                let err = String::from_utf8_lossy(&out.stderr);
+                messages.push(format!("Warning: AUT subkey add failed: {}", err.trim()));
+            }
+            Err(e) => {
+                messages.push(format!("Warning: AUT subkey add error: {}", e));
+            }
+        }
+    }
+
     // Optionally export backup
     if params.backup {
         if let (Some(fp), Some(ref backup_path)) = (&fingerprint, &params.backup_path) {
+            // Expand a leading "~/" to the user's home directory. Tilde expansion is a
+            // shell feature — passing "~/..." as a Command argument delivers the literal
+            // characters to the process. Use dirs::home_dir() (already in Cargo.toml) so
+            // gpg receives an absolute path regardless of how the user typed it.
+            let expanded_path = if backup_path.starts_with("~/") {
+                dirs::home_dir()
+                    .map(|h| h.join(&backup_path[2..]).to_string_lossy().into_owned())
+                    .unwrap_or_else(|| backup_path.clone())
+            } else {
+                backup_path.clone()
+            };
+
             let backup_result = Command::new("gpg")
                 .arg("--export-secret-keys")
                 .arg("--armor")
                 .arg("--output")
-                .arg(backup_path)
+                .arg(&expanded_path)
                 .arg("--")
                 .arg(fp)
                 .output();
 
             match backup_result {
                 Ok(out) if out.status.success() => {
-                    messages.push(format!("Backup exported to {}", backup_path));
+                    messages.push(format!("Backup exported to {}", expanded_path));
                 }
                 Ok(out) => {
                     let err = String::from_utf8_lossy(&out.stderr);
@@ -334,6 +395,12 @@ pub fn import_key_programmatic(key_id: &str, key_passphrase: &str, admin_pin: &s
             (lbl, false) => all_messages.push(format!("{} slot import failed", lbl)),
             _ => {}
         }
+
+        // Give scdaemon 50 ms to settle after each card write before starting the
+        // next gpg session. Without this pause the card reports "Card removed" at
+        // the start of the next slot's gpg --edit-key process because scdaemon is
+        // still finalising the previous operation internally.
+        std::thread::sleep(std::time::Duration::from_millis(50));
     }
 
     Ok(ImportResult {
@@ -495,15 +562,25 @@ fn run_keytocard_session(
                 let _ = writeln!(stdin, "quit");
             }
             GpgStatus::GetHidden { prompt } if prompt == "passphrase.enter" => {
-                if !key_passphrase_sent {
-                    // First passphrase.enter: decrypt the local key.
+                // For keys with a passphrase: gpg asks twice — first for the key
+                // passphrase (to decrypt the local key material), then for the card
+                // Admin PIN (to authorise the keytocard write).
+                //
+                // For %no-protection keys (key_passphrase == ""), gpg does NOT ask
+                // for the key passphrase at all. Every passphrase.enter is therefore
+                // the Admin PIN request. Sending "" on the first prompt would fail
+                // with SC_OP_FAILURE 2 (Bad PIN).
+                if !key_passphrase_sent && !key_passphrase.is_empty() {
+                    // First passphrase.enter for a passphrase-protected key: decrypt local key.
                     dbg_log!("SEND: <key_passphrase>");
                     let _ = writeln!(stdin, "{}", key_passphrase);
                     key_passphrase_sent = true;
                 } else {
-                    // Second passphrase.enter: card admin PIN via loopback.
-                    dbg_log!("SEND: <admin_pin> (second passphrase.enter = card PIN)");
+                    // Either the key has no passphrase (first prompt is already Admin PIN),
+                    // or this is the second prompt for a passphrase-protected key.
+                    dbg_log!("SEND: <admin_pin> (passphrase.enter = card Admin PIN)");
                     let _ = writeln!(stdin, "{}", admin_pin);
+                    key_passphrase_sent = true;
                 }
             }
             GpgStatus::GetHidden { .. } => {
@@ -564,10 +641,15 @@ fn run_keytocard_session(
                 state = KtcState::Done;
             }
             GpgStatus::CardCtrl(3) => {
-                // Card was removed during import — surface this to the user
-                let msg = crate::model::gpg_status::status_to_message(&status);
-                messages.push(msg);
-                dbg_log!("CardCtrl(3) — card removed during import");
+                // CardCtrl(3) fires when scdaemon releases the card after a
+                // successful keytocard, which is normal housekeeping. Only
+                // surface the message when the operation has not yet succeeded —
+                // i.e., a genuine mid-operation disconnect.
+                dbg_log!("CardCtrl(3) — card removed (success={})", success);
+                if !success {
+                    let msg = crate::model::gpg_status::status_to_message(&status);
+                    messages.push(msg);
+                }
             }
             crate::model::gpg_status::GpgStatus::CardCtrl(_) => {}
             _ => {
