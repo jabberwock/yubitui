@@ -1,9 +1,24 @@
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
 use crate::diagnostics::Diagnostics;
+
+pub enum DiagnosticsAction {
+    None,
+    NavigateTo(crate::model::Screen),
+}
+
+pub fn handle_key(key: KeyEvent) -> DiagnosticsAction {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') => {
+            DiagnosticsAction::NavigateTo(crate::model::Screen::Dashboard)
+        }
+        _ => DiagnosticsAction::None,
+    }
+}
 
 pub fn render(frame: &mut Frame, area: Rect, diagnostics: &Diagnostics) {
     let chunks = Layout::default()

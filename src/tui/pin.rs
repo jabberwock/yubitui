@@ -1,12 +1,197 @@
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
-use crate::ui::widgets::popup;
-use crate::ui::widgets::pin_input::{render_pin_input, PinInputState};
-use crate::ui::widgets::progress::render_progress_popup;
-use crate::yubikey::YubiKeyState;
+use crate::tui::widgets::popup;
+use crate::tui::widgets::pin_input::{render_pin_input, PinInputState};
+use crate::tui::widgets::progress::render_progress_popup;
+use crate::model::YubiKeyState;
+
+pub enum PinAction {
+    None,
+    NavigateTo(crate::model::Screen),
+    ExecutePinOperation,
+    ExecuteFactoryReset,
+}
+
+/// Handle key events for the PIN Management screen.
+/// Sub-screen navigation is handled internally. Only hardware calls are returned as actions.
+pub fn handle_key(
+    state: &mut PinState,
+    key: KeyEvent,
+    yubikey_state: Option<&YubiKeyState>,
+) -> PinAction {
+    match state.screen {
+        PinScreen::Main => match key.code {
+            KeyCode::Char('c') => {
+                state.pending_operation = Some(PinScreen::ChangeUserPin);
+                state.pin_input = Some(PinInputState::new(
+                    "Change User PIN",
+                    &["Current PIN", "New PIN", "Confirm New PIN"],
+                ));
+                state.screen = PinScreen::PinInputActive;
+                PinAction::None
+            }
+            KeyCode::Char('a') => {
+                state.pending_operation = Some(PinScreen::ChangeAdminPin);
+                state.pin_input = Some(PinInputState::new(
+                    "Change Admin PIN",
+                    &[
+                        "Current Admin PIN",
+                        "New Admin PIN",
+                        "Confirm New Admin PIN",
+                    ],
+                ));
+                state.screen = PinScreen::PinInputActive;
+                PinAction::None
+            }
+            KeyCode::Char('r') => {
+                state.pending_operation = Some(PinScreen::SetResetCode);
+                state.pin_input = Some(PinInputState::new(
+                    "Set Reset Code",
+                    &["Admin PIN", "New Reset Code", "Confirm Reset Code"],
+                ));
+                state.screen = PinScreen::PinInputActive;
+                PinAction::None
+            }
+            KeyCode::Char('u') => {
+                state.screen = PinScreen::UnblockWizardCheck;
+                PinAction::None
+            }
+            KeyCode::Esc => PinAction::NavigateTo(crate::model::Screen::Dashboard),
+            _ => PinAction::None,
+        },
+        PinScreen::PinInputActive => {
+            use crate::tui::widgets::pin_input::PinInputAction;
+            let action = if let Some(pin_input) = state.pin_input.as_mut() {
+                pin_input.handle_key(key.code)
+            } else {
+                PinInputAction::Cancel
+            };
+            match action {
+                PinInputAction::Submit => PinAction::ExecutePinOperation,
+                PinInputAction::Cancel => {
+                    state.pin_input = None;
+                    state.pending_operation = None;
+                    state.screen = PinScreen::Main;
+                    state.message = None;
+                    PinAction::None
+                }
+                PinInputAction::Continue => PinAction::None,
+            }
+        }
+        PinScreen::OperationResult => {
+            state.screen = PinScreen::Main;
+            state.pin_input = None;
+            state.pending_operation = None;
+            state.operation_running = false;
+            state.operation_status = None;
+            PinAction::None
+        }
+        PinScreen::UnblockWizardCheck => match key.code {
+            KeyCode::Char('1') => {
+                if let Some(yk) = yubikey_state {
+                    if yk.pin_status.reset_code_retries > 0 {
+                        state.screen = PinScreen::UnblockWizardWithReset;
+                        state.unblock_path = Some(UnblockPath::ResetCode);
+                    }
+                }
+                PinAction::None
+            }
+            KeyCode::Char('2') => {
+                if let Some(yk) = yubikey_state {
+                    if yk.pin_status.admin_pin_retries > 0 {
+                        state.screen = PinScreen::UnblockWizardWithAdmin;
+                        state.unblock_path = Some(UnblockPath::AdminPin);
+                    }
+                }
+                PinAction::None
+            }
+            KeyCode::Char('3') => {
+                if let Some(yk) = yubikey_state {
+                    if yk.pin_status.admin_pin_retries == 0 {
+                        state.screen = PinScreen::UnblockWizardFactoryReset;
+                        state.unblock_path = Some(UnblockPath::FactoryReset);
+                    }
+                }
+                PinAction::None
+            }
+            KeyCode::Esc => {
+                state.screen = PinScreen::Main;
+                state.message = None;
+                state.unblock_path = None;
+                PinAction::None
+            }
+            _ => PinAction::None,
+        },
+        PinScreen::UnblockWizardWithReset => match key.code {
+            KeyCode::Enter => {
+                state.pending_operation = Some(PinScreen::UnblockWizardWithReset);
+                state.pin_input = Some(PinInputState::new(
+                    "Unblock with Reset Code",
+                    &["Reset Code", "New User PIN", "Confirm New PIN"],
+                ));
+                state.screen = PinScreen::PinInputActive;
+                PinAction::None
+            }
+            KeyCode::Esc => {
+                state.screen = PinScreen::UnblockWizardCheck;
+                state.unblock_path = None;
+                PinAction::None
+            }
+            _ => PinAction::None,
+        },
+        PinScreen::UnblockWizardWithAdmin => match key.code {
+            KeyCode::Enter => {
+                state.pending_operation = Some(PinScreen::UnblockWizardWithAdmin);
+                state.pin_input = Some(PinInputState::new(
+                    "Unblock with Admin PIN",
+                    &["Admin PIN", "New User PIN", "Confirm New PIN"],
+                ));
+                state.screen = PinScreen::PinInputActive;
+                PinAction::None
+            }
+            KeyCode::Esc => {
+                state.screen = PinScreen::UnblockWizardCheck;
+                state.unblock_path = None;
+                PinAction::None
+            }
+            _ => PinAction::None,
+        },
+        PinScreen::UnblockWizardFactoryReset => match key.code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                if state.confirm_factory_reset {
+                    PinAction::ExecuteFactoryReset
+                } else {
+                    state.confirm_factory_reset = true;
+                    PinAction::None
+                }
+            }
+            KeyCode::Char('n') | KeyCode::Char('N') => {
+                if state.confirm_factory_reset {
+                    state.confirm_factory_reset = false;
+                }
+                PinAction::None
+            }
+            KeyCode::Esc => {
+                state.confirm_factory_reset = false;
+                state.screen = PinScreen::UnblockWizardCheck;
+                state.unblock_path = None;
+                PinAction::None
+            }
+            _ => PinAction::None,
+        },
+        _ => {
+            if key.code == KeyCode::Esc {
+                state.screen = PinScreen::Main;
+                state.message = None;
+            }
+            PinAction::None
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PinScreen {

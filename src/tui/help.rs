@@ -1,7 +1,20 @@
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, Paragraph},
 };
+
+pub enum HelpAction {
+    None,
+    Close,
+}
+
+pub fn handle_key(key: KeyEvent) -> HelpAction {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('?') => HelpAction::Close,
+        _ => HelpAction::None,
+    }
+}
 
 pub fn render(frame: &mut Frame, area: Rect) {
     let lines: Vec<Line> = vec![

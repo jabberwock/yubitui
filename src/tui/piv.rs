@@ -1,9 +1,22 @@
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::yubikey::YubiKeyState;
+use crate::model::YubiKeyState;
+
+pub enum PivAction {
+    None,
+    NavigateTo(crate::model::Screen),
+}
+
+pub fn handle_key(key: KeyEvent) -> PivAction {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') => PivAction::NavigateTo(crate::model::Screen::Dashboard),
+        _ => PivAction::None,
+    }
+}
 
 /// Render the PIV certificates screen.
 ///

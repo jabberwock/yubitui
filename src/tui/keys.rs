@@ -1,9 +1,31 @@
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
-use crate::yubikey::YubiKeyState;
+use crate::model::YubiKeyState;
+
+#[allow(dead_code)]
+pub enum KeyAction {
+    None,
+    NavigateTo(crate::model::Screen),
+    ExecuteViewStatus,
+    ExecuteExportSSH,
+    ExecuteKeyImport,
+    ExecuteKeyGen,
+    ExecuteTouchPolicySet {
+        slot: String,
+        policy: crate::model::touch_policy::TouchPolicy,
+        admin_pin: String,
+    },
+    LoadGpgKeys,
+    LoadKeyAttributes,
+    LoadSshPubkey,
+    LoadAttestation {
+        serial: Option<u32>,
+    },
+}
 
 /// Steps in the key generation wizard (per D-09).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -73,14 +95,14 @@ pub struct KeyState {
     pub message: Option<String>,
     pub available_keys: Vec<String>,
     pub selected_key_index: usize,
-    pub key_attributes: Option<crate::yubikey::key_operations::KeyAttributes>,
+    pub key_attributes: Option<crate::model::key_operations::KeyAttributes>,
     pub ssh_pubkey: Option<String>,
     pub touch_slot_index: usize,           // 0=sig, 1=enc, 2=aut, 3=att
     pub touch_policy_index: usize,         // 0=Off, 1=On, 2=Fixed, 3=Cached, 4=CachedFixed
     pub attestation_popup: Option<String>, // PEM content for popup display
     // Key generation wizard state
     pub keygen_wizard: Option<KeyGenWizard>,
-    pub pin_input: Option<crate::ui::widgets::pin_input::PinInputState>,
+    pub pin_input: Option<crate::tui::widgets::pin_input::PinInputState>,
     pub operation_status: Option<String>,
     pub progress_tick: usize,
     pub import_result: Option<String>, // formatted SIG/ENC/AUT result
@@ -107,6 +129,556 @@ impl Default for KeyState {
     }
 }
 
+/// Handle key events for the Keys screen.
+/// Sub-screen navigation is handled internally. Actions requiring App context are returned.
+pub fn handle_key(
+    state: &mut KeyState,
+    key: KeyEvent,
+    yubikey_state: Option<&YubiKeyState>,
+) -> KeyAction {
+    use crate::tui::widgets::pin_input::{PinInputAction, PinInputState};
+
+    match state.screen {
+        KeyScreen::Main => {
+            // Attestation popup takes priority: Esc closes it
+            if state.attestation_popup.is_some() {
+                if key.code == KeyCode::Esc {
+                    state.attestation_popup = None;
+                }
+                return KeyAction::None;
+            }
+            match key.code {
+                KeyCode::Char('v') => {
+                    state.message = None;
+                    state.screen = KeyScreen::ViewStatus;
+                    KeyAction::None
+                }
+                KeyCode::Char('i') => {
+                    state.selected_key_index = 0;
+                    state.message = None;
+                    KeyAction::LoadGpgKeys
+                }
+                KeyCode::Char('g') => {
+                    state.message = None;
+                    KeyAction::ExecuteKeyGen
+                }
+                KeyCode::Char('e') => {
+                    state.message = None;
+                    state.screen = KeyScreen::ExportSSH;
+                    KeyAction::None
+                }
+                KeyCode::Char('k') => {
+                    state.message = None;
+                    state.screen = KeyScreen::KeyAttributes;
+                    KeyAction::LoadKeyAttributes
+                }
+                KeyCode::Char('s') => {
+                    state.message = None;
+                    state.screen = KeyScreen::SshPubkeyPopup;
+                    KeyAction::LoadSshPubkey
+                }
+                KeyCode::Char('t') => {
+                    state.message = None;
+                    state.screen = KeyScreen::SetTouchPolicy;
+                    state.touch_slot_index = 0;
+                    KeyAction::None
+                }
+                KeyCode::Char('a') => {
+                    state.message = None;
+                    let serial = yubikey_state.map(|yk| yk.info.serial);
+                    KeyAction::LoadAttestation { serial }
+                }
+                KeyCode::Esc => KeyAction::NavigateTo(crate::model::Screen::Dashboard),
+                _ => KeyAction::None,
+            }
+        }
+        KeyScreen::KeyAttributes | KeyScreen::SshPubkeyPopup => {
+            if key.code == KeyCode::Esc {
+                state.screen = KeyScreen::Main;
+                state.message = None;
+            }
+            KeyAction::None
+        }
+        KeyScreen::SetTouchPolicy => match key.code {
+            KeyCode::Up => {
+                if state.touch_slot_index > 0 {
+                    state.touch_slot_index -= 1;
+                }
+                KeyAction::None
+            }
+            KeyCode::Down => {
+                if state.touch_slot_index < 3 {
+                    state.touch_slot_index += 1;
+                }
+                KeyAction::None
+            }
+            KeyCode::Enter => {
+                let slot_idx = state.touch_slot_index;
+                let has_key = slot_idx == 3
+                    || yubikey_state
+                        .and_then(|yk| yk.openpgp.as_ref())
+                        .map(|o| match slot_idx {
+                            0 => o.signature_key.is_some(),
+                            1 => o.encryption_key.is_some(),
+                            2 => o.authentication_key.is_some(),
+                            _ => false,
+                        })
+                        .unwrap_or(false);
+                if has_key {
+                    state.touch_policy_index = 0;
+                    state.message = None;
+                    state.screen = KeyScreen::SetTouchPolicySelect;
+                } else {
+                    let slot_name = touch_slot_display(slot_idx);
+                    state.message = Some(format!(
+                        "No key in {} slot — import or generate a key first.",
+                        slot_name
+                    ));
+                }
+                KeyAction::None
+            }
+            KeyCode::Esc => {
+                state.screen = KeyScreen::Main;
+                state.message = None;
+                KeyAction::None
+            }
+            _ => KeyAction::None,
+        },
+        KeyScreen::SetTouchPolicySelect => match key.code {
+            KeyCode::Up => {
+                if state.touch_policy_index > 0 {
+                    state.touch_policy_index -= 1;
+                }
+                KeyAction::None
+            }
+            KeyCode::Down => {
+                if state.touch_policy_index < 4 {
+                    state.touch_policy_index += 1;
+                }
+                KeyAction::None
+            }
+            KeyCode::Enter => {
+                let policy = touch_policy_from_index(state.touch_policy_index);
+                if policy.is_irreversible() {
+                    state.screen = KeyScreen::SetTouchPolicyConfirm;
+                } else {
+                    state.pin_input = Some(PinInputState::new(
+                        "Set Touch Policy — Admin PIN",
+                        &["Admin PIN"],
+                    ));
+                    state.screen = KeyScreen::SetTouchPolicyPinInput;
+                }
+                KeyAction::None
+            }
+            KeyCode::Esc => {
+                state.screen = KeyScreen::SetTouchPolicy;
+                KeyAction::None
+            }
+            _ => KeyAction::None,
+        },
+        KeyScreen::SetTouchPolicyConfirm => match key.code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                state.pin_input = Some(PinInputState::new(
+                    "Set Touch Policy — Admin PIN",
+                    &["Admin PIN"],
+                ));
+                state.screen = KeyScreen::SetTouchPolicyPinInput;
+                KeyAction::None
+            }
+            _ => {
+                state.message = Some("Cancelled".to_string());
+                state.screen = KeyScreen::Main;
+                KeyAction::None
+            }
+        },
+        KeyScreen::SetTouchPolicyPinInput => {
+            let action = if let Some(pin_input) = state.pin_input.as_mut() {
+                pin_input.handle_key(key.code)
+            } else {
+                PinInputAction::Cancel
+            };
+            match action {
+                PinInputAction::Submit => {
+                    let admin_pin = state
+                        .pin_input
+                        .as_ref()
+                        .and_then(|p| p.values().into_iter().next().map(|s| s.to_owned()))
+                        .unwrap_or_default();
+                    let slot = touch_slot_name(state.touch_slot_index).to_string();
+                    let policy = touch_policy_from_index(state.touch_policy_index);
+                    state.pin_input = None;
+                    KeyAction::ExecuteTouchPolicySet {
+                        slot,
+                        policy,
+                        admin_pin,
+                    }
+                }
+                PinInputAction::Cancel => {
+                    state.pin_input = None;
+                    state.screen = KeyScreen::Main;
+                    state.message = None;
+                    KeyAction::None
+                }
+                PinInputAction::Continue => KeyAction::None,
+            }
+        }
+        KeyScreen::KeyGenWizardActive => {
+            // Keygen wizard key handling - delegated entirely
+            handle_keygen_wizard_key(state, key.code)
+        }
+        KeyScreen::KeyImportPinInput => {
+            let action = if let Some(pin_input) = state.pin_input.as_mut() {
+                pin_input.handle_key(key.code)
+            } else {
+                PinInputAction::Cancel
+            };
+            match action {
+                PinInputAction::Submit => KeyAction::ExecuteKeyImport,
+                PinInputAction::Cancel => {
+                    state.pin_input = None;
+                    state.screen = KeyScreen::Main;
+                    state.message = None;
+                    KeyAction::None
+                }
+                PinInputAction::Continue => KeyAction::None,
+            }
+        }
+        KeyScreen::KeyImportRunning => KeyAction::None,
+        KeyScreen::KeyOperationResult => {
+            state.screen = KeyScreen::Main;
+            state.keygen_wizard = None;
+            state.pin_input = None;
+            state.operation_status = None;
+            state.import_result = None;
+            state.message = None;
+            KeyAction::None
+        }
+        _ => match key.code {
+            KeyCode::Enter => KeyAction::ExecuteViewStatus,
+            KeyCode::Up => {
+                if state.screen == KeyScreen::ImportKey && state.selected_key_index > 0 {
+                    state.selected_key_index -= 1;
+                }
+                KeyAction::None
+            }
+            KeyCode::Down => {
+                if state.screen == KeyScreen::ImportKey {
+                    let max = state.available_keys.len().saturating_sub(1);
+                    if state.selected_key_index < max {
+                        state.selected_key_index += 1;
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Esc => {
+                state.screen = KeyScreen::Main;
+                state.message = None;
+                KeyAction::None
+            }
+            _ => KeyAction::None,
+        },
+    }
+}
+
+/// Handle mouse events for the Keys screen (scroll in import list).
+pub fn handle_mouse(state: &mut KeyState, mouse: MouseEvent) -> KeyAction {
+    match mouse.kind {
+        MouseEventKind::ScrollUp => {
+            if state.screen == KeyScreen::ImportKey && state.selected_key_index > 0 {
+                state.selected_key_index -= 1;
+            }
+            KeyAction::None
+        }
+        MouseEventKind::ScrollDown => {
+            if state.screen == KeyScreen::ImportKey {
+                let max = state.available_keys.len().saturating_sub(1);
+                if state.selected_key_index < max {
+                    state.selected_key_index += 1;
+                }
+            }
+            KeyAction::None
+        }
+        _ => KeyAction::None,
+    }
+}
+
+/// Handle key events for the key generation wizard sub-screen.
+fn handle_keygen_wizard_key(state: &mut KeyState, code: KeyCode) -> KeyAction {
+    use crate::tui::widgets::pin_input::{PinInputAction, PinInputState};
+
+    // If PIN input is active (Confirm step), route keys to it
+    if state.pin_input.is_some() {
+        let action = state.pin_input.as_mut().unwrap().handle_key(code);
+        return match action {
+            PinInputAction::Submit => KeyAction::ExecuteKeyGen,
+            PinInputAction::Cancel => {
+                state.pin_input = None;
+                if let Some(ref mut w) = state.keygen_wizard {
+                    w.step = KeyGenStep::Confirm;
+                }
+                KeyAction::None
+            }
+            PinInputAction::Continue => KeyAction::None,
+        };
+    }
+
+    let step = state.keygen_wizard.as_ref().map(|w| w.step);
+
+    match step {
+        Some(KeyGenStep::Algorithm) => match code {
+            KeyCode::Up => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.algorithm_index > 0 {
+                        w.algorithm_index -= 1;
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Down => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.algorithm_index < 2 {
+                        w.algorithm_index += 1;
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Enter => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    w.step = KeyGenStep::Expiry;
+                }
+                KeyAction::None
+            }
+            KeyCode::Esc => {
+                state.keygen_wizard = None;
+                state.screen = KeyScreen::Main;
+                state.message = None;
+                KeyAction::None
+            }
+            _ => KeyAction::None,
+        },
+        Some(KeyGenStep::Expiry) => match code {
+            KeyCode::Up => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if !w.editing_custom_expiry && w.expiry_index > 0 {
+                        w.expiry_index -= 1;
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Down => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if !w.editing_custom_expiry && w.expiry_index < 3 {
+                        w.expiry_index += 1;
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Enter => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.expiry_index == 3 {
+                        if !w.editing_custom_expiry {
+                            w.editing_custom_expiry = true;
+                        } else if !w.custom_expiry.is_empty() {
+                            w.editing_custom_expiry = false;
+                            w.step = KeyGenStep::Identity;
+                        }
+                    } else {
+                        w.step = KeyGenStep::Identity;
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Char(c) => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.editing_custom_expiry && (c.is_ascii_digit() || c == '-') {
+                        w.custom_expiry.push(c);
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Backspace => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.editing_custom_expiry {
+                        w.custom_expiry.pop();
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Esc => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.editing_custom_expiry {
+                        w.editing_custom_expiry = false;
+                    } else {
+                        w.step = KeyGenStep::Algorithm;
+                    }
+                }
+                KeyAction::None
+            }
+            _ => KeyAction::None,
+        },
+        Some(KeyGenStep::Identity) => match code {
+            KeyCode::Tab => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    w.active_field = 1 - w.active_field;
+                }
+                KeyAction::None
+            }
+            KeyCode::Enter => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.active_field == 0 {
+                        w.active_field = 1;
+                    } else if !w.name.is_empty() && !w.email.is_empty() {
+                        w.step = KeyGenStep::Backup;
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Char(c) if c.is_ascii_graphic() || c == ' ' => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.active_field == 0 {
+                        w.name.push(c);
+                    } else {
+                        w.email.push(c);
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Backspace => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.active_field == 0 {
+                        w.name.pop();
+                    } else {
+                        w.email.pop();
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Esc => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    w.step = KeyGenStep::Expiry;
+                }
+                KeyAction::None
+            }
+            _ => KeyAction::None,
+        },
+        Some(KeyGenStep::Backup) => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if !w.editing_path {
+                        w.backup = true;
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Char('n') | KeyCode::Char('N') => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if !w.editing_path {
+                        w.backup = false;
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Enter => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.editing_path {
+                        w.editing_path = false;
+                    } else if w.backup {
+                        w.editing_path = true;
+                    } else {
+                        w.step = KeyGenStep::Confirm;
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Char(c) if c.is_ascii_graphic() || c == ' ' => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.editing_path {
+                        w.backup_path.push(c);
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Backspace => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.editing_path {
+                        w.backup_path.pop();
+                    }
+                }
+                KeyAction::None
+            }
+            KeyCode::Esc => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    if w.editing_path {
+                        w.editing_path = false;
+                    } else {
+                        w.step = KeyGenStep::Identity;
+                    }
+                }
+                KeyAction::None
+            }
+            _ => KeyAction::None,
+        },
+        Some(KeyGenStep::Confirm) => match code {
+            KeyCode::Enter => {
+                state.pin_input = Some(PinInputState::new(
+                    "Key Generation — Admin PIN",
+                    &["Admin PIN"],
+                ));
+                KeyAction::None
+            }
+            KeyCode::Esc => {
+                if let Some(ref mut w) = state.keygen_wizard {
+                    w.step = KeyGenStep::Backup;
+                }
+                KeyAction::None
+            }
+            _ => KeyAction::None,
+        },
+        Some(KeyGenStep::Result) | Some(KeyGenStep::Running) => {
+            if code == KeyCode::Enter || code == KeyCode::Esc || code == KeyCode::Char(' ') {
+                state.screen = KeyScreen::Main;
+                state.keygen_wizard = None;
+                state.pin_input = None;
+                state.operation_status = None;
+                state.message = None;
+            }
+            KeyAction::None
+        }
+        None => {
+            state.screen = KeyScreen::Main;
+            KeyAction::None
+        }
+    }
+}
+
+/// Extract KeyGenParams from a KeyGenWizard (for app.rs to call hardware).
+/// Returns (KeyGenParams, admin_pin) if wizard is complete, None if still in progress.
+pub fn keygen_params_from_state(
+    state: &KeyState,
+) -> Option<crate::model::key_operations::KeyGenParams> {
+    use crate::model::key_operations::{KeyAlgorithm, KeyGenParams};
+    let w = state.keygen_wizard.as_ref()?;
+    let algo = match w.algorithm_index {
+        0 => KeyAlgorithm::Ed25519,
+        1 => KeyAlgorithm::Rsa2048,
+        _ => KeyAlgorithm::Rsa4096,
+    };
+    let expire_date = match w.expiry_index {
+        0 => "0".to_string(),
+        1 => "1y".to_string(),
+        2 => "2y".to_string(),
+        _ => w.custom_expiry.clone(),
+    };
+    Some(KeyGenParams {
+        algorithm: algo,
+        expire_date,
+        name: w.name.clone(),
+        email: w.email.clone(),
+        backup: w.backup,
+        backup_path: if w.backup { Some(w.backup_path.clone()) } else { None },
+    })
+}
+
 pub fn touch_slot_name(index: usize) -> &'static str {
     match index {
         0 => "sig",
@@ -127,8 +699,8 @@ pub fn touch_slot_display(index: usize) -> &'static str {
     }
 }
 
-pub fn touch_policy_from_index(index: usize) -> crate::yubikey::touch_policy::TouchPolicy {
-    use crate::yubikey::touch_policy::TouchPolicy;
+pub fn touch_policy_from_index(index: usize) -> crate::model::touch_policy::TouchPolicy {
+    use crate::model::touch_policy::TouchPolicy;
     match index {
         0 => TouchPolicy::Off,
         1 => TouchPolicy::On,
@@ -484,7 +1056,7 @@ fn render_export_ssh(frame: &mut Frame, area: Rect, state: &KeyState) {
 fn render_key_attributes(
     frame: &mut Frame,
     area: Rect,
-    yubikey_state: &Option<crate::yubikey::YubiKeyState>,
+    yubikey_state: &Option<crate::model::YubiKeyState>,
     state: &KeyState,
 ) {
     let chunks = Layout::default()
@@ -625,10 +1197,10 @@ fn render_ssh_pubkey_popup(
             "{}\n\nAdd this key to:\n  - ~/.ssh/authorized_keys on remote servers\n  - GitHub > Settings > SSH Keys\n  - GitLab > Preferences > SSH Keys\n\nTip: Select and copy with your terminal's copy shortcut.\n\nPress ESC to close.",
             key
         );
-        crate::ui::widgets::popup::render_popup(frame, area, "SSH Public Key", &body, 80, 16);
+        crate::tui::widgets::popup::render_popup(frame, area, "SSH Public Key", &body, 80, 16);
     } else {
         let body = "No authentication key found on card.\nImport or generate a key first.";
-        crate::ui::widgets::popup::render_popup(frame, area, "SSH Public Key", body, 60, 8);
+        crate::tui::widgets::popup::render_popup(frame, area, "SSH Public Key", body, 60, 8);
     }
 }
 
@@ -830,7 +1402,7 @@ fn render_set_touch_policy_confirm(frame: &mut Frame, area: Rect, state: &KeySta
 fn render_attestation_popup(frame: &mut Frame, area: Rect, state: &KeyState) {
     if let Some(ref pem) = state.attestation_popup {
         let body = format!("{}\n\nPress ESC to close.", pem);
-        crate::ui::widgets::popup::render_popup(
+        crate::tui::widgets::popup::render_popup(
             frame,
             area,
             "Attestation Certificate (SIG)",
@@ -866,7 +1438,7 @@ fn render_keygen_wizard(frame: &mut Frame, area: Rect, state: &KeyState) {
     // Overlay PIN input if active
     if state.pin_input.is_some() {
         if let Some(ref pin_state) = state.pin_input {
-            crate::ui::widgets::pin_input::render_pin_input(frame, area, pin_state);
+            crate::tui::widgets::pin_input::render_pin_input(frame, area, pin_state);
         }
     }
 }
@@ -1156,7 +1728,7 @@ fn render_keygen_backup(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
 
 /// Step 5: Confirmation summary before generating.
 fn render_keygen_confirm(frame: &mut Frame, area: Rect, wizard: &KeyGenWizard) {
-    use crate::yubikey::key_operations::KeyAlgorithm;
+    use crate::model::key_operations::KeyAlgorithm;
 
     let algo_names = ["Ed25519/Cv25519", "RSA 2048", "RSA 4096"];
     let algo_display = match wizard.algorithm_index {
@@ -1239,7 +1811,7 @@ fn render_key_operation_running(frame: &mut Frame, area: Rect, msg: &str, state:
     frame.render_widget(bg, area);
 
     // Overlay progress popup
-    crate::ui::widgets::progress::render_progress_popup(
+    crate::tui::widgets::progress::render_progress_popup(
         frame,
         area,
         "Key Operation",
@@ -1304,7 +1876,7 @@ fn render_touch_policy_pin_input(frame: &mut Frame, area: Rect, state: &KeyState
     frame.render_widget(bg, area);
 
     if let Some(ref pin_state) = state.pin_input {
-        crate::ui::widgets::pin_input::render_pin_input(frame, area, pin_state);
+        crate::tui::widgets::pin_input::render_pin_input(frame, area, pin_state);
     }
 }
 
@@ -1328,6 +1900,6 @@ fn render_key_import_pin_input(frame: &mut Frame, area: Rect, state: &KeyState) 
 
     // Overlay PIN input
     if let Some(ref pin_state) = state.pin_input {
-        crate::ui::widgets::pin_input::render_pin_input(frame, area, pin_state);
+        crate::tui::widgets::pin_input::render_pin_input(frame, area, pin_state);
     }
 }

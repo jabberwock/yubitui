@@ -1,9 +1,91 @@
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
 use crate::app::App;
+
+pub enum SshAction {
+    None,
+    NavigateTo(crate::model::Screen),
+    ExecuteSshOperation,
+    RefreshSshStatus,
+}
+
+/// Handle key events for the SSH Wizard screen.
+/// Sub-screen navigation is handled internally by mutating state.
+/// Only actions requiring App context are returned.
+pub fn handle_key(state: &mut SshState, key: KeyEvent) -> SshAction {
+    match state.screen {
+        SshScreen::Main => match key.code {
+            KeyCode::Char('1') => {
+                state.screen = SshScreen::EnableSSH;
+                SshAction::None
+            }
+            KeyCode::Char('2') => {
+                state.screen = SshScreen::ConfigureShell;
+                SshAction::None
+            }
+            KeyCode::Char('3') => {
+                state.screen = SshScreen::RestartAgent;
+                SshAction::None
+            }
+            KeyCode::Char('4') => {
+                state.screen = SshScreen::ExportKey;
+                SshAction::None
+            }
+            KeyCode::Char('5') => {
+                state.screen = SshScreen::TestConnection;
+                SshAction::None
+            }
+            KeyCode::Char('r') => SshAction::RefreshSshStatus,
+            KeyCode::Esc => SshAction::NavigateTo(crate::model::Screen::Dashboard),
+            _ => SshAction::None,
+        },
+        SshScreen::TestConnection => match key.code {
+            KeyCode::Enter => SshAction::ExecuteSshOperation,
+            KeyCode::Esc => {
+                state.screen = SshScreen::Main;
+                state.message = None;
+                state.test_conn_user.clear();
+                state.test_conn_host.clear();
+                state.test_conn_focused = 0;
+                SshAction::None
+            }
+            KeyCode::Tab => {
+                state.test_conn_focused = 1 - state.test_conn_focused;
+                SshAction::None
+            }
+            KeyCode::Backspace => {
+                if state.test_conn_focused == 0 {
+                    state.test_conn_user.pop();
+                } else {
+                    state.test_conn_host.pop();
+                }
+                SshAction::None
+            }
+            KeyCode::Char(c) => {
+                if state.test_conn_focused == 0 {
+                    state.test_conn_user.push(c);
+                } else {
+                    state.test_conn_host.push(c);
+                }
+                SshAction::None
+            }
+            _ => SshAction::None,
+        },
+        _ => match key.code {
+            KeyCode::Enter => SshAction::ExecuteSshOperation,
+            KeyCode::Esc => {
+                state.screen = SshScreen::Main;
+                state.message = None;
+                SshAction::None
+            }
+            _ => SshAction::None,
+        },
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SshScreen {

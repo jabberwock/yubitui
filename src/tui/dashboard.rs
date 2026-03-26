@@ -1,3 +1,4 @@
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, Paragraph},
@@ -9,6 +10,110 @@ use crate::app::App;
 pub struct DashboardState {
     pub show_context_menu: bool,
     pub menu_selected_index: usize,
+}
+
+#[allow(dead_code)]
+pub enum DashboardAction {
+    None,
+    Quit,
+    NavigateTo(crate::model::Screen),
+    OpenContextMenu,
+    SwitchYubiKey,
+    Refresh,
+    SelectMenuItem(usize),
+    CloseContextMenu,
+    MenuUp,
+    MenuDown,
+}
+
+/// Handle key events for the Dashboard screen.
+/// Returns an action for app.rs to interpret.
+pub fn handle_key(
+    state: &mut DashboardState,
+    key: KeyEvent,
+    yubikey_count: usize,
+) -> DashboardAction {
+    if state.show_context_menu {
+        match key.code {
+            KeyCode::Up => {
+                if state.menu_selected_index > 0 {
+                    state.menu_selected_index -= 1;
+                }
+                DashboardAction::None
+            }
+            KeyCode::Down => {
+                if state.menu_selected_index < 5 {
+                    state.menu_selected_index += 1;
+                }
+                DashboardAction::None
+            }
+            KeyCode::Enter => {
+                let idx = state.menu_selected_index;
+                state.show_context_menu = false;
+                state.menu_selected_index = 0;
+                DashboardAction::SelectMenuItem(idx)
+            }
+            KeyCode::Esc => {
+                state.show_context_menu = false;
+                state.menu_selected_index = 0;
+                DashboardAction::None
+            }
+            _ => DashboardAction::None,
+        }
+    } else {
+        match key.code {
+            KeyCode::Char('q') | KeyCode::Esc => DashboardAction::Quit,
+            KeyCode::Tab => {
+                if yubikey_count > 0 {
+                    DashboardAction::SwitchYubiKey
+                } else {
+                    DashboardAction::None
+                }
+            }
+            KeyCode::Char('1') => DashboardAction::NavigateTo(crate::model::Screen::Dashboard),
+            KeyCode::Char('2') => {
+                DashboardAction::NavigateTo(crate::model::Screen::Diagnostics)
+            }
+            KeyCode::Char('3') => DashboardAction::NavigateTo(crate::model::Screen::Keys),
+            KeyCode::Char('4') => {
+                DashboardAction::NavigateTo(crate::model::Screen::PinManagement)
+            }
+            KeyCode::Char('5') => DashboardAction::NavigateTo(crate::model::Screen::SshWizard),
+            KeyCode::Char('6') => DashboardAction::NavigateTo(crate::model::Screen::Piv),
+            KeyCode::Char('r') => DashboardAction::Refresh,
+            KeyCode::Enter | KeyCode::Char('m') => {
+                state.show_context_menu = true;
+                state.menu_selected_index = 0;
+                DashboardAction::None
+            }
+            _ => DashboardAction::None,
+        }
+    }
+}
+
+/// Handle mouse events for the Dashboard screen.
+pub fn handle_mouse(state: &mut DashboardState, mouse: MouseEvent) -> DashboardAction {
+    match mouse.kind {
+        MouseEventKind::Down(MouseButton::Left) => {
+            if state.show_context_menu {
+                state.show_context_menu = false;
+            }
+            DashboardAction::None
+        }
+        MouseEventKind::ScrollUp => {
+            if state.show_context_menu && state.menu_selected_index > 0 {
+                state.menu_selected_index -= 1;
+            }
+            DashboardAction::None
+        }
+        MouseEventKind::ScrollDown => {
+            if state.show_context_menu && state.menu_selected_index < 5 {
+                state.menu_selected_index += 1;
+            }
+            DashboardAction::None
+        }
+        _ => DashboardAction::None,
+    }
 }
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState) {
@@ -147,7 +252,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState) 
             "PIV Certificates",
             "Help",
         ];
-        crate::ui::widgets::popup::render_context_menu(
+        crate::tui::widgets::popup::render_context_menu(
             frame,
             area,
             "Navigate",
