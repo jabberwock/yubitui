@@ -39,3 +39,11 @@ jobs:
 
       - name: Clippy
         run: cargo clippy -- -D warnings
+
+      - name: Lint model layer (no ratatui imports)
+        if: runner.os == 'Linux'
+        run: |
+          if grep -r 'use ratatui' src/model/; then
+            echo "ERROR: ratatui import found in src/model/ — keep model layer TUI-free"
+            exit 1
+          fi

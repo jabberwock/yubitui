@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-/// Screen navigation -- pure enum, no ratatui types.
+/// Screen navigation -- pure enum, no TUI types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Screen {
     Dashboard,
@@ -14,7 +14,7 @@ pub enum Screen {
 
 /// Application state that is Tauri-serializable.
 /// Contains all data a GUI front-end would need.
-/// The TUI runtime (`App` in app.rs) holds this plus the ratatui Terminal.
+/// The TUI runtime (`App` in app.rs) owns this alongside the terminal handle.
 #[derive(Debug, Clone, Serialize)]
 pub struct AppState {
     pub current_screen: Screen,

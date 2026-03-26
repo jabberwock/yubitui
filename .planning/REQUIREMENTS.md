@@ -11,7 +11,7 @@
 - [x] **INFRA-02**: Card connection is reliable — 50ms sleep after scdaemon kill before any new APDU operation (pay v1.0 tech debt)
 - [x] **INFRA-03**: App state is split into `src/model/` (zero ratatui imports, all state `Clone + Debug`) and `src/tui/` (all ratatui rendering) with no cross-contamination
 - [x] **INFRA-04**: Business logic modules (`src/yubikey/`, `src/model/`) have zero ratatui imports — enforced by CI lint
-- [ ] **INFRA-05**: Each screen has its own typed action enum and `handle_key()` function — no 1600-line match arm in app.rs
+- [x] **INFRA-05**: Each screen has its own typed action enum and `handle_key()` function — no 1600-line match arm in app.rs
 - [x] **INFRA-06**: Model types implement `serde::Serialize` — Tauri-serializable without code changes when GUI is added
 
 ### Mouse & E2E Testing
@@ -103,7 +103,7 @@
 | INFRA-02 | Phase 6 | Complete |
 | INFRA-03 | Phase 6 | Complete |
 | INFRA-04 | Phase 6 | Complete |
-| INFRA-05 | Phase 6 | Pending |
+| INFRA-05 | Phase 6 | Complete |
 | INFRA-06 | Phase 6 | Complete |
 | MOUSE-01 | Phase 7 | Pending |
 | MOUSE-02 | Phase 7 | Pending |
