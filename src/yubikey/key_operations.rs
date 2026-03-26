@@ -563,8 +563,12 @@ fn run_keytocard_session(
                 let _ = writeln!(stdin, "quit");
                 state = KtcState::Done;
             }
-            // CardCtrl events (card inserted/removed) are scdaemon connection noise
-            // between sessions. Suppress them — the operation result speaks for itself.
+            GpgStatus::CardCtrl(3) => {
+                // Card was removed during import — surface this to the user
+                let msg = crate::yubikey::gpg_status::status_to_message(&status);
+                messages.push(msg);
+                dbg_log!("CardCtrl(3) — card removed during import");
+            }
             crate::yubikey::gpg_status::GpgStatus::CardCtrl(_) => {}
             _ => {
                 let msg = crate::yubikey::gpg_status::status_to_message(&status);

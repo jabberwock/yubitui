@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gaps.
-status: Phase 05 complete — awaiting human hardware verification (Task 2 gate)
-last_updated: "2026-03-26T09:55:00.000Z"
+status: Executing Phase 05 — gap closure plans in progress
+last_updated: "2026-03-26T10:00:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 18
+  total_plans: 21
   completed_plans: 18
 ---
 
@@ -23,17 +23,17 @@ active
 
 ## Current Plan
 
-Phase 5 — Plan 01 (05-01) [complete]
+Phase 5 — Plan 04 (05-04) [complete]
 
 ## Progress
 
-[████████░░] 88%
+[█████████░] 86%
 
 - Phase 1: complete (all 3 plans complete)
 - Phase 2: complete (all 4 plans complete)
 - Phase 3: complete (all 4 plans complete)
 - Phase 4: complete (all 4 plans complete)
-- Phase 5: in progress (1/3 plans complete)
+- Phase 5: in progress (4/6 plans complete)
 
 ## Completed Plans
 
@@ -52,6 +52,7 @@ Phase 5 — Plan 01 (05-01) [complete]
 - 04-03: Key generation wizard (7-step TUI) + programmatic import via --command-fd auto-mapping subkeys by capability (2026-03-25)
 - 04-04: Terminal escape audit and cleanup — zero Stdio::inherit in yubikey modules, TUI SSH test connection input, deprecated functions removed (2026-03-25)
 - 05-01: PC/SC APDU primitives module (card.rs) + native card reads for detection, PIN status, OpenPGP state, key attributes — no gpg/ykman subprocess for card reads (2026-03-25)
+- 05-04: Key import error reporting and nav bugs — ScOpFailure(6) "Wrong Admin PIN", CardCtrl(3) surfaced, ViewStatus->KeyOperationResult, ExportSSH error->SshPubkeyPopup, stale message clear (2026-03-26)
 
 ## Decisions
 
@@ -111,5 +112,5 @@ Phase 5 — Plan 01 (05-01) [complete]
 
 ## Last Session
 
-- Stopped at: 05-03 complete. Fingerprint detection fixed (T=0 GET RESPONSE + 0x6E parsing). All 18 plans complete. Awaiting user hardware verification (Task 2 gate) to close Phase 5.
+- Stopped at: Gap closure wave 1 — 05-04, 05-05, 05-06 all complete
 - Date: 2026-03-26

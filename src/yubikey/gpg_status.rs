@@ -134,6 +134,7 @@ pub fn status_to_message(status: &GpgStatus) -> String {
         GpgStatus::KeyCreated { .. } => "Key generated successfully".to_string(),
         GpgStatus::ScOpSuccess => "Operation completed successfully".to_string(),
         GpgStatus::ScOpFailure(2) => "Wrong PIN".to_string(),
+        GpgStatus::ScOpFailure(6) => "Wrong Admin PIN".to_string(),
         GpgStatus::ScOpFailure(_) => "Smartcard operation failed".to_string(),
         GpgStatus::PinentryLaunched => String::new(),
         GpgStatus::KeyConsidered { .. } => String::new(),
@@ -332,6 +333,22 @@ mod tests {
         assert_eq!(
             status_to_message(&GpgStatus::Unknown("garbage".to_string())),
             ""
+        );
+    }
+
+    #[test]
+    fn test_message_sc_op_failure_wrong_admin_pin() {
+        assert_eq!(
+            status_to_message(&GpgStatus::ScOpFailure(6)),
+            "Wrong Admin PIN"
+        );
+    }
+
+    #[test]
+    fn test_message_sc_op_failure_generic() {
+        assert_eq!(
+            status_to_message(&GpgStatus::ScOpFailure(99)),
+            "Smartcard operation failed"
         );
     }
 }
