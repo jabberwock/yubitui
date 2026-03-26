@@ -553,6 +553,12 @@ fn run_keytocard_session(
                 let _ = writeln!(stdin, "quit");
                 state = KtcState::Done;
             }
+            GpgStatus::CardCtrl(3) => {
+                // Card was removed during import — surface this to the user
+                let msg = crate::yubikey::gpg_status::status_to_message(&status);
+                messages.push(msg);
+                dbg_log!("CardCtrl(3) — card removed during import");
+            }
             _ => {
                 let msg = crate::yubikey::gpg_status::status_to_message(&status);
                 if !msg.is_empty()
