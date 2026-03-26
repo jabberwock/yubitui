@@ -87,7 +87,7 @@ fn run_gpg_pin_operation(
     card_edit_commands: &[&str],
     pins: &[&str],
 ) -> Result<PinOperationResult> {
-    use crate::yubikey::gpg_status::{parse_status_line, status_to_message, GpgStatus};
+    use crate::model::gpg_status::{parse_status_line, status_to_message, GpgStatus};
     use std::io::{BufRead, BufReader, Write};
     use std::sync::mpsc;
 

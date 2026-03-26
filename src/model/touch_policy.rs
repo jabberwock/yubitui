@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::fmt;
 
 /// Touch policy variants for OpenPGP slots.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 #[allow(dead_code)]
 pub enum TouchPolicy {
     #[default]
@@ -87,7 +87,7 @@ impl fmt::Display for TouchPolicy {
 }
 
 /// Touch policies for all four OpenPGP slots.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 #[allow(dead_code)]
 pub struct TouchPolicies {
     pub signature: TouchPolicy,

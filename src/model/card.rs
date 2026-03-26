@@ -300,7 +300,7 @@ pub fn tlv_find(data: &[u8], target_tag: u16) -> Option<&[u8]> {
 ///   0x80 bit set = NFC capable
 pub struct DeviceInfo {
     /// Actual YubiKey firmware version (3 bytes from tag 0x05).
-    pub firmware: Option<crate::yubikey::Version>,
+    pub firmware: Option<crate::model::Version>,
     /// Raw form factor byte (tag 0x04). Use `form_factor_nfc()` helpers.
     pub form_factor_byte: Option<u8>,
     /// Serial number from management AID (tag 0x02). May be absent on older firmware.
@@ -351,7 +351,7 @@ pub fn get_device_info(card: &pcsc::Card) -> Option<DeviceInfo> {
     // Tag 0x05: firmware version (3 bytes: major.minor.patch)
     let firmware = tlv_find(data, 0x05).and_then(|v| {
         if v.len() >= 3 {
-            Some(crate::yubikey::Version {
+            Some(crate::model::Version {
                 major: v[0],
                 minor: v[1],
                 patch: v[2],

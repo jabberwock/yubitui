@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PinStatus {
     pub user_pin_retries: u8,
     pub admin_pin_retries: u8,

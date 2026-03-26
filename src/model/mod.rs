@@ -1,3 +1,4 @@
+pub mod app_state;
 pub mod card;
 pub mod gpg_status;
 pub mod detection;
@@ -11,12 +12,14 @@ pub mod attestation;
 pub mod ssh_operations;
 pub mod touch_policy;
 
+pub use app_state::{AppState, Screen};
+
 // YubiKey detection and management
 
 use anyhow::Result;
 use std::fmt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct YubiKeyInfo {
     pub serial: u32,
     pub version: Version,
@@ -24,7 +27,7 @@ pub struct YubiKeyInfo {
     pub form_factor: FormFactor,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Version {
     pub major: u8,
     pub minor: u8,
@@ -37,7 +40,7 @@ impl fmt::Display for Version {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[allow(dead_code)]
 pub enum Model {
     YubiKey5,
@@ -115,7 +118,7 @@ impl fmt::Display for Model {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[allow(dead_code)]
 pub enum FormFactor {
     UsbA,
@@ -145,7 +148,7 @@ impl fmt::Display for YubiKeyInfo {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct YubiKeyState {
     pub info: YubiKeyInfo,
     pub openpgp: Option<openpgp::OpenPgpState>,

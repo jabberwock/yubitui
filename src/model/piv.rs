@@ -1,12 +1,12 @@
 use anyhow::Result;
 use pcsc::{Context, Protocols, Scope, ShareMode};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PivState {
     pub slots: Vec<SlotInfo>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct SlotInfo {
     pub slot: String,
     #[allow(dead_code)]

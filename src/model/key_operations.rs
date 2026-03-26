@@ -89,7 +89,7 @@ struct SubkeyInfo {
 /// a backup copy. The card PIN is the protection, so %no-protection is used.
 #[allow(dead_code)]
 pub fn generate_key_batch(params: &KeyGenParams, _admin_pin: &str) -> Result<KeyOperationResult> {
-    use crate::yubikey::gpg_status::{parse_status_line, GpgStatus};
+    use crate::model::gpg_status::{parse_status_line, GpgStatus};
     use std::io::BufRead;
 
     // Build the batch parameter file content
@@ -170,7 +170,7 @@ pub fn generate_key_batch(params: &KeyGenParams, _admin_pin: &str) -> Result<Key
                 messages.push(format!("Key created ({}): {}", kt, fp));
             }
             _ => {
-                let msg = crate::yubikey::gpg_status::status_to_message(&status);
+                let msg = crate::model::gpg_status::status_to_message(&status);
                 if !msg.is_empty() {
                     messages.push(msg);
                 }
@@ -358,7 +358,7 @@ fn run_keytocard_session(
     slot: u8,
     messages: &mut Vec<String>,
 ) -> Result<bool> {
-    use crate::yubikey::gpg_status::{parse_status_line, GpgStatus};
+    use crate::model::gpg_status::{parse_status_line, GpgStatus};
     use std::io::BufRead;
     use std::sync::mpsc;
 
@@ -555,7 +555,7 @@ fn run_keytocard_session(
                 state = KtcState::SendSave;
             }
             GpgStatus::ScOpFailure(_) => {
-                let msg = crate::yubikey::gpg_status::status_to_message(&status);
+                let msg = crate::model::gpg_status::status_to_message(&status);
                 if !msg.is_empty() {
                     messages.push(msg);
                 }
@@ -565,13 +565,13 @@ fn run_keytocard_session(
             }
             GpgStatus::CardCtrl(3) => {
                 // Card was removed during import — surface this to the user
-                let msg = crate::yubikey::gpg_status::status_to_message(&status);
+                let msg = crate::model::gpg_status::status_to_message(&status);
                 messages.push(msg);
                 dbg_log!("CardCtrl(3) — card removed during import");
             }
-            crate::yubikey::gpg_status::GpgStatus::CardCtrl(_) => {}
+            crate::model::gpg_status::GpgStatus::CardCtrl(_) => {}
             _ => {
-                let msg = crate::yubikey::gpg_status::status_to_message(&status);
+                let msg = crate::model::gpg_status::status_to_message(&status);
                 if !msg.is_empty()
                     && msg != "Enter value"
                     && msg != "PIN accepted"
@@ -741,18 +741,18 @@ pub struct SlotInfo {
 /// response and tlv_find scans past the content.
 /// No ykman binary required.
 pub fn get_key_attributes() -> Result<KeyAttributes> {
-    let (card, _aid) = crate::yubikey::card::connect_to_openpgp_card()?;
+    let (card, _aid) = crate::model::card::connect_to_openpgp_card()?;
 
     // GET DATA 0x00C5 — Fingerprints: 60 bytes = SIG(20) | ENC(20) | AUT(20).
-    let c5 = crate::yubikey::card::get_data(&card, 0x00, 0xC5).ok();
+    let c5 = crate::model::card::get_data(&card, 0x00, 0xC5).ok();
     let sig_fp = c5.as_deref().and_then(|b| if b.len() >= 20 { Some(b[..20].to_vec()) } else { None });
     let enc_fp = c5.as_deref().and_then(|b| if b.len() >= 40 { Some(b[20..40].to_vec()) } else { None });
     let aut_fp = c5.as_deref().and_then(|b| if b.len() >= 60 { Some(b[40..60].to_vec()) } else { None });
 
     // GET DATA 0x00C1/C2/C3 — Algorithm attributes per slot.
-    let sig_algo = crate::yubikey::card::get_data(&card, 0x00, 0xC1).ok();
-    let enc_algo = crate::yubikey::card::get_data(&card, 0x00, 0xC2).ok();
-    let aut_algo = crate::yubikey::card::get_data(&card, 0x00, 0xC3).ok();
+    let sig_algo = crate::model::card::get_data(&card, 0x00, 0xC1).ok();
+    let enc_algo = crate::model::card::get_data(&card, 0x00, 0xC2).ok();
+    let aut_algo = crate::model::card::get_data(&card, 0x00, 0xC3).ok();
 
     let signature = build_slot_info(sig_fp.as_deref(), sig_algo.as_deref());
     let encryption = build_slot_info(enc_fp.as_deref(), enc_algo.as_deref());
@@ -776,12 +776,12 @@ fn build_slot_info(fp_bytes: Option<&[u8]>, algo_bytes: Option<&[u8]>) -> Option
     if fp_bytes.iter().all(|&b| b == 0) {
         return None;
     }
-    let fingerprint = crate::yubikey::detection::format_fingerprint(fp_bytes);
+    let fingerprint = crate::model::detection::format_fingerprint(fp_bytes);
     if fingerprint.is_empty() {
         return None;
     }
     let algorithm = algo_bytes
-        .map(crate::yubikey::detection::parse_algorithm_attributes)
+        .map(crate::model::detection::parse_algorithm_attributes)
         .unwrap_or_else(|| "Unknown".to_string());
     Some(SlotInfo { algorithm, fingerprint })
 }
@@ -942,7 +942,7 @@ fn save_slot(attrs: &mut KeyAttributes, slot: &str, algo: &str, fp: &str) {
 /// then exports the SSH public key from the GPG keyring using gpg --export-ssh-key.
 pub fn get_ssh_public_key_text() -> Result<String> {
     // Get the authentication key fingerprint from the card via native PC/SC.
-    let states = crate::yubikey::YubiKeyState::detect_all()
+    let states = crate::model::YubiKeyState::detect_all()
         .map_err(|e| anyhow::anyhow!("Could not read card state: {e}"))?;
 
     let auth_fp = states
@@ -984,7 +984,7 @@ pub fn get_ssh_public_key_text() -> Result<String> {
 /// View card status — reads card state via native PC/SC APDUs and formats it as
 /// human-readable text. No gpg --card-status subprocess call.
 pub fn view_card_status() -> Result<String> {
-    let states = crate::yubikey::YubiKeyState::detect_all()
+    let states = crate::model::YubiKeyState::detect_all()
         .map_err(|e| anyhow::anyhow!("Could not read card state: {e}"))?;
 
     if states.is_empty() {
@@ -1012,7 +1012,7 @@ pub fn view_card_status() -> Result<String> {
             s.pin_status.reset_code_retries,
         ));
         if let Some(ref openpgp) = s.openpgp {
-            let fp_or = |k: &Option<crate::yubikey::openpgp::KeyInfo>| {
+            let fp_or = |k: &Option<crate::model::openpgp::KeyInfo>| {
                 k.as_ref()
                     .map(|i| i.fingerprint.as_str())
                     .unwrap_or("[none]")

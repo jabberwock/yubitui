@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[allow(dead_code)]
 pub struct OpenPgpState {
     pub card_present: bool,
@@ -12,7 +12,7 @@ pub struct OpenPgpState {
     pub public_key_url: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[allow(dead_code)]
 pub struct KeyInfo {
     pub fingerprint: String,

@@ -4,9 +4,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod app;
 mod diagnostics;
-mod ui;
+mod tui;
 mod utils;
-mod yubikey;
+mod model;
 
 use app::App;
 
@@ -91,7 +91,7 @@ fn main() -> Result<()> {
 }
 
 fn list_yubikeys() -> Result<()> {
-    use yubikey::detection::detect_all_yubikey_states;
+    use crate::model::detection::detect_all_yubikey_states;
 
     println!("Detecting YubiKeys...\n");
 

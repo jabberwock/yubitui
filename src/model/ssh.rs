@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::process::Command;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[allow(dead_code)]
 pub struct SshConfig {
     pub agent_running: bool,
