@@ -50,7 +50,7 @@ Plans:
 - [x] 02-01-PLAN.md — Popup widget, mouse support, gnupg path fix
 - [x] 02-02-PLAN.md — PIN unblock wizard (4-branch decision tree)
 - [x] 02-03-PLAN.md — Key attribute display and SSH pubkey popup
-- [ ] 02-04-PLAN.md — Dashboard context menu and visual verification
+- [x] 02-04-PLAN.md — Dashboard context menu and visual verification
 
 **Requirements:** [MENU-01, MOUSE-01, PIN-WIZARD-01, SSH-FIX-01, KEY-ATTR-01, AUTHKEYS-01]
 
@@ -127,9 +127,9 @@ Plans:
 - [x] 05-01-PLAN.md — PC/SC primitives (card.rs) + replace detection, PIN, OpenPGP, key attribute reads
 - [x] 05-02-PLAN.md — Native touch policy, PIV detection, attestation via PC/SC APDUs
 - [x] 05-03-PLAN.md — Cleanup: remove find_ykman, unused crates, grep audit, human verify
-- [ ] 05-04-PLAN.md — Gap: import error clarity + [V]/[E] routing + stale message clear
-- [ ] 05-05-PLAN.md — Gap: touch policy in Key Attributes screen + SSH status on initial load
-- [ ] 05-06-PLAN.md — Gap: PIV screen (Screen::Piv, ui/piv.rs, key '6', dashboard menu)
+- [x] 05-04-PLAN.md — Gap: import error clarity + [V]/[E] routing + stale message clear
+- [x] 05-05-PLAN.md — Gap: touch policy in Key Attributes screen + SSH status on initial load
+- [x] 05-06-PLAN.md — Gap: PIV screen (Screen::Piv, ui/piv.rs, key '6', dashboard menu)
 
 **Requirements:** [NATIVE-PCSC-01, NO-GPG-BIN-01, NO-YKMAN-BIN-01]
 
