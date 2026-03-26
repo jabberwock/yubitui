@@ -53,6 +53,7 @@ Phase 5 — Plan 04 (05-04) [complete]
 - 04-04: Terminal escape audit and cleanup — zero Stdio::inherit in yubikey modules, TUI SSH test connection input, deprecated functions removed (2026-03-25)
 - 05-01: PC/SC APDU primitives module (card.rs) + native card reads for detection, PIN status, OpenPGP state, key attributes — no gpg/ykman subprocess for card reads (2026-03-25)
 - 05-04: Key import error reporting and nav bugs — ScOpFailure(6) "Wrong Admin PIN", CardCtrl(3) surfaced, ViewStatus->KeyOperationResult, ExportSSH error->SshPubkeyPopup, stale message clear (2026-03-26)
+- 05-05: Touch policy display in Key Attributes screen + SSH Wizard status refresh on entry (2026-03-26)
 
 ## Decisions
 

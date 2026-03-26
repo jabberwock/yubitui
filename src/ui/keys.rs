@@ -157,7 +157,7 @@ pub fn render(
         KeyScreen::ViewStatus => render_view_status(frame, area, yubikey_state, state),
         KeyScreen::ImportKey => render_import_key(frame, area, state),
         KeyScreen::ExportSSH => render_export_ssh(frame, area, state),
-        KeyScreen::KeyAttributes => render_key_attributes(frame, area, state),
+        KeyScreen::KeyAttributes => render_key_attributes(frame, area, yubikey_state, state),
         KeyScreen::SshPubkeyPopup => render_ssh_pubkey_popup(frame, area, yubikey_state, state),
         KeyScreen::SetTouchPolicy => render_set_touch_policy(frame, area, state),
         KeyScreen::SetTouchPolicySelect => render_set_touch_policy_select(frame, area, state),
@@ -470,7 +470,7 @@ fn render_export_ssh(frame: &mut Frame, area: Rect, state: &KeyState) {
     );
 }
 
-fn render_key_attributes(frame: &mut Frame, area: Rect, state: &KeyState) {
+fn render_key_attributes(frame: &mut Frame, area: Rect, yubikey_state: &Option<crate::yubikey::YubiKeyState>, state: &KeyState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(0)])
@@ -540,6 +540,33 @@ fn render_key_attributes(frame: &mut Frame, area: Rect, state: &KeyState) {
             "Key attributes unavailable.",
             Style::default().fg(Color::Yellow),
         )]));
+    }
+
+    // Touch policies from YubiKeyState
+    if let Some(ref yk) = yubikey_state {
+        if let Some(ref tp) = yk.touch_policies {
+            lines.push(Line::from(""));
+            lines.push(Line::from(vec![Span::styled(
+                "Touch Policies:",
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(Line::from(vec![
+                Span::styled("  Signature:      ", Style::default().fg(Color::Yellow)),
+                Span::raw(format!("{}", tp.signature)),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled("  Encryption:     ", Style::default().fg(Color::Yellow)),
+                Span::raw(format!("{}", tp.encryption)),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled("  Authentication: ", Style::default().fg(Color::Yellow)),
+                Span::raw(format!("{}", tp.authentication)),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled("  Attestation:    ", Style::default().fg(Color::Yellow)),
+                Span::raw(format!("{}", tp.attestation)),
+            ]));
+        }
     }
 
     if let Some(ref msg) = state.message {
