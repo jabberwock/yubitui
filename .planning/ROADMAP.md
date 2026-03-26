@@ -121,12 +121,15 @@ Plans:
 
 **Done when:** `cargo test` passes; app works on a clean system with only pcscd/PC/SC installed; no ykman binary required.
 
-**Plans:** 3 plans
+**Plans:** 6 plans
 
 Plans:
 - [x] 05-01-PLAN.md — PC/SC primitives (card.rs) + replace detection, PIN, OpenPGP, key attribute reads
-- [ ] 05-02-PLAN.md — Native touch policy, PIV detection, attestation via PC/SC APDUs
-- [ ] 05-03-PLAN.md — Cleanup: remove find_ykman, unused crates, grep audit, human verify
+- [x] 05-02-PLAN.md — Native touch policy, PIV detection, attestation via PC/SC APDUs
+- [x] 05-03-PLAN.md — Cleanup: remove find_ykman, unused crates, grep audit, human verify
+- [ ] 05-04-PLAN.md — Gap: import error clarity + [V]/[E] routing + stale message clear
+- [ ] 05-05-PLAN.md — Gap: touch policy in Key Attributes screen + SSH status on initial load
+- [ ] 05-06-PLAN.md — Gap: PIV screen (Screen::Piv, ui/piv.rs, key '6', dashboard menu)
 
 **Requirements:** [NATIVE-PCSC-01, NO-GPG-BIN-01, NO-YKMAN-BIN-01]
 
