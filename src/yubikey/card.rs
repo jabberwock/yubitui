@@ -4,12 +4,13 @@ use anyhow::Result;
 #[allow(dead_code)]
 pub const OPENPGP_AID: &[u8] = &[0xD2, 0x76, 0x00, 0x01, 0x24, 0x01];
 
-/// Full SELECT OpenPGP APDU: CLA=00 INS=A4 P1=04 P2=00 Lc=06 [AID] Le=00.
-/// Le=00 requests the AID template response data (serial, version, manufacturer).
-/// Without Le the card returns only SW 9000 with no data.
+/// Full SELECT OpenPGP APDU: CLA=00 INS=A4 P1=04 P2=00 Lc=06 [AID].
+/// No Le byte — matches gpg/scdaemon SELECT behavior and avoids leaving a
+/// pending response buffer that corrupts subsequent GET DATA operations on
+/// some YubiKey firmware versions.
 #[allow(dead_code)]
 pub const SELECT_OPENPGP: &[u8] = &[
-    0x00, 0xA4, 0x04, 0x00, 0x06, 0xD2, 0x76, 0x00, 0x01, 0x24, 0x01, 0x00,
+    0x00, 0xA4, 0x04, 0x00, 0x06, 0xD2, 0x76, 0x00, 0x01, 0x24, 0x01,
 ];
 
 /// YubiKey Management Application AID (8 bytes).
@@ -103,7 +104,11 @@ pub fn connect_to_openpgp_card() -> Result<(pcsc::Card, Vec<u8>)> {
 /// GET DATA for a 1-byte P1:P2 tag.
 ///
 /// Sends `[0x00, 0xCA, p1, p2, 0x00]` and returns the data bytes (SW stripped).
-/// Uses a 1024-byte buffer — sufficient for DO 0x6E.
+/// Handles T=0 SW 0x61xx ("xx bytes still available") by issuing GET RESPONSE
+/// (INS=0xC0) in a loop until all data is assembled. This is required on YubiKey
+/// firmware 5.4.x when Le=0x00 causes multi-part T=0 responses (e.g., DO 0x6E).
+/// Without this, ignoring 0x61xx leaves the card expecting GET RESPONSE, which
+/// causes the NEXT GET DATA (e.g., 0xC5) to return SW 0x6B00.
 #[allow(dead_code)]
 pub fn get_data(card: &pcsc::Card, p1: u8, p2: u8) -> Result<Vec<u8>> {
     let apdu = [0x00u8, 0xCA, p1, p2, 0x00];
@@ -113,12 +118,38 @@ pub fn get_data(card: &pcsc::Card, p1: u8, p2: u8) -> Result<Vec<u8>> {
         .map_err(|e| anyhow::anyhow!("GET DATA transmit error: {e}"))?;
 
     let sw = apdu_sw(resp);
-    if sw != 0x9000 {
-        tracing::debug!("GET DATA {:02X}{:02X} SW {:04X}", p1, p2, sw);
-        anyhow::bail!("{}", apdu_error_message(sw, &format!("reading DO {:02X}{:02X}", p1, p2)));
+
+    if sw == 0x9000 {
+        return Ok(resp[..resp.len().saturating_sub(2)].to_vec());
     }
 
-    Ok(resp[..resp.len().saturating_sub(2)].to_vec())
+    // T=0: SW 0x61xx — normal processing, xx more bytes available via GET RESPONSE.
+    // Issue GET RESPONSE (00 C0 00 00 Le) to collect pending data in a loop.
+    if sw >> 8 == 0x61 {
+        let mut full = resp[..resp.len().saturating_sub(2)].to_vec();
+        let mut pending = (sw & 0xFF) as u8;
+        loop {
+            let get_resp = [0x00u8, 0xC0, 0x00, 0x00, pending];
+            let mut rbuf = [0u8; 1024];
+            let r = card
+                .transmit(&get_resp, &mut rbuf)
+                .map_err(|e| anyhow::anyhow!("GET RESPONSE transmit error: {e}"))?;
+            let rsw = apdu_sw(r);
+            full.extend_from_slice(&r[..r.len().saturating_sub(2)]);
+            if rsw == 0x9000 {
+                break;
+            } else if rsw >> 8 == 0x61 {
+                pending = (rsw & 0xFF) as u8;
+            } else {
+                tracing::debug!("GET RESPONSE SW {:04X} after GET DATA {:02X}{:02X}", rsw, p1, p2);
+                break; // partial data — return what we have
+            }
+        }
+        return Ok(full);
+    }
+
+    tracing::debug!("GET DATA {:02X}{:02X} SW {:04X}", p1, p2, sw);
+    anyhow::bail!("{}", apdu_error_message(sw, &format!("reading DO {:02X}{:02X}", p1, p2)));
 }
 
 /// GET DATA for a 2-byte extended tag (e.g., 0x5F50 for URL).

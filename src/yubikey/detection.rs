@@ -56,24 +56,18 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
 
         // Read all OpenPGP DOs immediately after SELECT, before any other AID is
         // selected. The management AID query below (get_device_info) issues SELECT MGMT,
-        // which changes the active app and causes subsequent GET DATA 0xC5 to return
-        // SW 0x6B00 even after re-selecting OpenPGP. Reading here avoids that.
+        // which changes the active app and causes subsequent GET DATA 0xCx reads to
+        // return SW 0x6B00 even after re-selecting OpenPGP. Reading here avoids that.
+        //
+        // DO NOT do GET DATA 0x4F before reading C5. On YubiKey 5 hardware, reading
+        // 0x4F first corrupts DO-access state and causes 0xC5 (fingerprints) to return
+        // SW 0x6B00. Instead, defer 0x4F to a fallback AFTER all OpenPGP reads.
 
-        // GET DATA 0x004F — full AID (serial, OpenPGP spec version).
-        let (serial, openpgp_version) = match card::get_data(&card, 0x00, 0x4F) {
-            Ok(aid) => {
-                let s = card::serial_from_aid(&aid).unwrap_or(0);
-                let v = if aid.len() >= 8 {
-                    Version { major: aid[6], minor: aid[7], patch: 0 }
-                } else {
-                    Version { major: 0, minor: 0, patch: 0 }
-                };
-                (s, v)
-            }
-            Err(_) => (0, Version { major: 0, minor: 0, patch: 0 }),
-        };
+        // Read OpenPGP state (fingerprints, algorithm attrs) first — before PIN status.
+        // Testing whether C4 read corrupts state for subsequent C5/C1-C3 reads.
+        let openpgp = read_openpgp_state_from_card(&card).ok();
 
-        // Read PIN status (DO 0xC4 PW Status Bytes)
+        // Read PIN status (DO 0xC4 PW Status Bytes) — AFTER fingerprints
         let pin_status = read_pin_status_from_card(&card)
             .unwrap_or(super::pin::PinStatus {
                 user_pin_retries: 3,
@@ -83,9 +77,6 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
                 admin_pin_blocked: false,
             });
 
-        // Read OpenPGP state (fingerprints, algorithm attrs) while OpenPGP is selected.
-        let openpgp = read_openpgp_state_from_card(&card).ok();
-
         // Touch policies — also read before any other AID SELECT changes app context.
         let touch_policies = super::touch_policy::get_touch_policies_native(&card).ok();
 
@@ -93,15 +84,30 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         // This issues SELECT MGMT so do it AFTER all OpenPGP reads above.
         let dev_info = card::get_device_info(&card);
 
-        // Prefer management AID data (actual firmware + form factor) over OpenPGP AID
-        // data (OpenPGP spec version, no form factor info).
+        // Prefer management AID data (actual firmware + form factor). Fall back to
+        // GET DATA 0x4F (OpenPGP AID) only if management AID is unavailable — and
+        // only now that all OpenPGP reads are done (reading 0x4F first causes 0x6B00
+        // on C5 on YubiKey 5 hardware).
         let info = if let Some(ref di) = dev_info {
-            let fw = di.firmware.clone().unwrap_or(openpgp_version);
+            let fw = di.firmware.clone().unwrap_or(Version { major: 0, minor: 0, patch: 0 });
             let ff_byte = di.form_factor_byte.unwrap_or(0);
             let (model, form_factor) = model_from_form_factor(ff_byte, fw.major);
-            let sn = di.serial.unwrap_or(serial);
+            let sn = di.serial.unwrap_or(0);
             YubiKeyInfo { serial: sn, version: fw, model, form_factor }
         } else {
+            // Fallback: read 0x4F now (safe — all OpenPGP DOs already read)
+            let (serial, openpgp_version) = match card::get_data(&card, 0x00, 0x4F) {
+                Ok(aid) => {
+                    let s = card::serial_from_aid(&aid).unwrap_or(0);
+                    let v = if aid.len() >= 8 {
+                        Version { major: aid[6], minor: aid[7], patch: 0 }
+                    } else {
+                        Version { major: 0, minor: 0, patch: 0 }
+                    };
+                    (s, v)
+                }
+                Err(_) => (0, Version { major: 0, minor: 0, patch: 0 }),
+            };
             let model = detect_model_from_version(&openpgp_version);
             YubiKeyInfo { serial, version: openpgp_version, model, form_factor: FormFactor::UsbA }
         };
@@ -161,51 +167,73 @@ fn read_pin_status_from_card(card: &pcsc::Card) -> Result<super::pin::PinStatus>
     })
 }
 
-/// Read OpenPGP state from the card using direct GET DATA calls.
+/// Read OpenPGP state from DO 0x6E (Application Related Data).
 ///
-/// Uses flat GET DATA DOs (0x4F, 0xC5, 0xC1-C3) instead of parsing the nested
-/// 0x6E/0x73 TLV structure. The nested approach fails when YubiKey includes the
-/// outer 0x6E tag in the GET DATA response, making tlv_find scan past the content.
+/// On YubiKey firmware 5.4.x, direct GET DATA for 0xC5/0xC1-C3 returns SW 0x6B00
+/// because those DOs return T=0 multi-part responses (SW 0x61xx) that corrupt card
+/// state when not followed by GET RESPONSE. Reading via 0x6E (which card::get_data
+/// now handles with GET RESPONSE chaining) avoids this.
+///
+/// The 0x6E response may or may not include the outer 0x6E tag. Sub-DOs may be
+/// directly in the 0x6E value or nested inside a 0x73 (Discretionary Data Objects)
+/// container. Both layouts are handled.
 fn read_openpgp_state_from_card(
     card: &pcsc::Card,
 ) -> Result<super::openpgp::OpenPgpState> {
-    // Version is already read by the caller via GET DATA 0x4F. Reading it again
-    // here can corrupt the DO access state on some YubiKey firmwares causing
-    // subsequent C5 reads to return SW 0x6B00. Use empty string; the caller
-    // fills in the real version from the outer openpgp_version field.
     let version = String::new();
 
-    // GET DATA 0x00C5 — Fingerprints: 60 bytes = SIG(20) | ENC(20) | AUT(20).
-    // Direct DO access avoids the 0x6E/0x73 TLV nesting issue.
-    let c5 = card::get_data(card, 0x00, 0xC5).ok();
+    // Read Application Related Data — card::get_data handles T=0 GET RESPONSE chaining.
+    let raw6e = card::get_data(card, 0x00, 0x6E)?;
+
+    // Strip outer 0x6E tag if the card included it in the response body.
+    let outer: &[u8] = if raw6e.first() == Some(&0x6E) {
+        card::tlv_find(&raw6e, 0x6E).unwrap_or(&raw6e)
+    } else {
+        &raw6e
+    };
+
+    // Locate the 0x73 Discretionary Data Objects container (if present).
+    let inner73: Option<&[u8]> = card::tlv_find(outer, 0x73);
+
+    // Helper: find a tag in outer first, then inside 0x73 if not found directly.
+    let find_do = |tag: u16| -> Option<Vec<u8>> {
+        card::tlv_find(outer, tag)
+            .or_else(|| inner73.and_then(|i| card::tlv_find(i, tag)))
+            .map(|v| v.to_vec())
+    };
+
+    // C5 — Fingerprints: 60 bytes = SIG(20) | ENC(20) | AUT(20).
+    let c5 = find_do(0xC5);
     let sig_fp = c5.as_deref().and_then(|b| if b.len() >= 20 { Some(b[..20].to_vec()) } else { None });
     let enc_fp = c5.as_deref().and_then(|b| if b.len() >= 40 { Some(b[20..40].to_vec()) } else { None });
     let aut_fp = c5.as_deref().and_then(|b| if b.len() >= 60 { Some(b[40..60].to_vec()) } else { None });
 
-    // GET DATA 0x00C1/C2/C3 — Algorithm attributes per slot.
-    let sig_algo_raw = card::get_data(card, 0x00, 0xC1).ok();
-    let enc_algo_raw = card::get_data(card, 0x00, 0xC2).ok();
-    let aut_algo_raw = card::get_data(card, 0x00, 0xC3).ok();
+    // C1/C2/C3 — Algorithm attributes per slot.
+    let sig_algo_raw = find_do(0xC1);
+    let enc_algo_raw = find_do(0xC2);
+    let aut_algo_raw = find_do(0xC3);
 
     let signature_key = build_key_info(sig_fp.as_deref(), sig_algo_raw.as_deref());
     let encryption_key = build_key_info(enc_fp.as_deref(), enc_algo_raw.as_deref());
     let authentication_key = build_key_info(aut_fp.as_deref(), aut_algo_raw.as_deref());
 
-    // GET DATA 0x65 — Cardholder Related Data (TLV; name is tag 0x5B inside).
-    let cardholder_name = card::get_data(card, 0x00, 0x65).ok().and_then(|ch_data| {
-        // Response may include or omit the outer 0x65 tag; try both.
-        let inner = if ch_data.first() == Some(&0x65) {
-            card::tlv_find(&ch_data, 0x65).map(|v| v.to_vec()).unwrap_or(ch_data)
-        } else {
-            ch_data
-        };
-        card::tlv_find(&inner, 0x5B).and_then(|name_bytes| {
-            let name = String::from_utf8_lossy(name_bytes).trim().to_string();
-            if name.is_empty() { None } else { Some(name) }
-        })
-    });
+    // 0x65 — Cardholder Related Data: name is tag 0x5B inside.
+    // Try inside 0x6E first, then direct GET DATA as fallback.
+    let cardholder_name = find_do(0x65)
+        .or_else(|| card::get_data(card, 0x00, 0x65).ok())
+        .and_then(|ch_data| {
+            let inner = if ch_data.first() == Some(&0x65) {
+                card::tlv_find(&ch_data, 0x65).map(|v| v.to_vec()).unwrap_or(ch_data)
+            } else {
+                ch_data
+            };
+            card::tlv_find(&inner, 0x5B).and_then(|name_bytes| {
+                let name = String::from_utf8_lossy(name_bytes).trim().to_string();
+                if name.is_empty() { None } else { Some(name) }
+            })
+        });
 
-    // GET DATA 0x5F50 — URL of public key.
+    // 0x5F50 — URL of public key (extended 2-byte tag, not in 0x6E container).
     let public_key_url = card::get_data_2byte_tag(card, 0x5F, 0x50).ok().and_then(|url_bytes| {
         let url = String::from_utf8_lossy(&url_bytes).trim().to_string();
         if url.is_empty() { None } else { Some(url) }
