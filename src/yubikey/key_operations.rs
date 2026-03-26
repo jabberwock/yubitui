@@ -271,9 +271,6 @@ pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportRe
             None => continue,
         };
 
-        // Kill scdaemon before each session so gpg gets a clean card connection.
-        crate::yubikey::card::kill_scdaemon();
-
         let ok = run_keytocard_session(key_id, admin_pin, subkey_idx, slot, &mut all_messages)?;
         match (label, ok) {
             ("SIG", true) => sig_filled = true,
