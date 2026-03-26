@@ -268,6 +268,9 @@ fn render_main(
             ]));
         }
 
+        lines
+    } else {
+        let mut lines = vec![Line::from("No YubiKey detected. Press 'R' to refresh.")];
         if let Some(ref msg) = state.message {
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
@@ -275,11 +278,20 @@ fn render_main(
                 Span::raw(msg),
             ]));
         }
-
         lines
-    } else {
-        vec![Line::from("No YubiKey detected. Press 'R' to refresh.")]
     };
+
+    // Always show message below card info, even when yubikey present
+    let mut content = content;
+    if yubikey_state.is_some() {
+        if let Some(ref msg) = state.message {
+            content.push(Line::from(""));
+            content.push(Line::from(vec![
+                Span::styled("Status: ", Style::default().fg(Color::Yellow)),
+                Span::raw(msg),
+            ]));
+        }
+    }
 
     let paragraph = Paragraph::new(content).block(
         Block::default()

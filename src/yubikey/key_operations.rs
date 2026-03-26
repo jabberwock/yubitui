@@ -253,6 +253,14 @@ pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportRe
         }
     }
 
+    // Ensure scdaemon is running before spawning gpg sessions. detect_all() may
+    // have killed it for exclusive PC/SC access; gpgconf --launch is a no-op if
+    // scdaemon is already running, and starts it otherwise so gpg doesn't need
+    // to cold-start it mid-operation.
+    let _ = Command::new("gpgconf")
+        .args(["--launch", "scdaemon"])
+        .output();
+
     // Run one gpg --edit-key process per slot. Combining all keytocard operations
     // into a single session causes scdaemon to drop the card after the first
     // operation, leaving subsequent slots with "Card removed" errors.
@@ -325,11 +333,21 @@ fn run_keytocard_session(
     let stderr = child.stderr.take().expect("stderr piped");
     let mut stdin = child.stdin.take().expect("stdin piped");
 
-    // Write the single-slot command sequence upfront.
-    writeln!(stdin, "key {}", subkey_idx)?;
+    // Write the command sequence up to (but not including) save.
+    // `save` must NOT be pre-buffered: gpg reads from command-fd for the admin
+    // PIN prompt (GET_HIDDEN) before it reads the final `save` command. If
+    // `save` is already in the pipe when GET_HIDDEN fires, gpg consumes "save"
+    // as the PIN, authentication fails, and the card operation reports
+    // SC_OP_FAILURE / CARDCTRL 3. Instead, `save` is written inside the
+    // SC_OP_SUCCESS handler, after gpg has already consumed the PIN.
+    //
+    // Primary key (index 0): no `key N` needed — gpg's keytocard without a
+    // selected subkey moves the primary key to the SIG slot.
+    if subkey_idx > 0 {
+        writeln!(stdin, "key {}", subkey_idx)?;
+    }
     writeln!(stdin, "keytocard")?;
     writeln!(stdin, "{}", slot)?;
-    writeln!(stdin, "save")?;
 
     let (tx, rx) = mpsc::channel::<String>();
     std::thread::spawn(move || {
@@ -350,6 +368,19 @@ fn run_keytocard_session(
             }
             GpgStatus::ScOpSuccess => {
                 success = true;
+                // Write `save` now — after gpg has consumed the PIN — so it
+                // arrives in the pipe in the correct order.
+                let _ = writeln!(stdin, "save");
+            }
+            GpgStatus::ScOpFailure(_) => {
+                // Operation failed; record the message and write `quit` so gpg
+                // exits cleanly rather than hanging at the gpg> prompt waiting
+                // for more commands.
+                let msg = crate::yubikey::gpg_status::status_to_message(&status);
+                if !msg.is_empty() {
+                    messages.push(msg);
+                }
+                let _ = writeln!(stdin, "quit");
             }
             _ => {
                 let msg = crate::yubikey::gpg_status::status_to_message(&status);
@@ -383,18 +414,26 @@ fn parse_subkey_capabilities(key_id: &str) -> Result<Vec<SubkeyInfo>> {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut subkeys = Vec::new();
-    let mut index = 1usize; // 1-based subkey index
+    let mut index = 1usize; // 1-based subkey index for `key N` command
 
     for line in stdout.lines() {
         let parts: Vec<&str> = line.split(':').collect();
         if parts.is_empty() {
             continue;
         }
-        if parts[0] == "sub" || parts[0] == "ssb" {
-            // Field 12 (0-indexed: 11) contains capability flags
-            let caps = parts.get(11).copied().unwrap_or("").to_string();
-            subkeys.push(SubkeyInfo { index, capabilities: caps });
-            index += 1;
+        match parts[0] {
+            // Index 0 = primary key. gpg keytocard uses it for SIG slot without
+            // any `key N` selection — just `keytocard` directly.
+            "pub" | "sec" => {
+                let caps = parts.get(11).copied().unwrap_or("").to_string();
+                subkeys.push(SubkeyInfo { index: 0, capabilities: caps });
+            }
+            "sub" | "ssb" => {
+                let caps = parts.get(11).copied().unwrap_or("").to_string();
+                subkeys.push(SubkeyInfo { index, capabilities: caps });
+                index += 1;
+            }
+            _ => {}
         }
     }
 

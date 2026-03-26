@@ -15,8 +15,6 @@ use super::card;
 /// Returns a Vec with one YubiKeyState per reader with a valid OpenPGP app.
 /// Returns an empty vec if no YubiKey is found (no error).
 pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
-    card::kill_scdaemon();
-
     let ctx = Context::establish(Scope::User)
         .map_err(|e| anyhow::anyhow!("PC/SC error: {e}"))?;
 
@@ -31,12 +29,27 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         return Ok(vec![]);
     }
 
+    // Track whether we had to kill scdaemon to get exclusive access, so we can
+    // restart it afterward and keep gpg operations working.
+    let mut killed_scdaemon = false;
+
     let mut states = Vec::new();
 
     for reader in readers {
-        let card = match ctx.connect(reader, ShareMode::Exclusive, Protocols::T0 | Protocols::T1) {
+        // Try shared mode first — avoids killing scdaemon if it's running (e.g.
+        // during a gpg key import). Fall back to exclusive only if shared fails.
+        let card = match ctx.connect(reader, ShareMode::Shared, Protocols::T0 | Protocols::T1) {
             Ok(c) => c,
-            Err(_) => continue,
+            Err(_) => {
+                // Shared failed (scdaemon likely holds exclusive lock). Kill it,
+                // retry with exclusive, and remember to restart it after.
+                card::kill_scdaemon();
+                killed_scdaemon = true;
+                match ctx.connect(reader, ShareMode::Exclusive, Protocols::T0 | Protocols::T1) {
+                    Ok(c) => c,
+                    Err(_) => continue,
+                }
+            }
         };
 
         // SELECT OpenPGP AID
@@ -123,6 +136,14 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         "PC/SC reader enumeration found {} YubiKey(s)",
         states.len()
     );
+
+    // If we had to kill scdaemon to get exclusive access, restart it now so
+    // subsequent gpg operations (key import, PIN change) don't need to cold-start it.
+    if killed_scdaemon {
+        let _ = std::process::Command::new("gpgconf")
+            .args(["--launch", "scdaemon"])
+            .output();
+    }
 
     Ok(states)
 }
