@@ -218,6 +218,7 @@ impl App {
                     }
                     match key.code {
                         KeyCode::Char('v') => {
+                            self.key_state.message = None;
                             self.key_state.screen = KeyScreen::ViewStatus;
                         }
                         KeyCode::Char('i') => {
@@ -250,9 +251,11 @@ impl App {
                             self.key_state.screen = KeyScreen::KeyGenWizardActive;
                         }
                         KeyCode::Char('e') => {
+                            self.key_state.message = None;
                             self.key_state.screen = KeyScreen::ExportSSH;
                         }
                         KeyCode::Char('k') => {
+                            self.key_state.message = None;
                             self.key_state.screen = KeyScreen::KeyAttributes;
                             match crate::yubikey::key_operations::get_key_attributes() {
                                 Ok(attrs) => self.key_state.key_attributes = Some(attrs),
@@ -265,6 +268,7 @@ impl App {
                         }
                         KeyCode::Char('s') => {
                             // Show SSH public key in popup
+                            self.key_state.message = None;
                             self.key_state.screen = KeyScreen::SshPubkeyPopup;
                             match crate::yubikey::key_operations::get_ssh_public_key_text() {
                                 Ok(key) => self.key_state.ssh_pubkey = Some(key),
@@ -281,6 +285,7 @@ impl App {
                         }
                         KeyCode::Char('a') => {
                             // Show attestation certificate for sig slot
+                            self.key_state.message = None;
                             let serial = self.yubikey_state().map(|yk| yk.info.serial);
                             match crate::yubikey::attestation::get_attestation_cert("sig", serial) {
                                 Ok(pem) => {
@@ -938,12 +943,13 @@ impl App {
                         if self.selected_yubikey_idx >= self.yubikey_states.len() {
                             self.selected_yubikey_idx = 0;
                         }
+                        self.key_state.screen = KeyScreen::KeyOperationResult;
                     }
                     Err(e) => {
                         self.key_state.message = Some(format!("Error: {}", e));
+                        self.key_state.screen = KeyScreen::Main;
                     }
                 }
-                self.key_state.screen = KeyScreen::Main;
             }
             KeyScreen::ExportSSH => {
                 // Show SSH public key in TUI popup — no terminal escape
@@ -952,9 +958,9 @@ impl App {
                         self.key_state.ssh_pubkey = Some(key);
                         self.key_state.screen = KeyScreen::SshPubkeyPopup;
                     }
-                    Err(e) => {
-                        self.key_state.message = Some(format!("Error: {}", e));
-                        self.key_state.screen = KeyScreen::Main;
+                    Err(_) => {
+                        self.key_state.ssh_pubkey = None;
+                        self.key_state.screen = KeyScreen::SshPubkeyPopup;
                     }
                 }
             }
