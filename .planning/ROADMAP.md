@@ -44,7 +44,7 @@ See full details: `.planning/milestones/v1.0-ROADMAP.md`
   5. Card connection is reliable — 50ms sleep after scdaemon kill is in place and no Card Busy regressions appear in CI
 **Plans**: 3 plans
 Plans:
-- [ ] 06-01-PLAN.md — Architecture rename (yubikey/ -> model/, ui/ -> tui/) + serde::Serialize + AppState + CI lint
+- [x] 06-01-PLAN.md — Architecture rename (yubikey/ -> model/, ui/ -> tui/) + serde::Serialize + AppState + CI lint
 - [ ] 06-02-PLAN.md — Per-screen key handling decomposition (action enums + handle_key functions)
 - [ ] 06-03-PLAN.md — Mock mode (--mock flag + fixture) + 50ms sleep audit
 
@@ -111,7 +111,7 @@ Plans:
 | 3. Advanced YubiKey Features | v1.0 | 4/4 | Complete | 2026-03-24 |
 | 4. Programmatic Subprocess Control | v1.0 | 4/4 | Complete | 2026-03-25 |
 | 5. Native Card Protocol | v1.0 | 6/6 | Complete | 2026-03-26 |
-| 6. Tech Debt + Infrastructure | v1.1 | 0/3 | Not started | - |
+| 6. Tech Debt + Infrastructure | v1.1 | 1/3 | In Progress|  |
 | 7. Mouse Support + E2E Test Harness | v1.1 | 0/TBD | Not started | - |
 | 8. OATH/TOTP Screen | v1.1 | 0/TBD | Not started | - |
 | 9. FIDO2 Screen | v1.1 | 0/TBD | Not started | - |
