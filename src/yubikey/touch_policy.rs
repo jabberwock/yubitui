@@ -28,6 +28,33 @@ impl TouchPolicy {
         }
     }
 
+    /// Parse a touch policy from the raw UIF data object byte.
+    ///
+    /// Per OpenPGP card spec and YubiKey UIF DOs (0xD6-0xD9):
+    ///   0x00 = Off, 0x01 = On, 0x02 = Fixed, 0x03 = Cached, 0x04 = Cached-Fixed
+    pub fn from_byte(b: u8) -> Self {
+        match b {
+            0x00 => TouchPolicy::Off,
+            0x01 => TouchPolicy::On,
+            0x02 => TouchPolicy::Fixed,
+            0x03 => TouchPolicy::Cached,
+            0x04 => TouchPolicy::CachedFixed,
+            other => TouchPolicy::Unknown(format!("0x{:02X}", other)),
+        }
+    }
+
+    /// Return the raw UIF byte for this policy.
+    pub fn to_byte(&self) -> u8 {
+        match self {
+            TouchPolicy::Off => 0x00,
+            TouchPolicy::On => 0x01,
+            TouchPolicy::Fixed => 0x02,
+            TouchPolicy::Cached => 0x03,
+            TouchPolicy::CachedFixed => 0x04,
+            TouchPolicy::Unknown(_) => 0x00, // fallback to off
+        }
+    }
+
     /// Returns true if this policy cannot be changed back without factory reset.
     pub fn is_irreversible(&self) -> bool {
         matches!(self, Self::Fixed | Self::CachedFixed)
@@ -69,7 +96,121 @@ pub struct TouchPolicies {
     pub attestation: TouchPolicy,
 }
 
+/// Read touch policies for all four OpenPGP slots via native GET DATA APDUs.
+///
+/// DOs: 0xD6 (sig), 0xD7 (enc), 0xD8 (aut), 0xD9 (att).
+/// Each DO returns [policy_byte, 0x20] on success; first byte is the policy.
+/// On failure (older cards that do not support UIF), defaults to TouchPolicy::Off.
+#[allow(dead_code)]
+pub fn get_touch_policies_native(card: &pcsc::Card) -> Result<TouchPolicies> {
+    let sig = super::card::get_data(card, 0x00, 0xD6)
+        .ok()
+        .and_then(|d| d.first().copied())
+        .map(TouchPolicy::from_byte)
+        .unwrap_or(TouchPolicy::Off);
+
+    let enc = super::card::get_data(card, 0x00, 0xD7)
+        .ok()
+        .and_then(|d| d.first().copied())
+        .map(TouchPolicy::from_byte)
+        .unwrap_or(TouchPolicy::Off);
+
+    let aut = super::card::get_data(card, 0x00, 0xD8)
+        .ok()
+        .and_then(|d| d.first().copied())
+        .map(TouchPolicy::from_byte)
+        .unwrap_or(TouchPolicy::Off);
+
+    let att = super::card::get_data(card, 0x00, 0xD9)
+        .ok()
+        .and_then(|d| d.first().copied())
+        .map(TouchPolicy::from_byte)
+        .unwrap_or(TouchPolicy::Off);
+
+    Ok(TouchPolicies {
+        signature: sig,
+        encryption: enc,
+        authentication: aut,
+        attestation: att,
+    })
+}
+
+/// Set the touch policy for a given OpenPGP slot using native PC/SC APDUs.
+///
+/// Steps:
+///   1. Map slot string to UIF DO: sig->0xD6, enc->0xD7, aut->0xD8, att->0xD9
+///   2. KDF check via GET DATA 0xF9 — if KDF is enabled, bail with clear error
+///   3. VERIFY Admin PIN (APDU [0x00, 0x20, 0x00, 0x83, len, ...pin_bytes])
+///   4. PUT DATA [0x00, 0xDA, 0x00, DO, 0x02, policy_byte, 0x20]
+///
+/// `serial` is kept for API compatibility (was used by old ykman path to select device).
+///
+/// Valid slots: "sig", "enc", "aut", "att"
+pub fn set_touch_policy(
+    slot: &str,
+    policy: &TouchPolicy,
+    _serial: Option<u32>,
+    admin_pin: &str,
+) -> Result<String> {
+    let do_tag: u8 = match slot {
+        "sig" => 0xD6,
+        "enc" => 0xD7,
+        "aut" => 0xD8,
+        "att" => 0xD9,
+        other => anyhow::bail!(
+            "Invalid slot '{}'. Must be one of: sig, enc, aut, att",
+            other
+        ),
+    };
+
+    let (card, _aid) = super::card::connect_to_openpgp_card()?;
+
+    // KDF check (Pitfall 5): GET DATA 0xF9 — if non-empty and first byte != 0x00, KDF is active
+    if let Ok(kdf_data) = super::card::get_data(&card, 0x00, 0xF9) {
+        if !kdf_data.is_empty() && kdf_data[0] != 0x00 {
+            anyhow::bail!(
+                "This YubiKey uses KDF PIN hashing. \
+                 Touch policy changes require ykman on this device."
+            );
+        }
+    }
+
+    // VERIFY Admin PIN: [CLA=00, INS=20, P1=00, P2=83 (Admin PIN), Lc, ...PIN bytes]
+    let pin_bytes = admin_pin.as_bytes();
+    let pin_len = pin_bytes.len() as u8;
+    let mut verify_apdu = vec![0x00u8, 0x20, 0x00, 0x83, pin_len];
+    verify_apdu.extend_from_slice(pin_bytes);
+    let mut buf = [0u8; 256];
+    let resp = card
+        .transmit(&verify_apdu, &mut buf)
+        .map_err(|e| anyhow::anyhow!("VERIFY transmit error: {e}"))?;
+    let sw = super::card::apdu_sw(resp);
+    if sw != 0x9000 {
+        anyhow::bail!(
+            "{}",
+            super::card::apdu_error_message(sw, "verifying Admin PIN")
+        );
+    }
+
+    // PUT DATA: [CLA=00, INS=DA, P1=00, P2=DO, Lc=02, policy_byte, 0x20]
+    let put_apdu = [0x00u8, 0xDA, 0x00, do_tag, 0x02, policy.to_byte(), 0x20];
+    let resp = card
+        .transmit(&put_apdu, &mut buf)
+        .map_err(|e| anyhow::anyhow!("PUT DATA transmit error: {e}"))?;
+    let sw = super::card::apdu_sw(resp);
+    if sw != 0x9000 {
+        anyhow::bail!(
+            "{}",
+            super::card::apdu_error_message(sw, &format!("setting touch policy for {}", slot))
+        );
+    }
+
+    Ok(format!("Touch policy updated to {} for slot {}", policy, slot))
+}
+
 /// Parse touch policies from `ykman openpgp info` output.
+///
+/// Kept with `#[allow(dead_code)]` so existing unit tests remain valid.
 ///
 /// Looks for a "Touch policies:" section and parses the four slot lines below it.
 /// Returns all-Off (default) if the section is absent or output is empty.
@@ -131,59 +272,6 @@ pub fn parse_touch_policies(output: &str) -> TouchPolicies {
     }
 
     policies
-}
-
-/// Set the touch policy for a given OpenPGP slot non-interactively.
-///
-/// Spawns `ykman openpgp keys set-touch <slot> <policy> --force` with
-/// piped IO (no terminal escape). The `--force` flag suppresses the Admin
-/// PIN prompt — the caller must ensure ykman has stored credentials or that
-/// the device does not require PIN confirmation for this operation.
-/// If `serial` is provided, prepends `--device <serial>` to select a specific key.
-///
-/// Valid slots: "sig", "enc", "aut", "att"
-#[allow(dead_code)]
-pub fn set_touch_policy(
-    slot: &str,
-    policy: &TouchPolicy,
-    serial: Option<u32>,
-) -> Result<String> {
-    match slot {
-        "sig" | "enc" | "aut" | "att" => {}
-        other => anyhow::bail!(
-            "Invalid slot '{}'. Must be one of: sig, enc, aut, att",
-            other
-        ),
-    }
-
-    let ykman = crate::yubikey::pin_operations::find_ykman()?;
-    let mut cmd = std::process::Command::new(&ykman);
-
-    if let Some(s) = serial {
-        cmd.args(["--device", &s.to_string()]);
-    }
-
-    cmd.args([
-        "openpgp",
-        "keys",
-        "set-touch",
-        slot,
-        policy.as_ykman_arg(),
-        "--force",
-    ]);
-
-    cmd.stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-
-    let output = cmd.output()?;
-
-    if output.status.success() {
-        Ok(format!("Touch policy set to {} for {}", policy, slot))
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Failed to set touch policy: {}", stderr.trim())
-    }
 }
 
 #[cfg(test)]
@@ -255,5 +343,28 @@ mod tests {
         assert_eq!(TouchPolicy::Fixed.as_ykman_arg(), "fixed");
         assert_eq!(TouchPolicy::Cached.as_ykman_arg(), "cached");
         assert_eq!(TouchPolicy::CachedFixed.as_ykman_arg(), "cached-fixed");
+    }
+
+    #[test]
+    fn test_from_byte_all_variants() {
+        assert_eq!(TouchPolicy::from_byte(0x00), TouchPolicy::Off);
+        assert_eq!(TouchPolicy::from_byte(0x01), TouchPolicy::On);
+        assert_eq!(TouchPolicy::from_byte(0x02), TouchPolicy::Fixed);
+        assert_eq!(TouchPolicy::from_byte(0x03), TouchPolicy::Cached);
+        assert_eq!(TouchPolicy::from_byte(0x04), TouchPolicy::CachedFixed);
+        assert_eq!(TouchPolicy::from_byte(0xFF), TouchPolicy::Unknown("0xFF".to_string()));
+    }
+
+    #[test]
+    fn test_to_byte_roundtrip() {
+        assert_eq!(TouchPolicy::Off.to_byte(), 0x00);
+        assert_eq!(TouchPolicy::On.to_byte(), 0x01);
+        assert_eq!(TouchPolicy::Fixed.to_byte(), 0x02);
+        assert_eq!(TouchPolicy::Cached.to_byte(), 0x03);
+        assert_eq!(TouchPolicy::CachedFixed.to_byte(), 0x04);
+        // Roundtrip: from_byte(to_byte(x)) == x for known variants
+        for b in [0x00u8, 0x01, 0x02, 0x03, 0x04] {
+            assert_eq!(TouchPolicy::from_byte(b).to_byte(), b);
+        }
     }
 }

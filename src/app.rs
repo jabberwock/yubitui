@@ -339,8 +339,13 @@ impl App {
                             if policy.is_irreversible() {
                                 self.key_state.screen = KeyScreen::SetTouchPolicyConfirm;
                             } else {
-                                let slot = ui::keys::touch_slot_name(self.key_state.touch_slot_index).to_string();
-                                self.execute_touch_policy_set(&slot, &policy)?;
+                                // Collect Admin PIN before applying
+                                use crate::ui::widgets::pin_input::PinInputState;
+                                self.key_state.pin_input = Some(PinInputState::new(
+                                    "Set Touch Policy — Admin PIN",
+                                    &["Admin PIN"],
+                                ));
+                                self.key_state.screen = KeyScreen::SetTouchPolicyPinInput;
                             }
                         }
                         KeyCode::Esc => {
@@ -352,14 +357,46 @@ impl App {
                 KeyScreen::SetTouchPolicyConfirm => {
                     match key.code {
                         KeyCode::Char('y') | KeyCode::Char('Y') => {
-                            let slot = ui::keys::touch_slot_name(self.key_state.touch_slot_index).to_string();
-                            let policy = ui::keys::touch_policy_from_index(self.key_state.touch_policy_index);
-                            self.execute_touch_policy_set(&slot, &policy)?;
+                            // Collect Admin PIN before applying
+                            use crate::ui::widgets::pin_input::PinInputState;
+                            self.key_state.pin_input = Some(PinInputState::new(
+                                "Set Touch Policy — Admin PIN",
+                                &["Admin PIN"],
+                            ));
+                            self.key_state.screen = KeyScreen::SetTouchPolicyPinInput;
                         }
                         _ => {
                             self.key_state.message = Some("Cancelled".to_string());
                             self.key_state.screen = KeyScreen::Main;
                         }
+                    }
+                }
+                KeyScreen::SetTouchPolicyPinInput => {
+                    use crate::ui::widgets::pin_input::PinInputAction;
+                    let action = if let Some(pin_input) = self.key_state.pin_input.as_mut() {
+                        pin_input.handle_key(key.code)
+                    } else {
+                        PinInputAction::Cancel
+                    };
+                    match action {
+                        PinInputAction::Submit => {
+                            let admin_pin = self
+                                .key_state
+                                .pin_input
+                                .as_ref()
+                                .and_then(|p| p.values().into_iter().next().map(|s| s.to_owned()))
+                                .unwrap_or_default();
+                            let slot = ui::keys::touch_slot_name(self.key_state.touch_slot_index).to_string();
+                            let policy = ui::keys::touch_policy_from_index(self.key_state.touch_policy_index);
+                            self.key_state.pin_input = None;
+                            self.execute_touch_policy_set(&slot, &policy, &admin_pin)?;
+                        }
+                        PinInputAction::Cancel => {
+                            self.key_state.pin_input = None;
+                            self.key_state.screen = KeyScreen::Main;
+                            self.key_state.message = None;
+                        }
+                        PinInputAction::Continue => {}
                     }
                 }
                 KeyScreen::KeyGenWizardActive => {
@@ -1409,11 +1446,11 @@ impl App {
         &mut self,
         slot: &str,
         policy: &crate::yubikey::touch_policy::TouchPolicy,
+        admin_pin: &str,
     ) -> Result<()> {
         let serial = self.yubikey_state().map(|yk| yk.info.serial);
 
-        // set_touch_policy now returns Result<String> with piped IO — no terminal escape needed
-        match crate::yubikey::touch_policy::set_touch_policy(slot, policy, serial) {
+        match crate::yubikey::touch_policy::set_touch_policy(slot, policy, serial, admin_pin) {
             Ok(msg) => {
                 self.key_state.message = Some(msg);
             }

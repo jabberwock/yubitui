@@ -61,6 +61,7 @@ pub enum KeyScreen {
     SetTouchPolicy,         // slot selection
     SetTouchPolicySelect,   // policy selection
     SetTouchPolicyConfirm,  // irreversibility confirmation
+    SetTouchPolicyPinInput, // collecting admin PIN for touch policy set
     KeyGenWizardActive,     // wizard is driving the UI
     KeyImportRunning,       // import operation in progress
     KeyImportPinInput,      // collecting admin PIN for import
@@ -161,6 +162,7 @@ pub fn render(
         KeyScreen::SetTouchPolicy => render_set_touch_policy(frame, area, state),
         KeyScreen::SetTouchPolicySelect => render_set_touch_policy_select(frame, area, state),
         KeyScreen::SetTouchPolicyConfirm => render_set_touch_policy_confirm(frame, area, state),
+        KeyScreen::SetTouchPolicyPinInput => render_key_import_pin_input(frame, area, state),
         KeyScreen::KeyGenWizardActive => render_keygen_wizard(frame, area, state),
         KeyScreen::KeyImportPinInput => render_key_import_pin_input(frame, area, state),
         KeyScreen::KeyImportRunning => render_key_operation_running(frame, area, "Importing key...", state),
