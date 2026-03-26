@@ -19,7 +19,8 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::app::{App, Screen};
+use crate::app::App;
+use crate::model::Screen;
 
 pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     let status_text = match app.current_screen() {
