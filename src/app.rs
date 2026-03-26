@@ -538,8 +538,6 @@ impl App {
                     KeyCode::Char('u') => {
                         // Launch the unblock wizard instead of direct passthrough
                         self.pin_state.screen = PinScreen::UnblockWizardCheck;
-                        self.pin_state.ykman_available =
-                            crate::yubikey::pin_operations::is_ykman_available();
                     }
                     KeyCode::Esc => {
                         self.current_screen = Screen::Dashboard;
@@ -593,10 +591,7 @@ impl App {
                     }
                     KeyCode::Char('3') => {
                         if let Some(yk) = self.yubikey_state() {
-                            if yk.pin_status.reset_code_retries == 0
-                                && yk.pin_status.admin_pin_retries == 0
-                                && self.pin_state.ykman_available
-                            {
+                            if yk.pin_status.admin_pin_retries == 0 {
                                 self.pin_state.screen = PinScreen::UnblockWizardFactoryReset;
                                 self.pin_state.unblock_path =
                                     Some(ui::pin::UnblockPath::FactoryReset);

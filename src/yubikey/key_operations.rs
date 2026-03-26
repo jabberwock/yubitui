@@ -142,8 +142,8 @@ pub fn generate_key_batch(params: &KeyGenParams, _admin_pin: &str) -> Result<Key
         .arg("2")
         .arg("--gen-key")
         .arg(&tmp_path)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null()) // discard — piping without draining deadlocks when buffer fills
         .stderr(std::process::Stdio::piped())
         .spawn()?;
 
@@ -279,6 +279,7 @@ pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportRe
     card_commands.push("save".to_string());
 
     let mut child = Command::new("gpg")
+        .arg("--no-tty") // prevent gpg from writing key listings to the controlling terminal
         .arg("--edit-key")
         .arg("--pinentry-mode")
         .arg("loopback")
@@ -289,7 +290,7 @@ pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportRe
         .arg("--")
         .arg(key_id)
         .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null()) // discard — gpg writes key listings and menus here; piping without draining deadlocks
         .stderr(std::process::Stdio::piped())
         .spawn()?;
 
@@ -595,7 +596,7 @@ fn save_slot(attrs: &mut KeyAttributes, slot: &str, algo: &str, fp: &str) {
 /// Uses gpg --export-ssh-key to get the key in authorized_keys format.
 pub fn get_ssh_public_key_text() -> Result<String> {
     // First get the authentication key fingerprint from card status
-    let card_output = Command::new("gpg").arg("--card-status").output()?;
+    let card_output = Command::new("gpg").arg("--no-tty").arg("--batch").arg("--card-status").output()?;
 
     if !card_output.status.success() {
         anyhow::bail!("Could not read card status");
@@ -649,7 +650,7 @@ pub fn get_ssh_public_key_text() -> Result<String> {
 
 /// View card status
 pub fn view_card_status() -> Result<String> {
-    let output = Command::new("gpg").arg("--card-status").output()?;
+    let output = Command::new("gpg").arg("--no-tty").arg("--batch").arg("--card-status").output()?;
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }

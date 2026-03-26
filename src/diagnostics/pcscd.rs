@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(target_os = "macos"))]
 use std::process::Command;
 
 #[derive(Debug, Clone)]
@@ -9,24 +10,11 @@ pub struct PcscdStatus {
 
 pub fn check_pcscd() -> Result<PcscdStatus> {
     // Try to detect if pcscd is running
+    // On macOS, CryptoTokenKit is part of the OS and launched on-demand by launchd
+    // when a card reader is present. It is never a permanently-running daemon, so
+    // checking for the process always returns false. Treat it as always available.
     #[cfg(target_os = "macos")]
-    let running = {
-        // Check system domain via `launchctl print` (works without sudo on macOS 10.10+)
-        let launchctl_check = Command::new("launchctl")
-            .args(["print", "system/com.apple.ctkpcscd"])
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
-
-        // Fallback: check for the process by its short name
-        let pgrep_check = Command::new("pgrep")
-            .args(["-x", "ctkpcscd"])
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
-
-        launchctl_check || pgrep_check
-    };
+    let running = true;
 
     #[cfg(target_os = "linux")]
     let running = Command::new("systemctl")

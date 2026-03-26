@@ -21,7 +21,7 @@ impl PinStatus {
 }
 
 pub fn get_pin_status() -> Result<PinStatus> {
-    let output = Command::new("gpg").arg("--card-status").output()?;
+    let output = Command::new("gpg").arg("--no-tty").arg("--batch").arg("--card-status").output()?;
 
     if !output.status.success() {
         anyhow::bail!("gpg --card-status failed");
@@ -40,14 +40,14 @@ pub fn parse_pin_status(output: &str) -> Result<PinStatus> {
         let line = line.trim();
 
         // Look for "PIN retry counter : 3 0 3"
-        // Format: user_pin admin_pin reset_code
+        // gpg output order: user_pin (PW1), reset_code (RC), admin_pin (PW3)
         if line.starts_with("PIN retry counter :") {
             if let Some(counters) = line.split(':').nth(1) {
                 let parts: Vec<&str> = counters.split_whitespace().collect();
                 if parts.len() >= 3 {
                     user_pin_retries = parts[0].parse().unwrap_or(3);
-                    admin_pin_retries = parts[1].parse().unwrap_or(3);
-                    reset_code_retries = parts[2].parse().unwrap_or(0);
+                    reset_code_retries = parts[1].parse().unwrap_or(0);
+                    admin_pin_retries = parts[2].parse().unwrap_or(3);
                 }
             }
             break;
@@ -69,7 +69,8 @@ mod tests {
 
     #[test]
     fn test_parse_pin_status_normal() {
-        let status = parse_pin_status("PIN retry counter : 3 3 0\n").unwrap();
+        // gpg order: user RC admin → "3 0 3" means user=3, rc=0, admin=3
+        let status = parse_pin_status("PIN retry counter : 3 0 3\n").unwrap();
         assert_eq!(status.user_pin_retries, 3);
         assert_eq!(status.admin_pin_retries, 3);
         assert_eq!(status.reset_code_retries, 0);
@@ -79,7 +80,8 @@ mod tests {
 
     #[test]
     fn test_parse_pin_status_user_blocked() {
-        let status = parse_pin_status("PIN retry counter : 0 3 0\n").unwrap();
+        // gpg order: user RC admin → "0 0 3" means user=0, rc=0, admin=3
+        let status = parse_pin_status("PIN retry counter : 0 0 3\n").unwrap();
         assert_eq!(status.user_pin_retries, 0);
         assert!(status.user_pin_blocked);
         assert!(!status.admin_pin_blocked);

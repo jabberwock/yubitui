@@ -46,6 +46,8 @@ pub fn detect_yubikeys() -> Result<Vec<YubiKeyInfo>> {
 
     // Use gpg --card-status to detect YubiKey without holding the card lock
     let output = Command::new("gpg")
+        .arg("--no-tty")
+        .arg("--batch")
         .arg("--card-status")
         .arg("--with-colons")
         .output()?;

@@ -22,7 +22,7 @@ pub struct KeyInfo {
 }
 
 pub fn get_openpgp_state() -> Result<OpenPgpState> {
-    let output = Command::new("gpg").arg("--card-status").output()?;
+    let output = Command::new("gpg").arg("--no-tty").arg("--batch").arg("--card-status").output()?;
 
     if !output.status.success() {
         return Ok(OpenPgpState {

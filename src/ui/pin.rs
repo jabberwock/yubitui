@@ -39,7 +39,7 @@ pub struct PinState {
     pub message: Option<String>,
     pub unblock_path: Option<UnblockPath>,
     pub confirm_factory_reset: bool,
-    pub ykman_available: bool,
+    // factory reset is implemented natively via PC/SC — no external tool needed
     /// Active TUI PIN input form; Some when screen == PinInputActive.
     pub pin_input: Option<PinInputState>,
     /// True while the gpg subprocess is executing.
@@ -60,7 +60,6 @@ impl Default for PinState {
             message: None,
             unblock_path: None,
             confirm_factory_reset: false,
-            ykman_available: false,
             pin_input: None,
             operation_running: false,
             operation_status: None,
@@ -389,22 +388,24 @@ fn render_unblock_wizard_check(
                 Style::default().fg(Color::Yellow),
             )));
         }
-        if pin.reset_code_retries == 0 && pin.admin_pin_retries == 0 {
-            lines.push(Line::from(Span::styled(
-                "No recovery paths available.",
-                Style::default().fg(Color::Red),
-            )));
-            if state.ykman_available {
+        // Factory reset is the only way to recover a blocked Admin PIN.
+        // Offer it whenever admin is blocked, even if the reset code is still available.
+        if pin.admin_pin_retries == 0 {
+            if pin.reset_code_retries == 0 {
                 lines.push(Line::from(Span::styled(
-                    "[3] Factory Reset (DESTROYS ALL KEYS)",
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    "No recovery paths available — only factory reset remains.",
+                    Style::default().fg(Color::Red),
                 )));
             } else {
                 lines.push(Line::from(Span::styled(
-                    "Factory reset requires ykman. Install from: https://www.yubico.com/support/download/yubikey-manager/",
+                    "Admin PIN is blocked — cannot be unblocked without factory reset.",
                     Style::default().fg(Color::Red),
                 )));
             }
+            lines.push(Line::from(Span::styled(
+                "[3] Factory Reset (DESTROYS ALL KEYS)",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            )));
         }
         lines.push(Line::from(""));
         lines.push(Line::from("[ESC] Cancel"));
