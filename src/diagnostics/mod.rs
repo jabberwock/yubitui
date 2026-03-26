@@ -14,6 +14,33 @@ pub struct Diagnostics {
     pub ssh_agent: ssh_agent::SshAgentStatus,
 }
 
+impl Default for Diagnostics {
+    fn default() -> Self {
+        Self {
+            gpg_agent: gpg_agent::GpgAgentStatus {
+                running: true,
+                version: Some("mock".to_string()),
+                socket_path: None,
+            },
+            scdaemon: scdaemon::ScdaemonStatus {
+                configured: true,
+                issues: None,
+            },
+            pcscd: pcscd::PcscdStatus {
+                running: true,
+                version: Some("mock".to_string()),
+            },
+            ssh_agent: ssh_agent::SshAgentStatus {
+                configured: true,
+                gpg_agent_has_ssh_support: true,
+                ssh_auth_sock_correct: true,
+                auth_sock: None,
+                expected_sock: None,
+            },
+        }
+    }
+}
+
 impl Diagnostics {
     pub fn run() -> Result<Self> {
         Ok(Self {

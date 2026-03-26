@@ -2,6 +2,7 @@ pub mod app_state;
 pub mod card;
 pub mod gpg_status;
 pub mod detection;
+pub mod mock;
 pub mod key_operations;
 pub mod openpgp;
 pub mod pin;

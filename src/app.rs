@@ -31,13 +31,23 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> Result<Self> {
-        let diagnostics = Diagnostics::run()?;
-        let yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+    pub fn new(mock: bool) -> Result<Self> {
+        let diagnostics = if mock {
+            Diagnostics::default()
+        } else {
+            Diagnostics::run()?
+        };
+
+        let yubikey_states = if mock {
+            crate::model::mock::mock_yubikey_states()
+        } else {
+            YubiKeyState::detect_all().unwrap_or_default()
+        };
 
         Ok(Self {
             state: AppState {
                 yubikey_states,
+                mock_mode: mock,
                 ..AppState::default()
             },
             diagnostics,
@@ -47,6 +57,10 @@ impl App {
             dashboard_state: crate::tui::dashboard::DashboardState::default(),
             import_task: None,
         })
+    }
+
+    pub fn is_mock(&self) -> bool {
+        self.state.mock_mode
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -235,8 +249,12 @@ impl App {
                 self.navigate_to(target)?;
             }
             DashboardAction::Refresh => {
-                self.diagnostics = Diagnostics::run()?;
-                self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                if self.state.mock_mode {
+                    self.state.yubikey_states = crate::model::mock::mock_yubikey_states();
+                } else {
+                    self.diagnostics = Diagnostics::run()?;
+                    self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                }
                 if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
                     self.state.selected_yubikey_idx = 0;
                 }
@@ -360,10 +378,12 @@ impl App {
                 match result {
                     Ok(msg) => {
                         self.pin_state.message = Some(msg);
-                        self.state.yubikey_states =
-                            YubiKeyState::detect_all().unwrap_or_default();
-                        if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
-                            self.state.selected_yubikey_idx = 0;
+                        if !self.state.mock_mode {
+                            self.state.yubikey_states =
+                                YubiKeyState::detect_all().unwrap_or_default();
+                            if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
+                                self.state.selected_yubikey_idx = 0;
+                            }
                         }
                     }
                     Err(e) => {
@@ -518,9 +538,11 @@ impl App {
                 } else {
                     msg
                 });
-                self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
-                if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
-                    self.state.selected_yubikey_idx = 0;
+                if !self.state.mock_mode {
+                    self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                    if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
+                        self.state.selected_yubikey_idx = 0;
+                    }
                 }
             }
             Err(e) => {
@@ -542,9 +564,11 @@ impl App {
                 match result {
                     Ok(msg) => {
                         self.key_state.message = Some(msg);
-                        self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
-                        if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
-                            self.state.selected_yubikey_idx = 0;
+                        if !self.state.mock_mode {
+                            self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                            if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
+                                self.state.selected_yubikey_idx = 0;
+                            }
                         }
                         self.key_state.screen = KeyScreen::KeyOperationResult;
                     }
@@ -619,9 +643,11 @@ impl App {
                 self.key_state.message = Some(msg);
                 if let Some(ref mut w) = self.key_state.keygen_wizard { w.step = KeyGenStep::Result; }
                 self.key_state.screen = KeyScreen::KeyOperationResult;
-                self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
-                if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
-                    self.state.selected_yubikey_idx = 0;
+                if !self.state.mock_mode {
+                    self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                    if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
+                        self.state.selected_yubikey_idx = 0;
+                    }
                 }
             }
             Err(e) => {
@@ -705,9 +731,11 @@ impl App {
                 self.key_state.message = Some(msg);
                 self.key_state.import_result = Some(slots);
                 self.key_state.screen = KeyScreen::KeyOperationResult;
-                self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
-                if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
-                    self.state.selected_yubikey_idx = 0;
+                if !self.state.mock_mode {
+                    self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+                    if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
+                        self.state.selected_yubikey_idx = 0;
+                    }
                 }
             }
             Err(e) => {
@@ -818,9 +846,11 @@ impl App {
             }
         }
 
-        self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
-        if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
-            self.state.selected_yubikey_idx = 0;
+        if !self.state.mock_mode {
+            self.state.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
+            if self.state.selected_yubikey_idx >= self.state.yubikey_states.len() {
+                self.state.selected_yubikey_idx = 0;
+            }
         }
         self.key_state.screen = crate::tui::keys::KeyScreen::Main;
         Ok(())

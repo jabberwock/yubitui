@@ -24,6 +24,10 @@ struct Args {
     /// List detected YubiKeys and exit
     #[arg(short, long)]
     list: bool,
+
+    /// Run with mock YubiKey data (no hardware required)
+    #[arg(short = 'm', long)]
+    mock: bool,
 }
 
 fn main() -> Result<()> {
@@ -84,7 +88,7 @@ fn main() -> Result<()> {
     }
 
     // Run the TUI application
-    let mut app = App::new()?;
+    let mut app = App::new(args.mock)?;
     app.run()?;
 
     Ok(())
