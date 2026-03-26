@@ -255,6 +255,9 @@ fn render_main(
 
         // Touch policy display
         if let Some(ref tp) = yk.touch_policies {
+            let has_sig = yk.openpgp.as_ref().map_or(false, |o| o.signature_key.is_some());
+            let has_enc = yk.openpgp.as_ref().map_or(false, |o| o.encryption_key.is_some());
+            let has_aut = yk.openpgp.as_ref().map_or(false, |o| o.authentication_key.is_some());
             lines.push(Line::from(""));
             lines.push(Line::from(vec![Span::styled(
                 "Touch Policies:",
@@ -264,15 +267,15 @@ fn render_main(
             )]));
             lines.push(Line::from(vec![
                 Span::styled("  Signature:      ", Style::default().fg(Color::Yellow)),
-                Span::raw(format!("{}", tp.signature)),
+                if has_sig { Span::raw(format!("{}", tp.signature)) } else { Span::styled("—", Style::default().fg(Color::DarkGray)) },
             ]));
             lines.push(Line::from(vec![
                 Span::styled("  Encryption:     ", Style::default().fg(Color::Yellow)),
-                Span::raw(format!("{}", tp.encryption)),
+                if has_enc { Span::raw(format!("{}", tp.encryption)) } else { Span::styled("—", Style::default().fg(Color::DarkGray)) },
             ]));
             lines.push(Line::from(vec![
                 Span::styled("  Authentication: ", Style::default().fg(Color::Yellow)),
-                Span::raw(format!("{}", tp.authentication)),
+                if has_aut { Span::raw(format!("{}", tp.authentication)) } else { Span::styled("—", Style::default().fg(Color::DarkGray)) },
             ]));
             lines.push(Line::from(vec![
                 Span::styled("  Attestation:    ", Style::default().fg(Color::Yellow)),
@@ -558,6 +561,9 @@ fn render_key_attributes(
     // Touch policies from YubiKeyState
     if let Some(ref yk) = yubikey_state {
         if let Some(ref tp) = yk.touch_policies {
+            let has_sig = yk.openpgp.as_ref().map_or(false, |o| o.signature_key.is_some());
+            let has_enc = yk.openpgp.as_ref().map_or(false, |o| o.encryption_key.is_some());
+            let has_aut = yk.openpgp.as_ref().map_or(false, |o| o.authentication_key.is_some());
             lines.push(Line::from(""));
             lines.push(Line::from(vec![Span::styled(
                 "Touch Policies:",
@@ -567,15 +573,15 @@ fn render_key_attributes(
             )]));
             lines.push(Line::from(vec![
                 Span::styled("  Signature:      ", Style::default().fg(Color::Yellow)),
-                Span::raw(format!("{}", tp.signature)),
+                if has_sig { Span::raw(format!("{}", tp.signature)) } else { Span::styled("—", Style::default().fg(Color::DarkGray)) },
             ]));
             lines.push(Line::from(vec![
                 Span::styled("  Encryption:     ", Style::default().fg(Color::Yellow)),
-                Span::raw(format!("{}", tp.encryption)),
+                if has_enc { Span::raw(format!("{}", tp.encryption)) } else { Span::styled("—", Style::default().fg(Color::DarkGray)) },
             ]));
             lines.push(Line::from(vec![
                 Span::styled("  Authentication: ", Style::default().fg(Color::Yellow)),
-                Span::raw(format!("{}", tp.authentication)),
+                if has_aut { Span::raw(format!("{}", tp.authentication)) } else { Span::styled("—", Style::default().fg(Color::DarkGray)) },
             ]));
             lines.push(Line::from(vec![
                 Span::styled("  Attestation:    ", Style::default().fg(Color::Yellow)),
