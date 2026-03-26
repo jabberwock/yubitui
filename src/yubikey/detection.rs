@@ -50,21 +50,19 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
             continue;
         }
 
-        // AID select response (strip SW bytes)
-        let aid_data = &resp[..resp.len().saturating_sub(2)];
-
-        // Extract serial from AID bytes 10-13 (BCD-encoded)
-        let serial = card::serial_from_aid(aid_data).unwrap_or(0);
-
-        // Extract version from AID bytes 6-7
-        let version = if aid_data.len() >= 8 {
-            Version {
-                major: aid_data[6],
-                minor: aid_data[7],
-                patch: 0,
+        // GET DATA 0x004F — full AID (more reliable than parsing SELECT response,
+        // which many YubiKey firmwares return as SW-only with no data body).
+        let (serial, version) = match card::get_data(&card, 0x00, 0x4F) {
+            Ok(aid) => {
+                let s = card::serial_from_aid(&aid).unwrap_or(0);
+                let v = if aid.len() >= 8 {
+                    Version { major: aid[6], minor: aid[7], patch: 0 }
+                } else {
+                    Version { major: 0, minor: 0, patch: 0 }
+                };
+                (s, v)
             }
-        } else {
-            Version { major: 0, minor: 0, patch: 0 }
+            Err(_) => (0, Version { major: 0, minor: 0, patch: 0 }),
         };
 
         let model = detect_model_from_version(&version);
@@ -86,8 +84,8 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
                 admin_pin_blocked: false,
             });
 
-        // Read OpenPGP state (DO 0x6E + 0x65 + 0x5F50)
-        let openpgp = read_openpgp_state_from_card(&card, aid_data).ok();
+        // Read OpenPGP state via direct GET DATA DOs
+        let openpgp = read_openpgp_state_from_card(&card).ok();
 
         // Get PIV state (best-effort, no error on failure)
         let piv = super::piv::get_piv_state().ok();
@@ -141,79 +139,55 @@ fn read_pin_status_from_card(card: &pcsc::Card) -> Result<super::pin::PinStatus>
     })
 }
 
-/// Read OpenPGP state from the card using GET DATA 0x6E (application related
-/// data), 0x65 (cardholder), and 0x5F50 (URL).
+/// Read OpenPGP state from the card using direct GET DATA calls.
+///
+/// Uses flat GET DATA DOs (0x4F, 0xC5, 0xC1-C3) instead of parsing the nested
+/// 0x6E/0x73 TLV structure. The nested approach fails when YubiKey includes the
+/// outer 0x6E tag in the GET DATA response, making tlv_find scan past the content.
 fn read_openpgp_state_from_card(
     card: &pcsc::Card,
-    aid_data: &[u8],
 ) -> Result<super::openpgp::OpenPgpState> {
-    // Version from AID bytes 6-7
-    let version = if aid_data.len() >= 8 {
-        format!("{}.{}", aid_data[6], aid_data[7])
-    } else {
-        String::new()
-    };
+    // Version from GET DATA 0x004F (AID) — bytes 6-7 are the OpenPGP app version.
+    let version = card::get_data(card, 0x00, 0x4F)
+        .ok()
+        .filter(|aid| aid.len() >= 8)
+        .map(|aid| format!("{}.{}", aid[6], aid[7]))
+        .unwrap_or_default();
 
-    // GET DATA 0x6E — Application Related Data (TLV-constructed)
-    let app_data = match card::get_data(card, 0x00, 0x6E) {
-        Ok(d) => d,
-        Err(_) => {
-            return Ok(super::openpgp::OpenPgpState {
-                card_present: true,
-                version,
-                signature_key: None,
-                encryption_key: None,
-                authentication_key: None,
-                cardholder_name: None,
-                public_key_url: None,
-            });
-        }
-    };
+    // GET DATA 0x00C5 — Fingerprints: 60 bytes = SIG(20) | ENC(20) | AUT(20).
+    // Direct DO access avoids the 0x6E/0x73 TLV nesting issue.
+    let c5 = card::get_data(card, 0x00, 0xC5).ok();
+    let sig_fp = c5.as_deref().and_then(|b| if b.len() >= 20 { Some(b[..20].to_vec()) } else { None });
+    let enc_fp = c5.as_deref().and_then(|b| if b.len() >= 40 { Some(b[20..40].to_vec()) } else { None });
+    let aut_fp = c5.as_deref().and_then(|b| if b.len() >= 60 { Some(b[40..60].to_vec()) } else { None });
 
-    // Navigate into Discretionary Data Objects (tag 0x73)
-    let disc = card::tlv_find(&app_data, 0x73);
-
-    let (sig_fp, enc_fp, aut_fp, sig_algo_raw, enc_algo_raw, aut_algo_raw) =
-        if let Some(d) = disc {
-            // DO 0xC5: 60 bytes = three concatenated 20-byte fingerprints [SIG|ENC|AUT].
-            // OpenPGP spec §7.2.18 — individual tags 0xC7/0xC8/0xC9 are only available
-            // via direct GET DATA, not nested inside DO 0x73.
-            let c5 = card::tlv_find(d, 0xC5).map(|b| b.to_vec());
-            let sig_fp = c5.as_deref().and_then(|b| if b.len() >= 20 { Some(b[..20].to_vec()) } else { None });
-            let enc_fp = c5.as_deref().and_then(|b| if b.len() >= 40 { Some(b[20..40].to_vec()) } else { None });
-            let aut_fp = c5.as_deref().and_then(|b| if b.len() >= 60 { Some(b[40..60].to_vec()) } else { None });
-            (
-                sig_fp,
-                enc_fp,
-                aut_fp,
-                card::tlv_find(d, 0xC1).map(|b| b.to_vec()),
-                card::tlv_find(d, 0xC2).map(|b| b.to_vec()),
-                card::tlv_find(d, 0xC3).map(|b| b.to_vec()),
-            )
-        } else {
-            (None, None, None, None, None, None)
-        };
+    // GET DATA 0x00C1/C2/C3 — Algorithm attributes per slot.
+    let sig_algo_raw = card::get_data(card, 0x00, 0xC1).ok();
+    let enc_algo_raw = card::get_data(card, 0x00, 0xC2).ok();
+    let aut_algo_raw = card::get_data(card, 0x00, 0xC3).ok();
 
     let signature_key = build_key_info(sig_fp.as_deref(), sig_algo_raw.as_deref());
     let encryption_key = build_key_info(enc_fp.as_deref(), enc_algo_raw.as_deref());
     let authentication_key = build_key_info(aut_fp.as_deref(), aut_algo_raw.as_deref());
 
-    // GET DATA 0x65 — Cardholder Related Data
+    // GET DATA 0x65 — Cardholder Related Data (TLV; name is tag 0x5B inside).
     let cardholder_name = card::get_data(card, 0x00, 0x65).ok().and_then(|ch_data| {
-        card::tlv_find(&ch_data, 0x5B).and_then(|name_bytes| {
+        // Response may include or omit the outer 0x65 tag; try both.
+        let inner = if ch_data.first() == Some(&0x65) {
+            card::tlv_find(&ch_data, 0x65).map(|v| v.to_vec()).unwrap_or(ch_data)
+        } else {
+            ch_data
+        };
+        card::tlv_find(&inner, 0x5B).and_then(|name_bytes| {
             let name = String::from_utf8_lossy(name_bytes).trim().to_string();
             if name.is_empty() { None } else { Some(name) }
         })
     });
 
-    // GET DATA 0x5F50 — URL of public key
+    // GET DATA 0x5F50 — URL of public key.
     let public_key_url = card::get_data_2byte_tag(card, 0x5F, 0x50).ok().and_then(|url_bytes| {
-        if url_bytes.is_empty() {
-            None
-        } else {
-            let url = String::from_utf8_lossy(&url_bytes).trim().to_string();
-            if url.is_empty() { None } else { Some(url) }
-        }
+        let url = String::from_utf8_lossy(&url_bytes).trim().to_string();
+        if url.is_empty() { None } else { Some(url) }
     });
 
     Ok(super::openpgp::OpenPgpState {
