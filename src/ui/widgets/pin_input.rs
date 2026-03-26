@@ -17,6 +17,8 @@ pub struct PinInputField {
     pub label: String,
     pub value: String,
     pub active: bool,
+    /// If true, field may be left empty and still allow Submit.
+    pub optional: bool,
 }
 
 /// Multi-field PIN form state.
@@ -54,6 +56,7 @@ impl PinInputState {
                 label: label.to_string(),
                 value: String::new(),
                 active: i == 0,
+                optional: false,
             })
             .collect();
         Self {
@@ -112,9 +115,16 @@ impl PinInputState {
         self.fields.iter().map(|f| f.value.as_str()).collect()
     }
 
-    /// Returns true if every field has at least one character.
+    /// Returns true if every required field has at least one character.
     pub fn all_filled(&self) -> bool {
-        self.fields.iter().all(|f| !f.value.is_empty())
+        self.fields.iter().all(|f| f.optional || !f.value.is_empty())
+    }
+
+    /// Mark the field at `idx` as optional (may be submitted empty).
+    pub fn set_optional(&mut self, idx: usize) {
+        if let Some(f) = self.fields.get_mut(idx) {
+            f.optional = true;
+        }
     }
 
     fn advance_field(&mut self) {

@@ -39,6 +39,7 @@ pub struct App {
     key_state: ui::keys::KeyState,
     ssh_state: ui::ssh::SshState,
     dashboard_state: ui::dashboard::DashboardState,
+    import_task: Option<std::sync::mpsc::Receiver<anyhow::Result<crate::yubikey::key_operations::ImportResult>>>,
 }
 
 impl App {
@@ -57,6 +58,7 @@ impl App {
             key_state: ui::keys::KeyState::default(),
             ssh_state: ui::ssh::SshState::default(),
             dashboard_state: ui::dashboard::DashboardState::default(),
+            import_task: None,
         })
     }
 
@@ -86,6 +88,7 @@ impl App {
     fn event_loop(&mut self, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
         while !self.should_quit {
             terminal.draw(|f| self.render(f))?;
+            self.poll_import_task()?;
             self.handle_events()?;
         }
         Ok(())
@@ -225,10 +228,12 @@ impl App {
                             }
                             if !self.key_state.available_keys.is_empty() {
                                 use crate::ui::widgets::pin_input::PinInputState;
-                                self.key_state.pin_input = Some(PinInputState::new(
-                                    "Import Key — Admin PIN",
-                                    &["Admin PIN"],
-                                ));
+                                let mut pin_input = PinInputState::new(
+                                    "Import Key",
+                                    &["Key Passphrase (blank if none)", "Admin PIN"],
+                                );
+                                pin_input.set_optional(0);
+                                self.key_state.pin_input = Some(pin_input);
                                 self.key_state.screen = KeyScreen::KeyImportPinInput;
                             } else {
                                 self.key_state.message =
@@ -419,6 +424,9 @@ impl App {
                         }
                         PinInputAction::Continue => {}
                     }
+                }
+                KeyScreen::KeyImportRunning => {
+                    // Import is running in a background thread — ignore all keys.
                 }
                 KeyScreen::KeyOperationResult => {
                     // Any key returns to main
@@ -1300,16 +1308,22 @@ impl App {
         Ok(())
     }
 
-    /// Execute key import using admin PIN collected by the TUI PIN input widget.
+    /// Execute key import using passphrase + admin PIN collected by the TUI PIN input widget.
     fn execute_key_import(&mut self) -> Result<()> {
         use crate::ui::keys::KeyScreen;
         use crate::yubikey::key_operations::import_key_programmatic;
 
-        let admin_pin = self
+        let (key_passphrase, admin_pin) = self
             .key_state
             .pin_input
             .as_ref()
-            .and_then(|p| p.values().into_iter().next().map(|s| s.to_owned()))
+            .map(|p| {
+                let vals = p.values();
+                (
+                    vals.first().copied().unwrap_or("").to_owned(),
+                    vals.get(1).copied().unwrap_or("").to_owned(),
+                )
+            })
             .unwrap_or_default();
 
         let idx = self
@@ -1326,21 +1340,49 @@ impl App {
         };
 
         self.key_state.screen = KeyScreen::KeyImportRunning;
-        self.key_state.operation_status = Some("Importing key to card...".to_string());
+        self.key_state.operation_status = Some(
+            "Importing key to card... (touch YubiKey if it is flashing)".to_string(),
+        );
         self.key_state.pin_input = None;
 
-        match import_key_programmatic(&key_id, &admin_pin) {
-            Ok(result) => {
-                let slots = result.format_slots();
-                let msg = if result.messages.is_empty() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let result = import_key_programmatic(&key_id, &key_passphrase, &admin_pin);
+            let _ = tx.send(result);
+        });
+        self.import_task = Some(rx);
+        Ok(())
+    }
+
+    /// Poll the background import task and handle its result when ready.
+    fn poll_import_task(&mut self) -> Result<()> {
+        use crate::ui::keys::KeyScreen;
+        use std::sync::mpsc::TryRecvError;
+
+        let result = match self.import_task.as_ref() {
+            Some(rx) => match rx.try_recv() {
+                Ok(result) => result,
+                Err(TryRecvError::Empty) => return Ok(()),
+                Err(TryRecvError::Disconnected) => {
+                    self.import_task = None;
+                    return Ok(());
+                }
+            },
+            None => return Ok(()),
+        };
+        self.import_task = None;
+
+        match result {
+            Ok(import_result) => {
+                let slots = import_result.format_slots();
+                let msg = if import_result.messages.is_empty() {
                     "Key imported successfully.".to_string()
                 } else {
-                    result.messages.join("\n")
+                    import_result.messages.join("\n")
                 };
                 self.key_state.message = Some(msg);
                 self.key_state.import_result = Some(slots);
                 self.key_state.screen = KeyScreen::KeyOperationResult;
-                // Refresh YubiKey state
                 self.yubikey_states = YubiKeyState::detect_all().unwrap_or_default();
                 if self.selected_yubikey_idx >= self.yubikey_states.len() {
                     self.selected_yubikey_idx = 0;

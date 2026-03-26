@@ -75,6 +75,11 @@ struct SubkeyInfo {
     index: usize,
     /// capability flags, e.g. "e", "s", "a", "se"
     capabilities: String,
+    /// True when this key/subkey lives on the card (sec>/ssb> in --list-secret-keys)
+    on_card: bool,
+    /// Keygrip hex string (from `grp` record in --list-secret-keys --with-colons).
+    /// Used to clear stale gpg-agent shadow stubs before card transfer.
+    keygrip: String,
 }
 
 /// Generate an OpenPGP key non-interactively using gpg --batch --gen-key.
@@ -221,7 +226,7 @@ pub fn generate_key_batch(params: &KeyGenParams, _admin_pin: &str) -> Result<Key
 /// Per D-12 and D-13: no subkey picker shown to the user. Subkeys are mapped
 /// by their capability flags in the colon-format key listing.
 #[allow(dead_code)]
-pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportResult> {
+pub fn import_key_programmatic(key_id: &str, key_passphrase: &str, admin_pin: &str) -> Result<ImportResult> {
 
     // Validate key_id
     if key_id.is_empty() {
@@ -234,22 +239,34 @@ pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportRe
     // Discover subkey capabilities before spawning gpg --edit-key
     let subkeys = parse_subkey_capabilities(key_id)?;
 
-    // Build the slot mapping: capability → (subkey_index, card_slot)
+    // Build the slot mapping: capability → (subkey_index, on_card flag, card_slot)
     // gpg card slots: 1=SIG, 2=ENC, 3=AUT
     let mut sig_subkey: Option<usize> = None;
     let mut enc_subkey: Option<usize> = None;
     let mut aut_subkey: Option<usize> = None;
+    let mut sig_on_card = false;
+    let mut enc_on_card = false;
+    let mut aut_on_card = false;
+    let mut sig_keygrip = String::new();
+    let mut enc_keygrip = String::new();
+    let mut aut_keygrip = String::new();
 
     for sk in &subkeys {
         let caps = sk.capabilities.to_ascii_lowercase();
         if caps.contains('s') && sig_subkey.is_none() {
             sig_subkey = Some(sk.index);
+            sig_on_card = sk.on_card;
+            sig_keygrip = sk.keygrip.clone();
         }
         if caps.contains('e') && enc_subkey.is_none() {
             enc_subkey = Some(sk.index);
+            enc_on_card = sk.on_card;
+            enc_keygrip = sk.keygrip.clone();
         }
         if caps.contains('a') && aut_subkey.is_none() {
             aut_subkey = Some(sk.index);
+            aut_on_card = sk.on_card;
+            aut_keygrip = sk.keygrip.clone();
         }
     }
 
@@ -269,17 +286,38 @@ pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportRe
     let mut aut_filled = false;
     let mut all_messages: Vec<String> = Vec::new();
 
-    for (maybe_idx, slot, label) in [
-        (sig_subkey, 1u8, "SIG"),
-        (enc_subkey, 2u8, "ENC"),
-        (aut_subkey, 3u8, "AUT"),
+    for (maybe_idx, maybe_on_card, keygrip, slot, label) in [
+        (sig_subkey, sig_on_card, sig_keygrip.as_str(), 1u8, "SIG"),
+        (enc_subkey, enc_on_card, enc_keygrip.as_str(), 2u8, "ENC"),
+        (aut_subkey, aut_on_card, aut_keygrip.as_str(), 3u8, "AUT"),
     ] {
         let subkey_idx = match maybe_idx {
             Some(i) => i,
             None => continue,
         };
 
-        let ok = run_keytocard_session(key_id, admin_pin, subkey_idx, slot, &mut all_messages)?;
+        // Skip slots where the local key is already a confirmed card stub.
+        if maybe_on_card {
+            all_messages.push(format!(
+                "{} key is already on the card — slot skipped",
+                label
+            ));
+            continue;
+        }
+
+        // Clear any stale gpg-agent shadow stub for this keygrip before attempting
+        // card transfer. If a previous failed keytocard left the agent believing
+        // the key lives on the card, it will refuse to export with "Unusable secret
+        // key". DELETE_KEY removes the agent's in-memory/on-disk stub so it re-reads
+        // the key material fresh from the keybox.
+        if !keygrip.is_empty() {
+            let _ = Command::new("gpg-connect-agent")
+                .arg(format!("DELETE_KEY {}", keygrip))
+                .arg("/bye")
+                .output();
+        }
+
+        let ok = run_keytocard_session(key_id, key_passphrase, admin_pin, subkey_idx, slot, &mut all_messages)?;
         match (label, ok) {
             ("SIG", true) => sig_filled = true,
             ("ENC", true) => enc_filled = true,
@@ -305,6 +343,7 @@ pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportRe
 /// Returns true if SC_OP_SUCCESS was observed, false otherwise.
 fn run_keytocard_session(
     key_id: &str,
+    key_passphrase: &str,
     admin_pin: &str,
     subkey_idx: usize,
     slot: u8,
@@ -333,21 +372,11 @@ fn run_keytocard_session(
     let stderr = child.stderr.take().expect("stderr piped");
     let mut stdin = child.stdin.take().expect("stdin piped");
 
-    // Write the command sequence up to (but not including) save.
-    // `save` must NOT be pre-buffered: gpg reads from command-fd for the admin
-    // PIN prompt (GET_HIDDEN) before it reads the final `save` command. If
-    // `save` is already in the pipe when GET_HIDDEN fires, gpg consumes "save"
-    // as the PIN, authentication fails, and the card operation reports
-    // SC_OP_FAILURE / CARDCTRL 3. Instead, `save` is written inside the
-    // SC_OP_SUCCESS handler, after gpg has already consumed the PIN.
-    //
-    // Primary key (index 0): no `key N` needed — gpg's keytocard without a
-    // selected subkey moves the primary key to the SIG slot.
-    if subkey_idx > 0 {
-        writeln!(stdin, "key {}", subkey_idx)?;
-    }
-    writeln!(stdin, "keytocard")?;
-    writeln!(stdin, "{}", slot)?;
+    // Do NOT pre-buffer any commands. gpg --edit-key drives the conversation
+    // via GET_LINE keyedit.prompt: each time it issues that prompt it expects
+    // exactly one command. Pre-buffering causes commands to be consumed by the
+    // wrong prompt (e.g. the slot number consumed by a GET_BOOL confirm prompt).
+    // We use a state machine to respond to each prompt in order.
 
     let (tx, rx) = mpsc::channel::<String>();
     std::thread::spawn(move || {
@@ -359,28 +388,170 @@ fn run_keytocard_session(
         }
     });
 
+    // Debug log: capture every raw status line and our response.
+    let log_path = std::path::PathBuf::from(format!("/tmp/yubitui-keytocard-{}-slot{}.log", key_id, slot));
+    let mut log = std::fs::OpenOptions::new().create(true).truncate(true).write(true).open(&log_path).ok();
+    macro_rules! dbg_log {
+        ($($arg:tt)*) => {
+            if let Some(ref mut f) = log {
+                use std::io::Write;
+                let _ = writeln!(f, $($arg)*);
+            }
+        };
+    }
+    dbg_log!("=== keytocard subkey_idx={} slot={} ===", subkey_idx, slot);
+
+    // State machine for the keyedit.prompt conversation.
+    //
+    // gpg --edit-key issues GET_LINE keyedit.prompt for every command it needs.
+    // The sequence we drive:
+    //   State 0 (SelectKey):  if subkey_idx > 0, send "key N"; else skip to State 1
+    //   State 1 (SendKeytocard): send "keytocard"
+    //   State 2 (WaitForResult): do NOT respond to keyedit.prompt here; wait for
+    //     SC_OP_SUCCESS / SC_OP_FAILURE / keytocard.where prompts
+    //   State 3 (SendSave): SC_OP_SUCCESS seen, send "save" on next keyedit.prompt
+    //   State 4 (SendQuit): after save, send "quit" if gpg returns to main prompt
+    //
+    // States 0-1 happen at GET_LINE keyedit.prompt.
+    // States 2 onward depend on intervening SC_OP_SUCCESS / SC_OP_FAILURE events
+    // and then a final keyedit.prompt (or gpg just exits after save).
+    #[derive(PartialEq)]
+    enum KtcState {
+        SelectKey,    // 0: send "key N" if subkey_idx > 0
+        SendKeytocard, // 1: send "keytocard"
+        WaitForResult, // 2: keytocard issued, waiting for card op to complete
+        SendSave,     // 3: SC_OP_SUCCESS seen, next keyedit.prompt → "save"
+        Done,         // 4: save sent, done
+    }
+
+    let initial_state = if subkey_idx > 0 {
+        KtcState::SelectKey
+    } else {
+        KtcState::SendKeytocard
+    };
+    let mut key_passphrase_sent = false;
+    let mut state = initial_state;
     let mut success = false;
+
     for line in rx {
+        dbg_log!("RECV: {}", line);
         let status = parse_status_line(&line);
         match &status {
+            GpgStatus::GetLine { prompt } if prompt == "keyedit.prompt" => {
+                match state {
+                    KtcState::SelectKey => {
+                        dbg_log!("SEND: key {} (select subkey)", subkey_idx);
+                        let _ = writeln!(stdin, "key {}", subkey_idx);
+                        state = KtcState::SendKeytocard;
+                    }
+                    KtcState::SendKeytocard => {
+                        dbg_log!("SEND: keytocard");
+                        let _ = writeln!(stdin, "keytocard");
+                        state = KtcState::WaitForResult;
+                    }
+                    KtcState::WaitForResult => {
+                        // gpg 2.4.9 does not emit SC_OP_SUCCESS — it returns to keyedit.prompt
+                        // after a successful card write. Send "save" to commit; if the card
+                        // write actually happened, gpg will confirm with keyedit.save.okay.
+                        dbg_log!("SEND: save (keyedit.prompt in WaitForResult — gpg 2.4.9 no SC_OP_SUCCESS)");
+                        let _ = writeln!(stdin, "save");
+                        state = KtcState::Done;
+                    }
+                    KtcState::SendSave => {
+                        dbg_log!("SEND: save");
+                        let _ = writeln!(stdin, "save");
+                        state = KtcState::Done;
+                        // After save gpg typically exits; if it re-prompts we'll
+                        // fall through to the Done arm below.
+                    }
+                    KtcState::Done => {
+                        dbg_log!("SEND: quit (keyedit.prompt after Done)");
+                        let _ = writeln!(stdin, "quit");
+                    }
+                }
+            }
+            GpgStatus::GetLine { prompt } if prompt == "keytocard.where" => {
+                dbg_log!("SEND: {} (slot)", slot);
+                let _ = writeln!(stdin, "{}", slot);
+            }
+            GpgStatus::GetLine { prompt } if prompt == "cardedit.genkeys.storekeytype" => {
+                // gpg asks which card slot to use (1=SIG, 2=ENC, 3=AUT) — send the target slot.
+                dbg_log!("SEND: {} (cardedit.genkeys.storekeytype = slot)", slot);
+                let _ = writeln!(stdin, "{}", slot);
+            }
+            GpgStatus::GetLine { prompt } => {
+                // Unknown GET_LINE — send quit to exit gracefully.
+                dbg_log!("UNEXPECTED GET_LINE prompt={:?} — sending quit", prompt);
+                let _ = writeln!(stdin, "quit");
+            }
+            GpgStatus::GetHidden { prompt } if prompt == "passphrase.enter" => {
+                if !key_passphrase_sent {
+                    // First passphrase.enter: decrypt the local key.
+                    dbg_log!("SEND: <key_passphrase>");
+                    let _ = writeln!(stdin, "{}", key_passphrase);
+                    key_passphrase_sent = true;
+                } else {
+                    // Second passphrase.enter: card admin PIN via loopback.
+                    dbg_log!("SEND: <admin_pin> (second passphrase.enter = card PIN)");
+                    let _ = writeln!(stdin, "{}", admin_pin);
+                }
+            }
             GpgStatus::GetHidden { .. } => {
+                // Any other hidden prompt is the card admin PIN.
+                dbg_log!("SEND: <admin_pin>");
                 let _ = writeln!(stdin, "{}", admin_pin);
+            }
+            GpgStatus::GetBool { prompt } if prompt == "keyedit.save.okay" => {
+                // gpg asks to save after `save` or `quit`. Only treat as success
+                // if we're in SendSave or Done-after-WaitForResult — i.e. we
+                // actually reached the save commit path. If state is Done because
+                // SC_OP_FAILURE fired and we sent 'quit', this is a no-op save
+                // confirmation and we must NOT mark success.
+                if matches!(state, KtcState::SendSave | KtcState::Done) && !success {
+                    // SendSave → save confirmed → success.
+                    // Done with success already set (SC_OP_SUCCESS path) — keep it.
+                    // Done without success (SC_OP_FAILURE path) — do not set it.
+                    // Only mark success here when coming from SendSave (gpg 2.4.9
+                    // path that skips SC_OP_SUCCESS and goes straight to save.okay).
+                    if matches!(state, KtcState::SendSave) {
+                        dbg_log!("SEND: y (keyedit.save.okay in SendSave — marking success)");
+                        success = true;
+                    } else {
+                        dbg_log!("SEND: y (keyedit.save.okay in Done — no-op, not marking success)");
+                    }
+                } else {
+                    dbg_log!("SEND: y (keyedit.save.okay — success already={} state=Done)", success);
+                }
+                let _ = writeln!(stdin, "y");
+            }
+            GpgStatus::GetBool { prompt } if prompt == "cardedit.genkeys.replace_key" => {
+                // gpg found this key fingerprint already in the target card slot.
+                // Answer "n" — key is already there, nothing to do. Mark success.
+                dbg_log!("SEND: n (replace_key — key already on card, marking success)");
+                success = true;
+                state = KtcState::Done;
+                let _ = writeln!(stdin, "n");
+            }
+            GpgStatus::GetBool { .. } => {
+                dbg_log!("SEND: y (bool confirm)");
+                let _ = writeln!(stdin, "y");
             }
             GpgStatus::ScOpSuccess => {
                 success = true;
-                // Write `save` now — after gpg has consumed the PIN — so it
-                // arrives in the pipe in the correct order.
-                let _ = writeln!(stdin, "save");
+                // Transition to SendSave. gpg will issue keyedit.prompt next,
+                // at which point we send "save". Do NOT write save here — gpg
+                // may not be ready to receive stdin yet.
+                dbg_log!("SC_OP_SUCCESS — transitioning to SendSave state");
+                state = KtcState::SendSave;
             }
             GpgStatus::ScOpFailure(_) => {
-                // Operation failed; record the message and write `quit` so gpg
-                // exits cleanly rather than hanging at the gpg> prompt waiting
-                // for more commands.
                 let msg = crate::yubikey::gpg_status::status_to_message(&status);
                 if !msg.is_empty() {
                     messages.push(msg);
                 }
+                dbg_log!("SEND: quit (sc_op_failure)");
                 let _ = writeln!(stdin, "quit");
+                state = KtcState::Done;
             }
             _ => {
                 let msg = crate::yubikey::gpg_status::status_to_message(&status);
@@ -393,9 +564,30 @@ fn run_keytocard_session(
             }
         }
     }
+    dbg_log!("=== session done success={} ===", success);
 
     drop(stdin);
-    child.wait()?;
+    let exit_status = child.wait()?;
+
+    // If gpg was killed by a signal (e.g. user kill -9 or external kill), do not
+    // silently return Ok(false) — that would cause the caller to continue importing
+    // subsequent slots, spawning a new gpg process for each one. Instead, propagate
+    // an error so the entire import aborts. scdaemon may still complete the pending
+    // card operation internally (touch policy), but we cannot know the outcome.
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(sig) = exit_status.signal() {
+            dbg_log!("gpg killed by signal {} — aborting import", sig);
+            anyhow::bail!(
+                "gpg was killed by signal {} during slot {} import. \
+                 If your YubiKey is flashing, touch it to complete any pending card operation, \
+                 then retry the import.",
+                sig, slot
+            );
+        }
+    }
+
     Ok(success)
 }
 
@@ -424,16 +616,67 @@ fn parse_subkey_capabilities(key_id: &str) -> Result<Vec<SubkeyInfo>> {
         match parts[0] {
             // Index 0 = primary key. gpg keytocard uses it for SIG slot without
             // any `key N` selection — just `keytocard` directly.
+            // Only keep lowercase letters: uppercase letters in the pub/sec field
+            // are summary flags for the overall key (e.g. 'E' means a subkey can
+            // encrypt) and must not be matched as primary-key direct capabilities.
             "pub" | "sec" => {
-                let caps = parts.get(11).copied().unwrap_or("").to_string();
-                subkeys.push(SubkeyInfo { index: 0, capabilities: caps });
+                let caps: String = parts.get(11).copied().unwrap_or("")
+                    .chars().filter(|c| c.is_lowercase()).collect();
+                subkeys.push(SubkeyInfo { index: 0, capabilities: caps, on_card: false, keygrip: String::new() });
             }
             "sub" | "ssb" => {
                 let caps = parts.get(11).copied().unwrap_or("").to_string();
-                subkeys.push(SubkeyInfo { index, capabilities: caps });
+                subkeys.push(SubkeyInfo { index, capabilities: caps, on_card: false, keygrip: String::new() });
                 index += 1;
             }
             _ => {}
+        }
+    }
+
+    // Cross-reference with --list-secret-keys to mark any subkeys that live on a
+    // smartcard. In gpg --list-secret-keys --with-colons output the record type
+    // for an on-card key is "sec>" (primary) or "ssb>" (subkey). We match by
+    // sequential position (same order as pub/sub records above) rather than by
+    // key ID to avoid relying on fingerprint field availability.
+    let sec_output = Command::new("gpg")
+        .arg("--list-secret-keys")
+        .arg("--with-colons")
+        .arg("--")
+        .arg(key_id)
+        .output()
+        .ok();
+
+    if let Some(sec_out) = sec_output {
+        let sec_stdout = String::from_utf8_lossy(&sec_out.stdout);
+        let mut sk_iter = subkeys.iter_mut();
+        let mut last_sk: Option<&mut SubkeyInfo> = None;
+        for line in sec_stdout.lines() {
+            let parts: Vec<&str> = line.split(':').collect();
+            let rec = parts[0];
+            match rec {
+                "sec>" | "sec#" => {
+                    last_sk = sk_iter.next();
+                    if let Some(ref mut sk) = last_sk { sk.on_card = true; }
+                }
+                "sec" | "ssb" => {
+                    last_sk = sk_iter.next();
+                }
+                "ssb>" | "ssb#" => {
+                    last_sk = sk_iter.next();
+                    if let Some(ref mut sk) = last_sk { sk.on_card = true; }
+                }
+                "grp" => {
+                    // grp record immediately follows sec/ssb — capture keygrip
+                    if let Some(ref mut sk) = last_sk {
+                        if let Some(grip) = parts.get(9) {
+                            if !grip.is_empty() {
+                                sk.keygrip = grip.to_string();
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
         }
     }
 
@@ -497,6 +740,14 @@ pub fn get_key_attributes() -> Result<KeyAttributes> {
     let signature = build_slot_info(sig_fp.as_deref(), sig_algo.as_deref());
     let encryption = build_slot_info(enc_fp.as_deref(), enc_algo.as_deref());
     let authentication = build_slot_info(aut_fp.as_deref(), aut_algo.as_deref());
+
+    // connect_to_openpgp_card() killed scdaemon to get exclusive access.
+    // Restart it now so subsequent gpg operations (import, PIN change) don't
+    // have to cold-start scdaemon mid-operation.
+    drop(card);
+    let _ = Command::new("gpgconf")
+        .args(["--launch", "scdaemon"])
+        .output();
 
     Ok(KeyAttributes { signature, encryption, authentication })
 }
@@ -764,7 +1015,16 @@ pub fn view_card_status() -> Result<String> {
     Ok(lines.join("\n"))
 }
 
-/// List available GPG keys that can be imported
+/// List available GPG primary keys that can be imported.
+///
+/// Returns one entry per importable primary key. Each entry is the full
+/// 40-character fingerprint from the `fpr` record following the `sec` line.
+/// The fingerprint is a valid gpg key selector (passed directly to
+/// `import_key_programmatic` as key_id) and is displayed as-is in the UI.
+///
+/// Card-stub primary keys (`sec>`) and unavailable keys (`sec#`) are excluded
+/// because their local key material has been replaced by a card reference and
+/// cannot be re-exported to the card.
 pub fn list_gpg_keys() -> Result<Vec<String>> {
     let output = Command::new("gpg")
         .arg("--list-secret-keys")
@@ -774,18 +1034,35 @@ pub fn list_gpg_keys() -> Result<Vec<String>> {
     let mut keys = Vec::new();
     let stdout = String::from_utf8_lossy(&output.stdout);
 
+    let mut is_importable = false;
+    let mut captured_fpr = false;
+
     for line in stdout.lines() {
         let parts: Vec<&str> = line.split(':').collect();
         if parts.is_empty() {
             continue;
         }
 
-        if parts[0] == "sec" || parts[0] == "ssb" {
-            // Extract key ID and user ID
-            if parts.len() > 4 {
-                let key_id = parts[4].to_string();
-                keys.push(key_id);
+        match parts[0] {
+            "sec" => {
+                is_importable = true;
+                captured_fpr = false;
             }
+            // sec> = key on card (stub), sec# = dummy/unavailable — not importable
+            "sec>" | "sec#" => {
+                is_importable = false;
+                captured_fpr = false;
+            }
+            "fpr" if is_importable && !captured_fpr => {
+                // First fpr record after an importable sec is the primary key fingerprint
+                if let Some(fp) = parts.get(9) {
+                    if !fp.is_empty() {
+                        keys.push(fp.to_string());
+                        captured_fpr = true;
+                    }
+                }
+            }
+            _ => {}
         }
     }
 

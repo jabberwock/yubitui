@@ -12,6 +12,8 @@ pub enum GpgStatus {
     GetHidden { prompt: String },
     /// gpg asking for visible input
     GetLine { prompt: String },
+    /// gpg asking a yes/no question (e.g. keytocard.replace_key)
+    GetBool { prompt: String },
     /// gpg received the input we sent
     GotIt,
     /// Operation error with operation name and error code
@@ -57,6 +59,9 @@ pub fn parse_status_line(line: &str) -> GpgStatus {
             prompt: arg1.to_string(),
         },
         "GET_LINE" => GpgStatus::GetLine {
+            prompt: arg1.to_string(),
+        },
+        "GET_BOOL" => GpgStatus::GetBool {
             prompt: arg1.to_string(),
         },
         "GOT_IT" => GpgStatus::GotIt,
@@ -115,6 +120,7 @@ pub fn status_to_message(status: &GpgStatus) -> String {
             _ => "Enter passphrase".to_string(),
         },
         GpgStatus::GetLine { .. } => "Enter value".to_string(),
+        GpgStatus::GetBool { .. } => String::new(),
         GpgStatus::GotIt => "PIN accepted".to_string(),
         GpgStatus::Error { operation, code } => match (operation.as_str(), *code) {
             ("change_passwd", 67108949) => "Incorrect PIN (check remaining attempts)".to_string(),

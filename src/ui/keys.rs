@@ -273,10 +273,22 @@ fn render_main(
         let mut lines = vec![Line::from("No YubiKey detected. Press 'R' to refresh.")];
         if let Some(ref msg) = state.message {
             lines.push(Line::from(""));
-            lines.push(Line::from(vec![
-                Span::styled("Status: ", Style::default().fg(Color::Yellow)),
-                Span::raw(msg),
-            ]));
+            // Split multi-line messages into separate Lines so ratatui renders
+            // each line on its own row (Span::raw does not break on \n).
+            let mut first = true;
+            for text_line in msg.lines() {
+                if first {
+                    lines.push(Line::from(vec![
+                        Span::styled("Status: ", Style::default().fg(Color::Yellow)),
+                        Span::raw(text_line.to_string()),
+                    ]));
+                    first = false;
+                } else {
+                    lines.push(Line::from(vec![
+                        Span::raw(format!("        {}", text_line)),
+                    ]));
+                }
+            }
         }
         lines
     };
@@ -286,10 +298,13 @@ fn render_main(
     if yubikey_state.is_some() {
         if let Some(ref msg) = state.message {
             content.push(Line::from(""));
-            content.push(Line::from(vec![
-                Span::styled("Status: ", Style::default().fg(Color::Yellow)),
-                Span::raw(msg),
-            ]));
+            // Split multi-line messages (e.g. card status output) into separate
+            // Lines — ratatui does not break Span::raw on embedded \n characters.
+            for text_line in msg.lines() {
+                content.push(Line::from(vec![
+                    Span::raw(text_line.to_string()),
+                ]));
+            }
         }
     }
 
@@ -326,7 +341,7 @@ fn render_view_status(
         frame,
         area,
         "View Card Status",
-        "Launching GPG to show full card status...\n\n\
+        "Read card status via native PC/SC.\n\n\
          This will display all card details including:\n\
          - Key fingerprints\n\
          - Key attributes\n\
