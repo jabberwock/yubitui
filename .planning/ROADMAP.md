@@ -108,18 +108,25 @@ Plans:
 
 ## Phase 5: Native Card Protocol (No External CLI Deps)
 
-**Goal:** Replace all gpg and ykman CLI calls with direct PC/SC + OpenPGP card protocol via Rust crates. yubitui requires no external binaries.
+**Goal:** Replace all ykman CLI calls and gpg --card-status reads with direct PC/SC raw APDUs via the pcsc crate. gpg remains for keyring operations only.
 
 **Scope:**
-- Integrate `pcsc` crate for card reader/card enumeration (replaces pcscd detection heuristics)
-- Integrate `openpgp-card` crate for card status, PIN operations, key generation, touch policy, attestation
-- Remove runtime dependency on `gpg`, `gpgconf`, `gpg-agent`, `ykman` binaries
-- Preserve cross-platform support: pcscd (Linux), PC/SC framework (macOS), winscard.dll (Windows)
-- Implement ykman OpenPGP operations natively (touch policy set/get, attestation, key info) using YubiKey OpenPGP extension APDUs as reference
+- Create PC/SC primitives module (card.rs) with connect, GET DATA, TLV parsing, error mapping
+- Replace device detection (ykman list --serials) with PC/SC reader enumeration
+- Replace card state reads (gpg --card-status) with GET DATA APDUs (0xC4, 0x6E, 0x65, 0x5F50, 0x5E)
+- Replace touch policy get/set (ykman openpgp) with GET DATA/PUT DATA on DOs 0xD6-0xD9
+- Replace PIV detection (ykman piv info) with native PIV AID SELECT + GET DATA
+- Replace attestation (ykman openpgp keys attest) with native ATTEST APDU (0xFB)
+- Remove find_ykman(), unused crates (openpgp-card, card-backend-pcsc, yubikey)
 
-**Done when:** `cargo test` passes with no external binary stubs; app works on a clean system with only pcscd/PC/SC installed.
+**Done when:** `cargo test` passes; app works on a clean system with only pcscd/PC/SC installed; no ykman binary required.
 
-**Plans:** TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — PC/SC primitives (card.rs) + replace detection, PIN, OpenPGP, key attribute reads
+- [ ] 05-02-PLAN.md — Native touch policy, PIV detection, attestation via PC/SC APDUs
+- [ ] 05-03-PLAN.md — Cleanup: remove find_ykman, unused crates, grep audit, human verify
 
 **Requirements:** [NATIVE-PCSC-01, NO-GPG-BIN-01, NO-YKMAN-BIN-01]
 
