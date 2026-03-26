@@ -97,22 +97,46 @@
 
 ## Traceability
 
-_Populated by roadmapper — see ROADMAP.md_
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 through INFRA-06 | TBD | Pending |
-| MOUSE-01 through MOUSE-04, TEST-01 through TEST-04 | TBD | Pending |
-| OATH-01 through OATH-06 | TBD | Pending |
-| FIDO-01 through FIDO-07 | TBD | Pending |
-| OTP-01 | TBD | Pending |
-| EDU-01 through EDU-04 | TBD | Pending |
+| INFRA-01 | Phase 6 | Pending |
+| INFRA-02 | Phase 6 | Pending |
+| INFRA-03 | Phase 6 | Pending |
+| INFRA-04 | Phase 6 | Pending |
+| INFRA-05 | Phase 6 | Pending |
+| INFRA-06 | Phase 6 | Pending |
+| MOUSE-01 | Phase 7 | Pending |
+| MOUSE-02 | Phase 7 | Pending |
+| MOUSE-03 | Phase 7 | Pending |
+| MOUSE-04 | Phase 7 | Pending |
+| TEST-01 | Phase 7 | Pending |
+| TEST-02 | Phase 7 | Pending |
+| TEST-03 | Phase 7 | Pending |
+| TEST-04 | Phase 7 | Pending |
+| OATH-01 | Phase 8 | Pending |
+| OATH-02 | Phase 8 | Pending |
+| OATH-03 | Phase 8 | Pending |
+| OATH-04 | Phase 8 | Pending |
+| OATH-05 | Phase 8 | Pending |
+| OATH-06 | Phase 8 | Pending |
+| FIDO-01 | Phase 9 | Pending |
+| FIDO-02 | Phase 9 | Pending |
+| FIDO-03 | Phase 9 | Pending |
+| FIDO-04 | Phase 9 | Pending |
+| FIDO-05 | Phase 9 | Pending |
+| FIDO-06 | Phase 9 | Pending |
+| FIDO-07 | Phase 9 | Pending |
+| OTP-01 | Phase 10 | Pending |
+| EDU-01 | Phase 10 | Pending |
+| EDU-02 | Phase 10 | Pending |
+| EDU-03 | Phase 10 | Pending |
+| EDU-04 | Phase 10 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 34 total
-- Mapped to phases: 0 (TBD by roadmapper)
-- Unmapped: 34 ⚠️
+- Mapped to phases: 34
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after v1.1 milestone requirements definition*
+*Last updated: 2026-03-26 — traceability populated by roadmapper*
