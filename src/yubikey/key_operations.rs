@@ -423,33 +423,26 @@ pub struct SlotInfo {
     pub fingerprint: String, // short hex fingerprint
 }
 
-/// Fetch key attributes via native PC/SC GET DATA 0x6E (Application Related Data).
+/// Fetch key attributes via native PC/SC GET DATA flat DOs.
 ///
-/// Reads algorithm attributes (tags 0xC1/0xC2/0xC3) and fingerprints
-/// (tags 0xC7/0xC8/0xC9) from the card's Discretionary Data Objects (tag 0x73).
-/// Also reads touch policies via GET DATA 0xD6/0xD7/0xD8.
+/// Uses GET DATA 0xC5 (fingerprints, 60 bytes) and 0xC1/0xC2/0xC3 (algorithm
+/// attributes per slot) instead of the nested 0x6E/0x73 TLV approach, which
+/// fails on real hardware when the YubiKey includes the outer 0x6E tag in the
+/// response and tlv_find scans past the content.
 /// No ykman binary required.
 pub fn get_key_attributes() -> Result<KeyAttributes> {
     let (card, _aid) = crate::yubikey::card::connect_to_openpgp_card()?;
 
-    // GET DATA 0x6E — Application Related Data (TLV-constructed)
-    let app_data = crate::yubikey::card::get_data(&card, 0x00, 0x6E)?;
+    // GET DATA 0x00C5 — Fingerprints: 60 bytes = SIG(20) | ENC(20) | AUT(20).
+    let c5 = crate::yubikey::card::get_data(&card, 0x00, 0xC5).ok();
+    let sig_fp = c5.as_deref().and_then(|b| if b.len() >= 20 { Some(b[..20].to_vec()) } else { None });
+    let enc_fp = c5.as_deref().and_then(|b| if b.len() >= 40 { Some(b[20..40].to_vec()) } else { None });
+    let aut_fp = c5.as_deref().and_then(|b| if b.len() >= 60 { Some(b[40..60].to_vec()) } else { None });
 
-    // Navigate to Discretionary Data Objects (tag 0x73)
-    let disc = crate::yubikey::card::tlv_find(&app_data, 0x73);
-
-    let (sig_fp, enc_fp, aut_fp, sig_algo, enc_algo, aut_algo) = if let Some(d) = disc {
-        (
-            crate::yubikey::card::tlv_find(d, 0xC7).map(|b| b.to_vec()),
-            crate::yubikey::card::tlv_find(d, 0xC8).map(|b| b.to_vec()),
-            crate::yubikey::card::tlv_find(d, 0xC9).map(|b| b.to_vec()),
-            crate::yubikey::card::tlv_find(d, 0xC1).map(|b| b.to_vec()),
-            crate::yubikey::card::tlv_find(d, 0xC2).map(|b| b.to_vec()),
-            crate::yubikey::card::tlv_find(d, 0xC3).map(|b| b.to_vec()),
-        )
-    } else {
-        (None, None, None, None, None, None)
-    };
+    // GET DATA 0x00C1/C2/C3 — Algorithm attributes per slot.
+    let sig_algo = crate::yubikey::card::get_data(&card, 0x00, 0xC1).ok();
+    let enc_algo = crate::yubikey::card::get_data(&card, 0x00, 0xC2).ok();
+    let aut_algo = crate::yubikey::card::get_data(&card, 0x00, 0xC3).ok();
 
     let signature = build_slot_info(sig_fp.as_deref(), sig_algo.as_deref());
     let encryption = build_slot_info(enc_fp.as_deref(), enc_algo.as_deref());

@@ -248,7 +248,6 @@ impl App {
                             self.key_state.screen = KeyScreen::ExportSSH;
                         }
                         KeyCode::Char('k') => {
-                            // Fetch key attributes via ykman
                             self.key_state.screen = KeyScreen::KeyAttributes;
                             match crate::yubikey::key_operations::get_key_attributes() {
                                 Ok(attrs) => self.key_state.key_attributes = Some(attrs),

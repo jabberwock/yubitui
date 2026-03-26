@@ -510,7 +510,7 @@ fn render_key_attributes(frame: &mut Frame, area: Rect, state: &KeyState) {
         }
     } else {
         lines.push(Line::from(vec![Span::styled(
-            "Key attributes unavailable. ykman required.",
+            "Key attributes unavailable.",
             Style::default().fg(Color::Yellow),
         )]));
     }
