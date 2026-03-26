@@ -99,6 +99,10 @@ Phase 5 — Plan 01 (05-01) [complete]
 - [05-01]: apdu_error_message(sw, context) maps all SW codes to plain English; raw SW goes to tracing::debug! only
 - [05-01]: detect_all_yubikey_states() builds full YubiKeyState from single card connection per reader
 
+## Pending Todos
+
+- [Fix wrong model when management AID unavailable](.planning/todos/pending/2026-03-26-fix-wrong-model-when-management-aid-unavailable.md) — YubiKey 4/5 shown as "YubiKey NEO" when mgmt AID query fails; OpenPGP spec v3.4 ≠ firmware v3.x
+
 ## Notes
 
 - Cross-platform requirement is non-negotiable (Linux/macOS/Windows)
