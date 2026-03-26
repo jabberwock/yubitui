@@ -1333,9 +1333,9 @@ impl App {
             Ok(result) => {
                 let slots = result.format_slots();
                 let msg = if result.messages.is_empty() {
-                    format!("Key imported successfully.\nSlots: {}", slots)
+                    "Key imported successfully.".to_string()
                 } else {
-                    format!("{}\nSlots: {}", result.messages.join("\n"), slots)
+                    result.messages.join("\n")
                 };
                 self.key_state.message = Some(msg);
                 self.key_state.import_result = Some(slots);
