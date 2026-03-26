@@ -222,9 +222,6 @@ pub fn generate_key_batch(params: &KeyGenParams, _admin_pin: &str) -> Result<Key
 /// by their capability flags in the colon-format key listing.
 #[allow(dead_code)]
 pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportResult> {
-    use crate::yubikey::gpg_status::{parse_status_line, status_to_message, GpgStatus};
-    use std::io::BufRead;
-    use std::sync::mpsc;
 
     // Validate key_id
     if key_id.is_empty() {
@@ -256,30 +253,64 @@ pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportRe
         }
     }
 
-    let sig_filled = sig_subkey.is_some();
-    let enc_filled = enc_subkey.is_some();
-    let aut_filled = aut_subkey.is_some();
+    // Run one gpg --edit-key process per slot. Combining all keytocard operations
+    // into a single session causes scdaemon to drop the card after the first
+    // operation, leaving subsequent slots with "Card removed" errors.
+    let mut sig_filled = false;
+    let mut enc_filled = false;
+    let mut aut_filled = false;
+    let mut all_messages: Vec<String> = Vec::new();
 
-    // Build the ordered command sequence for gpg --edit-key.
-    // For each subkey to move: "key N\nkeytocard\nSLOT_NUMBER\n"
-    // gpg reads slot_number (1-3) from --command-fd when prompted.
-    // After all moves: "save\n"
-    let mut card_commands: Vec<String> = Vec::new();
-    for (maybe_idx, slot) in [
-        (sig_subkey, 1u8),
-        (enc_subkey, 2u8),
-        (aut_subkey, 3u8),
+    for (maybe_idx, slot, label) in [
+        (sig_subkey, 1u8, "SIG"),
+        (enc_subkey, 2u8, "ENC"),
+        (aut_subkey, 3u8, "AUT"),
     ] {
-        if let Some(idx) = maybe_idx {
-            card_commands.push(format!("key {}", idx));
-            card_commands.push("keytocard".to_string());
-            card_commands.push(slot.to_string());
+        let subkey_idx = match maybe_idx {
+            Some(i) => i,
+            None => continue,
+        };
+
+        // Kill scdaemon before each session so gpg gets a clean card connection.
+        crate::yubikey::card::kill_scdaemon();
+
+        let ok = run_keytocard_session(key_id, admin_pin, subkey_idx, slot, &mut all_messages)?;
+        match (label, ok) {
+            ("SIG", true) => sig_filled = true,
+            ("ENC", true) => enc_filled = true,
+            ("AUT", true) => aut_filled = true,
+            (lbl, false) => all_messages.push(format!("{} slot import failed", lbl)),
+            _ => {}
         }
     }
-    card_commands.push("save".to_string());
+
+    Ok(ImportResult {
+        sig_filled,
+        enc_filled,
+        aut_filled,
+        messages: all_messages,
+    })
+}
+
+/// Parse subkey capability flags from `gpg --list-keys --with-colons` output.
+///
+/// Returns a list of SubkeyInfo with 1-based indices (for gpg "key N" command)
+/// and capability flag strings extracted from colon-record field 12.
+/// Run a single gpg --edit-key session that moves one subkey to one card slot.
+/// Returns true if SC_OP_SUCCESS was observed, false otherwise.
+fn run_keytocard_session(
+    key_id: &str,
+    admin_pin: &str,
+    subkey_idx: usize,
+    slot: u8,
+    messages: &mut Vec<String>,
+) -> Result<bool> {
+    use crate::yubikey::gpg_status::{parse_status_line, GpgStatus};
+    use std::io::BufRead;
+    use std::sync::mpsc;
 
     let mut child = Command::new("gpg")
-        .arg("--no-tty") // prevent gpg from writing key listings to the controlling terminal
+        .arg("--no-tty")
         .arg("--edit-key")
         .arg("--pinentry-mode")
         .arg("loopback")
@@ -290,20 +321,19 @@ pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportRe
         .arg("--")
         .arg(key_id)
         .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::null()) // discard — gpg writes key listings and menus here; piping without draining deadlocks
+        .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
         .spawn()?;
 
     let stderr = child.stderr.take().expect("stderr piped");
     let mut stdin = child.stdin.take().expect("stdin piped");
 
-    // Write all card-edit commands upfront; gpg buffers and processes them
-    // in sequence, requesting PINs via --status-fd GET_HIDDEN when needed.
-    for cmd in &card_commands {
-        writeln!(stdin, "{}", cmd)?;
-    }
+    // Write the single-slot command sequence upfront.
+    writeln!(stdin, "key {}", subkey_idx)?;
+    writeln!(stdin, "keytocard")?;
+    writeln!(stdin, "{}", slot)?;
+    writeln!(stdin, "save")?;
 
-    // Spawn a thread to drain stderr and forward lines via channel.
     let (tx, rx) = mpsc::channel::<String>();
     std::thread::spawn(move || {
         let reader = std::io::BufReader::new(stderr);
@@ -314,49 +344,33 @@ pub fn import_key_programmatic(key_id: &str, admin_pin: &str) -> Result<ImportRe
         }
     });
 
-    // Process status lines; respond to GET_HIDDEN with the admin PIN.
-    let mut messages: Vec<String> = Vec::new();
-    let admin_pin = admin_pin.to_string();
-
+    let mut success = false;
     for line in rx {
         let status = parse_status_line(&line);
         match &status {
             GpgStatus::GetHidden { .. } => {
-                // gpg is asking for the admin PIN
-                if writeln!(stdin, "{}", admin_pin).is_err() {
-                    break;
-                }
+                let _ = writeln!(stdin, "{}", admin_pin);
+            }
+            GpgStatus::ScOpSuccess => {
+                success = true;
             }
             _ => {
-                let msg = status_to_message(&status);
-                if !msg.is_empty() {
+                let msg = crate::yubikey::gpg_status::status_to_message(&status);
+                if !msg.is_empty()
+                    && msg != "Enter value"
+                    && msg != "PIN accepted"
+                {
                     messages.push(msg);
                 }
             }
         }
     }
 
-    // Drop stdin to signal EOF to gpg's --command-fd
     drop(stdin);
-
-    let exit_status = child.wait()?;
-
-    if !exit_status.success() && messages.is_empty() {
-        messages.push("Import operation failed. Check key ID and admin PIN.".to_string());
-    }
-
-    Ok(ImportResult {
-        sig_filled,
-        enc_filled,
-        aut_filled,
-        messages,
-    })
+    child.wait()?;
+    Ok(success)
 }
 
-/// Parse subkey capability flags from `gpg --list-keys --with-colons` output.
-///
-/// Returns a list of SubkeyInfo with 1-based indices (for gpg "key N" command)
-/// and capability flag strings extracted from colon-record field 12.
 fn parse_subkey_capabilities(key_id: &str) -> Result<Vec<SubkeyInfo>> {
     let output = Command::new("gpg")
         .arg("--list-keys")
