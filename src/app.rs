@@ -328,8 +328,29 @@ impl App {
                         }
                     }
                     KeyCode::Enter => {
-                        self.key_state.touch_policy_index = 0;
-                        self.key_state.screen = KeyScreen::SetTouchPolicySelect;
+                        let slot_idx = self.key_state.touch_slot_index;
+                        let has_key = slot_idx == 3 // attestation always present
+                            || self
+                                .yubikey_state()
+                                .and_then(|yk| yk.openpgp.as_ref())
+                                .map(|o| match slot_idx {
+                                    0 => o.signature_key.is_some(),
+                                    1 => o.encryption_key.is_some(),
+                                    2 => o.authentication_key.is_some(),
+                                    _ => false,
+                                })
+                                .unwrap_or(false);
+                        if has_key {
+                            self.key_state.touch_policy_index = 0;
+                            self.key_state.message = None;
+                            self.key_state.screen = KeyScreen::SetTouchPolicySelect;
+                        } else {
+                            let slot_name = ui::keys::touch_slot_display(slot_idx);
+                            self.key_state.message = Some(format!(
+                                "No key in {} slot — import or generate a key first.",
+                                slot_name
+                            ));
+                        }
                     }
                     KeyCode::Esc => {
                         self.key_state.screen = KeyScreen::Main;

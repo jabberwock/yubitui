@@ -152,7 +152,7 @@ pub fn render(
         KeyScreen::ExportSSH => render_export_ssh(frame, area, state),
         KeyScreen::KeyAttributes => render_key_attributes(frame, area, yubikey_state, state),
         KeyScreen::SshPubkeyPopup => render_ssh_pubkey_popup(frame, area, yubikey_state, state),
-        KeyScreen::SetTouchPolicy => render_set_touch_policy(frame, area, state),
+        KeyScreen::SetTouchPolicy => render_set_touch_policy(frame, area, yubikey_state, state),
         KeyScreen::SetTouchPolicySelect => render_set_touch_policy_select(frame, area, state),
         KeyScreen::SetTouchPolicyConfirm => render_set_touch_policy_confirm(frame, area, state),
         KeyScreen::SetTouchPolicyPinInput => render_key_import_pin_input(frame, area, state),
@@ -659,7 +659,14 @@ fn render_operation_screen(
     frame.render_widget(paragraph, chunks[1]);
 }
 
-fn render_set_touch_policy(frame: &mut Frame, area: Rect, state: &KeyState) {
+fn render_set_touch_policy(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState>, state: &KeyState) {
+    let openpgp = yubikey_state.as_ref().and_then(|yk| yk.openpgp.as_ref());
+    let slot_has_key = [
+        openpgp.map_or(false, |o| o.signature_key.is_some()),
+        openpgp.map_or(false, |o| o.encryption_key.is_some()),
+        openpgp.map_or(false, |o| o.authentication_key.is_some()),
+        true, // attestation slot is factory-programmed, always present
+    ];
     let slots = [
         "Signature (sig)",
         "Encryption (enc)",
@@ -676,6 +683,13 @@ fn render_set_touch_policy(frame: &mut Frame, area: Rect, state: &KeyState) {
         Line::from(""),
     ];
     for (i, slot) in slots.iter().enumerate() {
+        let has_key = slot_has_key[i];
+        let indicator = if has_key { "✓ " } else { "✗ " };
+        let indicator_style = if has_key {
+            Style::default().fg(Color::Green)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
         if i == state.touch_slot_index {
             lines.push(Line::from(vec![
                 Span::styled(
@@ -684,15 +698,36 @@ fn render_set_touch_policy(frame: &mut Frame, area: Rect, state: &KeyState) {
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
+                Span::styled(indicator, indicator_style),
                 Span::styled(
                     *slot,
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
+                    if has_key {
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(Color::DarkGray)
+                    },
                 ),
+                if !has_key {
+                    Span::styled(
+                        "  [no key loaded]",
+                        Style::default().fg(Color::DarkGray),
+                    )
+                } else {
+                    Span::raw("")
+                },
             ]));
         } else {
-            lines.push(Line::from(vec![Span::raw("  "), Span::raw(*slot)]));
+            lines.push(Line::from(vec![
+                Span::raw("  "),
+                Span::styled(indicator, indicator_style),
+                if has_key {
+                    Span::raw(*slot)
+                } else {
+                    Span::styled(*slot, Style::default().fg(Color::DarkGray))
+                },
+            ]));
         }
     }
     lines.push(Line::from(""));
