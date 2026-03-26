@@ -2,20 +2,20 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Phases 1-3 are already implemented. Starting from Phase 1 to close remaining gaps.
-status: Phase 04 complete
-last_updated: "2026-03-25T19:28:43Z"
+status: Executing Phase 05
+last_updated: "2026-03-25T00:13:41.000Z"
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 18
+  completed_plans: 16
 ---
 
 # Project State
 
 ## Current Phase
 
-**Phase 4** — Programmatic Subprocess Control
+**Phase 5** — Native Card Protocol
 
 ## Status
 
@@ -23,16 +23,17 @@ active
 
 ## Current Plan
 
-Phase 4 — Plan 04 (04-04) [complete — all plans done]
+Phase 5 — Plan 01 (05-01) [complete]
 
 ## Progress
 
-[██████████] 100%
+[████████░░] 88%
 
 - Phase 1: complete (all 3 plans complete)
 - Phase 2: complete (all 4 plans complete)
 - Phase 3: complete (all 4 plans complete)
 - Phase 4: complete (all 4 plans complete)
+- Phase 5: in progress (1/3 plans complete)
 
 ## Completed Plans
 
@@ -50,6 +51,7 @@ Phase 4 — Plan 04 (04-04) [complete — all plans done]
 - 04-02: In-TUI PIN operations — programmatic gpg PIN functions with --pinentry-mode loopback, TUI PIN input, no terminal escape (2026-03-25)
 - 04-03: Key generation wizard (7-step TUI) + programmatic import via --command-fd auto-mapping subkeys by capability (2026-03-25)
 - 04-04: Terminal escape audit and cleanup — zero Stdio::inherit in yubikey modules, TUI SSH test connection input, deprecated functions removed (2026-03-25)
+- 05-01: PC/SC APDU primitives module (card.rs) + native card reads for detection, PIN status, OpenPGP state, key attributes — no gpg/ykman subprocess for card reads (2026-03-25)
 
 ## Decisions
 
@@ -91,6 +93,11 @@ Phase 4 — Plan 04 (04-04) [complete — all plans done]
 - [04-04]: SSH ExportKey routes to Screen::Keys + KeyScreen::SshPubkeyPopup (existing TUI popup) from execute_ssh_operation
 - [04-04]: TestConnection screen gains TUI text input fields (test_conn_user/host/focused in SshState); Tab switches focus; Enter submits
 - [04-04]: Deprecated interactive functions fully removed (not just #[allow(dead_code)]) — clean break, no legacy code
+- [05-01]: card.rs is the single PC/SC APDU primitive module; kill_scdaemon before every native card operation
+- [05-01]: serial_from_aid() reads BCD-encoded serial from AID select response bytes 10-13 (not ykman list --serials)
+- [05-01]: tlv_find() BER-TLV walker used for DO 0x6E fingerprints and algorithm attributes; no flat-offset parsing
+- [05-01]: apdu_error_message(sw, context) maps all SW codes to plain English; raw SW goes to tracing::debug! only
+- [05-01]: detect_all_yubikey_states() builds full YubiKeyState from single card connection per reader
 
 ## Notes
 
@@ -100,5 +107,5 @@ Phase 4 — Plan 04 (04-04) [complete — all plans done]
 
 ## Last Session
 
-- Stopped at: Completed 04-04-PLAN.md (terminal escape audit, zero Stdio::inherit, deprecated function removal)
+- Stopped at: Completed 05-01-PLAN.md (PC/SC primitives, native detection/pin/openpgp/key_operations)
 - Date: 2026-03-25

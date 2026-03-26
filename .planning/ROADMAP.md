@@ -124,7 +124,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — PC/SC primitives (card.rs) + replace detection, PIN, OpenPGP, key attribute reads
+- [x] 05-01-PLAN.md — PC/SC primitives (card.rs) + replace detection, PIN, OpenPGP, key attribute reads
 - [ ] 05-02-PLAN.md — Native touch policy, PIV detection, attestation via PC/SC APDUs
 - [ ] 05-03-PLAN.md — Cleanup: remove find_ykman, unused crates, grep audit, human verify
 
