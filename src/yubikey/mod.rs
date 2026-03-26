@@ -42,6 +42,7 @@ impl fmt::Display for Version {
 pub enum Model {
     YubiKey5,
     YubiKey5C,
+    YubiKey5CNFC,
     YubiKey5Ci,
     YubiKey5CNano,
     YubiKey5Nano,
@@ -70,6 +71,7 @@ impl Model {
             self,
             Model::YubiKey5
                 | Model::YubiKey5C
+                | Model::YubiKey5CNFC
                 | Model::YubiKey5Ci
                 | Model::YubiKey5CNano
                 | Model::YubiKey5Nano
@@ -82,6 +84,7 @@ impl Model {
         match self {
             Model::YubiKey5
             | Model::YubiKey5C
+            | Model::YubiKey5CNFC
             | Model::YubiKey5Ci
             | Model::YubiKey5CNano
             | Model::YubiKey5Nano
@@ -98,6 +101,7 @@ impl fmt::Display for Model {
         match self {
             Model::YubiKey5 => write!(f, "YubiKey 5"),
             Model::YubiKey5C => write!(f, "YubiKey 5C"),
+            Model::YubiKey5CNFC => write!(f, "YubiKey 5C NFC"),
             Model::YubiKey5Ci => write!(f, "YubiKey 5Ci"),
             Model::YubiKey5CNano => write!(f, "YubiKey 5C Nano"),
             Model::YubiKey5Nano => write!(f, "YubiKey 5 Nano"),

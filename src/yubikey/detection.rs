@@ -93,6 +93,19 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         // Touch policies — read via native GET DATA 0xD6-0xD9
         let touch_policies = super::touch_policy::get_touch_policies_native(&card).ok();
 
+        // GET DEVICE INFO from YubiKey Management AID — actual firmware version,
+        // form factor, and NFC capability. Falls back gracefully on older firmware.
+        let dev_info = card::get_device_info(&card);
+        let info = if let Some(ref di) = dev_info {
+            let fw = di.firmware.clone().unwrap_or_else(|| info.version.clone());
+            let ff_byte = di.form_factor_byte.unwrap_or(0);
+            let (model, form_factor) = model_from_form_factor(ff_byte, fw.major);
+            let sn = di.serial.unwrap_or(info.serial);
+            YubiKeyInfo { serial: sn, version: fw, model, form_factor }
+        } else {
+            info
+        };
+
         states.push(YubiKeyState {
             info,
             openpgp,
@@ -260,6 +273,32 @@ pub fn parse_algorithm_attributes(data: &[u8]) -> String {
         0x13 => "ECDSA (P-256)".to_string(),
         0x16 => "EdDSA (Ed25519)".to_string(),
         _ => format!("Unknown (0x{:02X})", data[0]),
+    }
+}
+
+/// Derive Model and FormFactor from the GET DEVICE INFO form-factor byte and
+/// firmware major version.
+///
+/// Form factor byte encoding (from YubiKey SDK):
+///   Low 7 bits: 0x01=USB-A keychain, 0x02=USB-A nano, 0x03=USB-C keychain,
+///               0x04=USB-C nano, 0x05=USB-A+Lightning (Ci)
+///   Bit 0x80: NFC capable
+pub fn model_from_form_factor(ff_byte: u8, fw_major: u8) -> (Model, FormFactor) {
+    let nfc = ff_byte & 0x80 != 0;
+    let connector = ff_byte & 0x7F;
+    match (fw_major, connector, nfc) {
+        (5.., 0x01, true)  => (Model::YubiKey5NFC,  FormFactor::UsbA),
+        (5.., 0x01, false) => (Model::YubiKey5,     FormFactor::UsbA),
+        (5.., 0x02, _)     => (Model::YubiKey5Nano, FormFactor::Nano),
+        (5.., 0x03, true)  => (Model::YubiKey5CNFC, FormFactor::UsbC),
+        (5.., 0x03, false) => (Model::YubiKey5C,    FormFactor::UsbC),
+        (5.., 0x04, _)     => (Model::YubiKey5CNano,FormFactor::Nano),
+        (5.., 0x05, _)     => (Model::YubiKey5Ci,   FormFactor::UsbC),
+        (4, 0x01, _)       => (Model::YubiKey4,     FormFactor::UsbA),
+        (4, 0x03, _)       => (Model::YubiKey4C,    FormFactor::UsbC),
+        (4, 0x02, _)       => (Model::YubiKey4Nano, FormFactor::Nano),
+        (3, _, _)          => (Model::YubiKeyNeo,   FormFactor::UsbA),
+        _                  => (Model::Unknown,       FormFactor::Unknown),
     }
 }
 

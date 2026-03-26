@@ -12,6 +12,21 @@ pub const SELECT_OPENPGP: &[u8] = &[
     0x00, 0xA4, 0x04, 0x00, 0x06, 0xD2, 0x76, 0x00, 0x01, 0x24, 0x01, 0x00,
 ];
 
+/// YubiKey Management Application AID (8 bytes).
+#[allow(dead_code)]
+pub const YUBIKEY_MGMT_AID: &[u8] = &[0xA0, 0x00, 0x00, 0x05, 0x27, 0x47, 0x11, 0x17];
+
+/// SELECT YubiKey Management AID APDU (with Le=00 to request response data).
+#[allow(dead_code)]
+pub const SELECT_MGMT: &[u8] = &[
+    0x00, 0xA4, 0x04, 0x00, 0x08,
+    0xA0, 0x00, 0x00, 0x05, 0x27, 0x47, 0x11, 0x17, 0x00,
+];
+
+/// GET DEVICE INFO APDU (INS=0x1D, returns firmware version, form factor, serial).
+#[allow(dead_code)]
+pub const GET_DEVICE_INFO: &[u8] = &[0x00, 0x1D, 0x00, 0x00, 0x00];
+
 /// PIV application AID (9 bytes).
 #[allow(dead_code)]
 pub const PIV_AID: &[u8] = &[0xA0, 0x00, 0x00, 0x03, 0x08, 0x00, 0x00, 0x10, 0x00];
@@ -237,6 +252,69 @@ pub fn tlv_find(data: &[u8], target_tag: u16) -> Option<&[u8]> {
         i += len;
     }
     None
+}
+
+/// Information returned by the YubiKey Management Application's GET DEVICE INFO command.
+///
+/// Form factor byte encoding (low 7 bits = connector, high bit = NFC capable):
+///   0x01 = USB-A keychain   0x02 = USB-A nano
+///   0x03 = USB-C keychain   0x04 = USB-C nano
+///   0x05 = USB-A + Lightning (5Ci)
+///   0x80 bit set = NFC capable
+pub struct DeviceInfo {
+    /// Actual YubiKey firmware version (3 bytes from tag 0x05).
+    pub firmware: Option<crate::yubikey::Version>,
+    /// Raw form factor byte (tag 0x04). Use `form_factor_nfc()` helpers.
+    pub form_factor_byte: Option<u8>,
+    /// Serial number from management AID (tag 0x02). May be absent on older firmware.
+    pub serial: Option<u32>,
+}
+
+/// Query the YubiKey Management Application on an already-connected card and
+/// return device info (firmware version, form factor, serial).
+///
+/// Selects the management AID on the same connection. Fails silently — returns
+/// `None` if the management AID is not supported (older firmware) or if the
+/// GET DEVICE INFO APDU is unrecognised.
+#[allow(dead_code)]
+pub fn get_device_info(card: &pcsc::Card) -> Option<DeviceInfo> {
+    let mut buf = [0u8; 512];
+
+    // SELECT management AID
+    let resp = card.transmit(SELECT_MGMT, &mut buf).ok()?;
+    if apdu_sw(resp) != 0x9000 {
+        return None;
+    }
+
+    // GET DEVICE INFO
+    let resp = card.transmit(GET_DEVICE_INFO, &mut buf).ok()?;
+    if apdu_sw(resp) != 0x9000 {
+        return None;
+    }
+    let data = &resp[..resp.len().saturating_sub(2)];
+
+    // Tag 0x05: firmware version (3 bytes: major.minor.patch)
+    let firmware = tlv_find(data, 0x05).and_then(|v| {
+        if v.len() >= 3 {
+            Some(crate::yubikey::Version { major: v[0], minor: v[1], patch: v[2] })
+        } else {
+            None
+        }
+    });
+
+    // Tag 0x04: form factor (1 byte)
+    let form_factor_byte = tlv_find(data, 0x04).and_then(|v| v.first().copied());
+
+    // Tag 0x02: serial number (4 bytes, big-endian) — only on newer firmware
+    let serial = tlv_find(data, 0x02).and_then(|v| {
+        if v.len() >= 4 {
+            Some(u32::from_be_bytes([v[0], v[1], v[2], v[3]]))
+        } else {
+            None
+        }
+    });
+
+    Some(DeviceInfo { firmware, form_factor_byte, serial })
 }
 
 #[cfg(test)]
