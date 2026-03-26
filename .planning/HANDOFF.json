@@ -1,0 +1,48 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-03-26T00:36:01.323Z",
+  "phase": "04",
+  "phase_name": "programmatic-subprocess-control",
+  "phase_dir": ".planning/phases/04-programmatic-subprocess-control",
+  "plan": "post-04",
+  "task": 1,
+  "total_tasks": 1,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": "04-01", "name": "GPG status polling and PIN retry parsing", "status": "done", "commit": "prev"},
+    {"id": "04-02", "name": "Programmatic PIN change/unblock/reset code via gpg --card-edit", "status": "done", "commit": "prev"},
+    {"id": "04-03", "name": "Key gen wizard and non-interactive import", "status": "done", "commit": "5fb3c15"},
+    {"id": "04-04", "name": "Terminal escape audit — zero Stdio::inherit, remove deprecated functions", "status": "done", "commit": "102d618"},
+    {"id": "hw-test-1", "name": "Hardware testing session: gpg --no-tty flags, macOS pcscd fix, factory reset via PC/SC APDU", "status": "in_progress", "progress": "most changes work; factory reset TERMINATE DF returning 6982 despite admin being blocked"}
+  ],
+  "remaining_tasks": [
+    {"id": "hw-test-1-bug", "name": "Fix TERMINATE DF 6982 — admin blocked but card returns Security Status Not Satisfied", "status": "not_started"}
+  ],
+  "blockers": [
+    {
+      "description": "factory_reset_openpgp TERMINATE DF APDU (00 E6 00 00) returns SW 6982 (Security Status Not Satisfied) even when admin PIN is 0/3 retries (fully blocked)",
+      "type": "technical",
+      "workaround": "Likely fix: issue a VERIFY admin PIN command (00 20 00 83 ...) with a dummy PIN first — card returns 6983 (blocked), which establishes session-level 'admin is blocked' state, after which TERMINATE DF should accept. OpenPGP spec says TERMINATE DF security condition is 'Admin-PIN blocked OR Admin-PIN verified' — both are evaluated per-session, not from persistent counter alone."
+    }
+  ],
+  "human_actions_pending": [],
+  "decisions": [
+    {"decision": "Replace ykman factory reset with direct PC/SC APDU (SELECT + TERMINATE DF + ACTIVATE FILE)", "rationale": "Removes external tool dependency; PC/SC is available natively on macOS/Linux", "phase": "04-post"},
+    {"decision": "Remove ykman_available guard from factory reset UI — show option whenever admin_pin_retries == 0", "rationale": "Native APDU reset doesn't need ykman", "phase": "04-post"},
+    {"decision": "macOS pcscd always returns true — CryptoTokenKit is on-demand, never a persistent daemon", "rationale": "launchctl/pgrep checks always returned false on macOS, causing false 'pcscd not running' warnings", "phase": "04-post"},
+    {"decision": "Add --no-tty --batch to all gpg commands", "rationale": "Prevents gpg from writing card status or interactive menus to the controlling terminal during TUI operation", "phase": "04-post"},
+    {"decision": "Split gpg card-edit commands into pre-PIN and post-PIN to avoid deadlock", "rationale": "Pre-writing 'q' caused gpg to read it as a PIN response; deadlock where gpg waits for commands and rx loop waits for stderr to close", "phase": "04-post"}
+  ],
+  "uncommitted_files": [
+    "src/app.rs",
+    "src/diagnostics/pcscd.rs",
+    "src/ui/pin.rs",
+    "src/yubikey/detection.rs",
+    "src/yubikey/key_operations.rs",
+    "src/yubikey/openpgp.rs",
+    "src/yubikey/pin.rs",
+    "src/yubikey/pin_operations.rs"
+  ],
+  "next_action": "Fix factory_reset_openpgp: before TERMINATE DF, issue VERIFY admin (00 20 00 83 08 FF FF FF FF FF FF FF FF) to trigger 6983 response that proves admin is blocked in current session, then retry TERMINATE DF.",
+  "context_notes": "Phase 04 plans are all complete and committed. Current uncommitted changes are from a hardware testing session against real YubiKey. Most changes work (gpg --no-tty, pcscd macOS fix, pin operation deadlock fix). Only bug remaining is the TERMINATE DF 6982 on factory reset. The ykman path was removed and replaced with PC/SC APDU — if the APDU fix is complex, could fallback to ykman as option but preference is native approach."
+}
