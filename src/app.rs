@@ -767,6 +767,9 @@ impl App {
                         self.pin_state = ui::pin::PinState::default();
                     }
                     self.current_screen = target;
+                    if target == Screen::SshWizard {
+                        self.refresh_ssh_status()?;
+                    }
                 }
                 KeyCode::Esc => {
                     self.dashboard_state.show_context_menu = false;
@@ -799,7 +802,10 @@ impl App {
                 self.current_screen = Screen::PinManagement;
                 self.pin_state = ui::pin::PinState::default();
             }
-            KeyCode::Char('5') => self.current_screen = Screen::SshWizard,
+            KeyCode::Char('5') => {
+                self.current_screen = Screen::SshWizard;
+                self.refresh_ssh_status()?;
+            }
             KeyCode::Char('r') => {
                 // Refresh: re-run diagnostics and detect YubiKeys
                 self.diagnostics = Diagnostics::run()?;
