@@ -175,10 +175,17 @@ fn read_openpgp_state_from_card(
 
     let (sig_fp, enc_fp, aut_fp, sig_algo_raw, enc_algo_raw, aut_algo_raw) =
         if let Some(d) = disc {
+            // DO 0xC5: 60 bytes = three concatenated 20-byte fingerprints [SIG|ENC|AUT].
+            // OpenPGP spec §7.2.18 — individual tags 0xC7/0xC8/0xC9 are only available
+            // via direct GET DATA, not nested inside DO 0x73.
+            let c5 = card::tlv_find(d, 0xC5).map(|b| b.to_vec());
+            let sig_fp = c5.as_deref().and_then(|b| if b.len() >= 20 { Some(b[..20].to_vec()) } else { None });
+            let enc_fp = c5.as_deref().and_then(|b| if b.len() >= 40 { Some(b[20..40].to_vec()) } else { None });
+            let aut_fp = c5.as_deref().and_then(|b| if b.len() >= 60 { Some(b[40..60].to_vec()) } else { None });
             (
-                card::tlv_find(d, 0xC7).map(|b| b.to_vec()),
-                card::tlv_find(d, 0xC8).map(|b| b.to_vec()),
-                card::tlv_find(d, 0xC9).map(|b| b.to_vec()),
+                sig_fp,
+                enc_fp,
+                aut_fp,
                 card::tlv_find(d, 0xC1).map(|b| b.to_vec()),
                 card::tlv_find(d, 0xC2).map(|b| b.to_vec()),
                 card::tlv_find(d, 0xC3).map(|b| b.to_vec()),

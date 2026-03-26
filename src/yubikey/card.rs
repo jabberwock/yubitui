@@ -4,10 +4,12 @@ use anyhow::Result;
 #[allow(dead_code)]
 pub const OPENPGP_AID: &[u8] = &[0xD2, 0x76, 0x00, 0x01, 0x24, 0x01];
 
-/// Full SELECT OpenPGP APDU: CLA=00 INS=A4 P1=04 P2=00 Lc=06 [AID].
+/// Full SELECT OpenPGP APDU: CLA=00 INS=A4 P1=04 P2=00 Lc=06 [AID] Le=00.
+/// Le=00 requests the AID template response data (serial, version, manufacturer).
+/// Without Le the card returns only SW 9000 with no data.
 #[allow(dead_code)]
 pub const SELECT_OPENPGP: &[u8] = &[
-    0x00, 0xA4, 0x04, 0x00, 0x06, 0xD2, 0x76, 0x00, 0x01, 0x24, 0x01,
+    0x00, 0xA4, 0x04, 0x00, 0x06, 0xD2, 0x76, 0x00, 0x01, 0x24, 0x01, 0x00,
 ];
 
 /// PIV application AID (9 bytes).
