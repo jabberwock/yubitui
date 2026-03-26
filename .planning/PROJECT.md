@@ -21,6 +21,18 @@ Zero-friction YubiKey management: detect problems automatically, guide users thr
 **Must be cross-platform: Linux, macOS, Windows. No exceptions.**
 All diagnostics, hints, file paths, and operations must be platform-aware.
 
+## Current Milestone: v1.1 Accessible to New Users
+
+**Goal:** Make yubitui approachable for new users — working mouse support, feature parity with Yubico Authenticator, in-TUI education explaining every protocol, and a clean Model/View architecture ready for TUI library swap and Tauri GUI.
+
+**Target features:**
+- Full mouse support (click navigation, button interaction, scroll)
+- UI/data architectural separation (Model/View split — no ratatui in business logic; Tauri-ready)
+- Tmux-based E2E test suite (TDD; features verified before user sees them)
+- Feature parity with Yubico Authenticator (TOTP/HOTP, FIDO/FIDO2, OTP slots, PIV improvements)
+- In-TUI conceptual explanations: PIV, FIDO, FIDO2, OpenPGP/PGP, SSH, TOTP, HOTP/OTP
+- New user onboarding flow — guided first-time setup
+
 ## Current State (as of 2026-03-26 — v1.0 shipped)
 
 **v1.0 shipped.** All 5 phases complete, 21 plans executed.
@@ -71,6 +83,12 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 
 ### Active
 
+- [ ] Full mouse support (click, scroll — currently broken)
+- [ ] Model/View architectural separation (no ratatui in business logic)
+- [ ] Tmux-based E2E test suite
+- [ ] Feature parity with Yubico Authenticator (TOTP/HOTP, FIDO/FIDO2, OTP slots)
+- [ ] In-TUI protocol education (PIV, FIDO, FIDO2, OpenPGP, SSH, TOTP, OTP/HOTP)
+- [ ] New user onboarding flow
 - [ ] Backup/restore workflows
 - [ ] cargo fmt compliance (tech debt from v1.0)
 - [ ] 50ms sleep after kill_scdaemon() for Linux Card Busy robustness
@@ -117,4 +135,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-26 after v1.0 milestone*
+*Last updated: 2026-03-26 — v1.1 milestone started*

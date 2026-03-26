@@ -1,39 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Production-Ready
-status: Shipped
+milestone: v1.1
+milestone_name: Accessible to New Users
+status: Defining requirements
 last_updated: "2026-03-26"
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 21
-  completed_plans: 21
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Current Phase
 
-**Phase 5** — Native Card Protocol
+Not started (defining requirements)
 
 ## Status
 
-active
+Defining requirements
 
 ## Current Plan
 
-Phase 5 — Plan 04 (05-04) [complete]
+—
 
 ## Progress
 
-[█████████░] 86%
-
-- Phase 1: complete (all 3 plans complete)
-- Phase 2: complete (all 4 plans complete)
-- Phase 3: complete (all 4 plans complete)
-- Phase 4: complete (all 4 plans complete)
-- Phase 5: in progress (4/6 plans complete)
+[ ] 0%
 
 ## Completed Plans
 
@@ -127,5 +121,5 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 
 ## Last Session
 
-- Stopped at: v1.0 milestone archived and tagged
+- Stopped at: Milestone v1.1 started — defining requirements
 - Date: 2026-03-26
