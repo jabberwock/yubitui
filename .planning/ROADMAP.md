@@ -45,8 +45,8 @@ See full details: `.planning/milestones/v1.0-ROADMAP.md`
 **Plans**: 3 plans
 Plans:
 - [x] 06-01-PLAN.md — Architecture rename (yubikey/ -> model/, ui/ -> tui/) + serde::Serialize + AppState + CI lint
-- [ ] 06-02-PLAN.md — Per-screen key handling decomposition (action enums + handle_key functions)
-- [ ] 06-03-PLAN.md — Mock mode (--mock flag + fixture) + 50ms sleep audit
+- [x] 06-02-PLAN.md — Per-screen key handling decomposition (action enums + handle_key functions)
+- [x] 06-03-PLAN.md — Mock mode (--mock flag + fixture) + 50ms sleep audit
 
 ### Phase 7: Mouse Support + E2E Test Harness
 **Goal**: Users can navigate the entire app by mouse, and every feature going forward is verified by automated tests before the user sees it

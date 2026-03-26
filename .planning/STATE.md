@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: "Completed 06-01-PLAN.md (model/tui rename, serde::Serialize, AppState, CI lint, NEO bug fix)"
-last_updated: "2026-03-26T19:46:01.550Z"
+stopped_at: Completed 06-03-PLAN.md (--mock flag, mock fixture, mock status bar, 50ms sleep audit)
+last_updated: "2026-03-26T20:19:45.689Z"
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 3
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 ## Current Position
 
 Phase: 06 (tech-debt-infrastructure) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -46,6 +46,8 @@ Plan: 2 of 3
 - [Phase 06-tech-debt-infrastructure]: src/model/ is the model layer (zero ratatui imports), src/tui/ is the TUI layer; boundary enforced by CI grep lint
 - [Phase 06-tech-debt-infrastructure]: AppState struct in model/app_state.rs holds Tauri-serializable state; pin_state/key_state/ssh_state/dashboard_state remain on App (TUI-specific)
 - [Phase 06-tech-debt-infrastructure]: firmware=None in DeviceInfo now returns Model::Unknown (not YubiKeyNeo); openpgp_version is OpenPGP spec version, never hardware firmware fallback
+- [Phase 06-tech-debt-infrastructure]: Mock fixture is hardcoded Rust struct — no file I/O, deterministic for CI; --mock flag passes through App::new() and guards all detect_all() call sites
+- [Phase 06-tech-debt-infrastructure]: 50ms sleep after kill_scdaemon() is now present at all card APDU entry points (detection.rs and factory_reset gaps fixed)
 
 ### Pending Todos
 
@@ -57,6 +59,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-26T19:46:01.548Z
-Stopped at: Completed 06-01-PLAN.md (model/tui rename, serde::Serialize, AppState, CI lint, NEO bug fix)
+Last session: 2026-03-26T20:19:45.687Z
+Stopped at: Completed 06-03-PLAN.md (--mock flag, mock fixture, mock status bar, 50ms sleep audit)
 Resume file: None

@@ -7,8 +7,8 @@
 
 ### Infrastructure & Architecture
 
-- [ ] **INFRA-01**: Developer can run app with `--mock` flag to get fixture YubiKeyState without hardware (enables E2E testing in CI)
-- [ ] **INFRA-02**: Card connection is reliable — 50ms sleep after scdaemon kill before any new APDU operation (pay v1.0 tech debt)
+- [x] **INFRA-01**: Developer can run app with `--mock` flag to get fixture YubiKeyState without hardware (enables E2E testing in CI)
+- [x] **INFRA-02**: Card connection is reliable — 50ms sleep after scdaemon kill before any new APDU operation (pay v1.0 tech debt)
 - [x] **INFRA-03**: App state is split into `src/model/` (zero ratatui imports, all state `Clone + Debug`) and `src/tui/` (all ratatui rendering) with no cross-contamination
 - [x] **INFRA-04**: Business logic modules (`src/yubikey/`, `src/model/`) have zero ratatui imports — enforced by CI lint
 - [ ] **INFRA-05**: Each screen has its own typed action enum and `handle_key()` function — no 1600-line match arm in app.rs
@@ -99,8 +99,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 6 | Pending |
-| INFRA-02 | Phase 6 | Pending |
+| INFRA-01 | Phase 6 | Complete |
+| INFRA-02 | Phase 6 | Complete |
 | INFRA-03 | Phase 6 | Complete |
 | INFRA-04 | Phase 6 | Complete |
 | INFRA-05 | Phase 6 | Pending |
