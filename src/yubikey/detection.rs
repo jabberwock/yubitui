@@ -103,11 +103,12 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         // Read OpenPGP state via direct GET DATA DOs
         let openpgp = read_openpgp_state_from_card(&card).ok();
 
+        // Touch policies — read BEFORE get_piv_state(), which opens its own exclusive
+        // connection and can invalidate this card handle (SELECT PIV changes active AID).
+        let touch_policies = super::touch_policy::get_touch_policies_native(&card).ok();
+
         // Get PIV state (best-effort, no error on failure)
         let piv = super::piv::get_piv_state().ok();
-
-        // Touch policies — read via native GET DATA 0xD6-0xD9
-        let touch_policies = super::touch_policy::get_touch_policies_native(&card).ok();
 
         states.push(YubiKeyState {
             info,
