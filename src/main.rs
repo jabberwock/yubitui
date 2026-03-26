@@ -91,7 +91,7 @@ fn main() -> Result<()> {
 }
 
 fn list_yubikeys() -> Result<()> {
-    use yubikey::detection::detect_yubikeys;
+    use yubikey::detection::detect_all_yubikey_states;
 
     println!("Detecting YubiKeys...\n");
 
@@ -120,39 +120,39 @@ fn list_yubikeys() -> Result<()> {
         }
     }
 
-    let keys = detect_yubikeys()?;
+    let keys = detect_all_yubikey_states()?;
 
     if keys.is_empty() {
-        println!("❌ No YubiKeys detected.\n");
+        println!("No YubiKeys detected.\n");
         println!("Troubleshooting:");
-        println!("  • Ensure your YubiKey is plugged in");
+        println!("  - Ensure your YubiKey is plugged in");
 
         #[cfg(target_os = "macos")]
         {
-            println!("  • On macOS, PC/SC should work automatically");
-            println!("  • Check: ps aux | grep ctkpcscd");
+            println!("  - On macOS, PC/SC should work automatically");
+            println!("  - Check: ps aux | grep ctkpcscd");
         }
 
         #[cfg(target_os = "linux")]
         {
-            println!("  • Check that pcscd is running: systemctl status pcscd");
-            println!("  • Or start it: sudo systemctl start pcscd");
+            println!("  - Check that pcscd is running: systemctl status pcscd");
+            println!("  - Or start it: sudo systemctl start pcscd");
         }
 
         #[cfg(target_os = "windows")]
         {
-            println!("  • PC/SC service should be running by default");
-            println!("  • Check: Get-Service SCardSvr");
+            println!("  - PC/SC service should be running by default");
+            println!("  - Check: Get-Service SCardSvr");
         }
 
-        println!("  • Try: pcsc_scan (install with: brew install pcsc-tools / apt-get install pcsc-tools)");
-        println!("  • Some readers require the YubiKey to be removed and reinserted");
+        println!("  - Try: pcsc_scan (install with: brew install pcsc-tools / apt-get install pcsc-tools)");
+        println!("  - Some readers require the YubiKey to be removed and reinserted");
         return Ok(());
     }
 
-    println!("✅ Found {} YubiKey(s):\n", keys.len());
+    println!("Found {} YubiKey(s):\n", keys.len());
     for (i, key) in keys.iter().enumerate() {
-        println!("{}. {}", i + 1, key);
+        println!("{}. {}", i + 1, key.info);
     }
 
     Ok(())

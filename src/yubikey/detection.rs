@@ -1,163 +1,333 @@
 use anyhow::Result;
-use std::process::Command;
+use pcsc::{Context, Protocols, Scope, ShareMode};
 
 use super::{FormFactor, Model, Version, YubiKeyInfo, YubiKeyState};
+use super::card;
 
-/// Parse a list of serial numbers from `ykman list --serials` output.
-/// Each line is expected to contain a single decimal serial number.
-pub fn parse_serial_list(output: &str) -> Vec<u32> {
-    output
-        .lines()
-        .filter_map(|l| l.trim().parse::<u32>().ok())
-        .collect()
-}
+/// Detect all connected YubiKeys by enumerating PC/SC readers.
+///
+/// For each reader that has the OpenPGP application selected successfully:
+///   - Extracts serial and version from the AID select response
+///   - Reads PIN status via GET DATA 0xC4
+///   - Reads OpenPGP state via GET DATA 0x6E + 0x65
+///   - Reads key attributes via GET DATA 0x6E algorithm attributes
+///
+/// Returns a Vec with one YubiKeyState per reader with a valid OpenPGP app.
+/// Returns an empty vec if no YubiKey is found (no error).
+pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
+    card::kill_scdaemon();
 
-/// Returns a list of serial numbers for all connected YubiKeys.
-/// Uses `ykman list --serials`. Returns an empty vec if ykman is unavailable or
-/// no keys are connected.
-pub fn list_connected_serials() -> Result<Vec<u32>> {
-    let ykman = match crate::yubikey::pin_operations::find_ykman() {
-        Ok(path) => path,
+    let ctx = Context::establish(Scope::User)
+        .map_err(|e| anyhow::anyhow!("PC/SC error: {e}"))?;
+
+    let mut readers_buf = [0u8; 2048];
+    let readers: Vec<_> = match ctx.list_readers(&mut readers_buf) {
+        Ok(r) => r.collect(),
         Err(_) => return Ok(vec![]),
     };
-    let output = Command::new(ykman).args(["list", "--serials"]).output()?;
-    if !output.status.success() {
+
+    if readers.is_empty() {
+        tracing::debug!("No smart card readers found");
         return Ok(vec![]);
     }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    Ok(parse_serial_list(&stdout))
-}
 
-/// Detect all connected YubiKey states.
-/// Falls back to single-key detection when ykman is unavailable.
-pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
-    let serials = list_connected_serials().unwrap_or_default();
-    tracing::info!("ykman list --serials detected {} serial(s)", serials.len());
+    let mut states = Vec::new();
 
-    // gpg only sees one card at a time; fall back to single detect
-    match detect_yubikey_state()? {
-        Some(state) => Ok(vec![state]),
-        None => Ok(vec![]),
-    }
-}
+    for reader in readers {
+        let card = match ctx.connect(reader, ShareMode::Exclusive, Protocols::T0 | Protocols::T1) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
 
-pub fn detect_yubikeys() -> Result<Vec<YubiKeyInfo>> {
-    let mut keys = Vec::new();
+        // SELECT OpenPGP AID
+        let mut buf = [0u8; 256];
+        let resp = match card.transmit(card::SELECT_OPENPGP, &mut buf) {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
 
-    // Use gpg --card-status to detect YubiKey without holding the card lock
-    let output = Command::new("gpg")
-        .arg("--no-tty")
-        .arg("--batch")
-        .arg("--card-status")
-        .arg("--with-colons")
-        .output()?;
-
-    if !output.status.success() {
-        return Ok(keys);
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-
-    // Parse serial number and version from the output
-    let mut serial = 0;
-    let mut version = Version {
-        major: 0,
-        minor: 0,
-        patch: 0,
-    };
-
-    for line in stdout.lines() {
-        let parts: Vec<&str> = line.split(':').collect();
-        if parts.is_empty() {
+        if card::apdu_sw(resp) != 0x9000 {
             continue;
         }
 
-        match parts[0] {
-            "serial" => {
-                if parts.len() > 1 && !parts[1].is_empty() {
-                    serial = parts[1].parse().unwrap_or(0);
-                }
-            }
-            "version" => {
-                if parts.len() > 1 && !parts[1].is_empty() {
-                    // Format is "0304" for version 3.4
-                    let ver_str = parts[1];
-                    if ver_str.len() == 4 {
-                        let major_str = &ver_str[0..2];
-                        let minor_str = &ver_str[2..4];
-                        version.major = major_str.parse().unwrap_or(0);
-                        version.minor = minor_str.parse().unwrap_or(0);
-                        version.patch = 0;
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
+        // AID select response (strip SW bytes)
+        let aid_data = &resp[..resp.len().saturating_sub(2)];
 
-    if serial != 0 {
-        // Serial number intentionally omitted from logs — see CLAUDE.md security rules
-        tracing::info!(
-            "Found YubiKey via gpg --card-status (FW: {}.{}.{})",
-            version.major,
-            version.minor,
-            version.patch
-        );
+        // Extract serial from AID bytes 10-13 (BCD-encoded)
+        let serial = card::serial_from_aid(aid_data).unwrap_or(0);
+
+        // Extract version from AID bytes 6-7
+        let version = if aid_data.len() >= 8 {
+            Version {
+                major: aid_data[6],
+                minor: aid_data[7],
+                patch: 0,
+            }
+        } else {
+            Version { major: 0, minor: 0, patch: 0 }
+        };
 
         let model = detect_model_from_version(&version);
-        let form_factor = FormFactor::UsbA;
 
-        keys.push(YubiKeyInfo {
+        let info = YubiKeyInfo {
             serial,
             version,
             model,
-            form_factor,
+            form_factor: FormFactor::UsbA,
+        };
+
+        // Read PIN status (DO 0xC4 PW Status Bytes)
+        let pin_status = read_pin_status_from_card(&card)
+            .unwrap_or(super::pin::PinStatus {
+                user_pin_retries: 3,
+                admin_pin_retries: 3,
+                reset_code_retries: 0,
+                user_pin_blocked: false,
+                admin_pin_blocked: false,
+            });
+
+        // Read OpenPGP state (DO 0x6E + 0x65 + 0x5F50)
+        let openpgp = read_openpgp_state_from_card(&card, aid_data).ok();
+
+        // Get PIV state (best-effort, no error on failure)
+        let piv = super::piv::get_piv_state().ok();
+
+        // Touch policies — read via card GET DATA (Plan 2 will wire this;
+        // for now attempt to read via ykman if available, else None)
+        let touch_policies = read_touch_policies_from_card(&card).ok();
+
+        states.push(YubiKeyState {
+            info,
+            openpgp,
+            piv,
+            pin_status,
+            touch_policies,
         });
     }
 
-    Ok(keys)
+    tracing::info!(
+        "PC/SC reader enumeration found {} YubiKey(s)",
+        states.len()
+    );
+
+    Ok(states)
 }
 
+/// Kept for backward compat — delegates to detect_all_yubikey_states.
+#[allow(dead_code)]
 pub fn detect_yubikey_state() -> Result<Option<YubiKeyState>> {
-    let keys = detect_yubikeys()?;
-
-    if keys.is_empty() {
-        return Ok(None);
+    let mut all = detect_all_yubikey_states()?;
+    if all.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(all.remove(0)))
     }
+}
 
-    // For now, just use the first detected key
-    let info = keys.into_iter().next().unwrap();
+/// Read PIN retry counters from DO 0xC4 PW Status Bytes.
+fn read_pin_status_from_card(card: &pcsc::Card) -> Result<super::pin::PinStatus> {
+    let data = card::get_data(card, 0x00, 0xC4)?;
+    if data.len() < 7 {
+        anyhow::bail!(
+            "Unexpected PW Status Bytes length: {}",
+            data.len()
+        );
+    }
+    Ok(super::pin::PinStatus {
+        user_pin_retries: data[4],
+        admin_pin_retries: data[6],
+        reset_code_retries: data[5],
+        user_pin_blocked: data[4] == 0,
+        admin_pin_blocked: data[6] == 0,
+    })
+}
 
-    // Try to get OpenPGP state (reuses the same gpg call, no card lock issues)
-    let openpgp = super::openpgp::get_openpgp_state().ok();
-
-    // Try to get PIV state
-    let piv = super::piv::get_piv_state().ok();
-
-    // Get PIN status (reuses the same gpg call)
-    let pin_status = super::pin::get_pin_status()?;
-
-    // Get touch policies via ykman openpgp info
-    let touch_policies = match crate::yubikey::pin_operations::find_ykman() {
-        Ok(ykman) => {
-            match Command::new(ykman).args(["openpgp", "info"]).output() {
-                Ok(output) if output.status.success() => {
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    Some(super::touch_policy::parse_touch_policies(&stdout))
-                }
-                _ => None,
-            }
-        }
-        Err(_) => None,
+/// Read OpenPGP state from the card using GET DATA 0x6E (application related
+/// data), 0x65 (cardholder), and 0x5F50 (URL).
+fn read_openpgp_state_from_card(
+    card: &pcsc::Card,
+    aid_data: &[u8],
+) -> Result<super::openpgp::OpenPgpState> {
+    // Version from AID bytes 6-7
+    let version = if aid_data.len() >= 8 {
+        format!("{}.{}", aid_data[6], aid_data[7])
+    } else {
+        String::new()
     };
 
-    Ok(Some(YubiKeyState {
-        info,
-        openpgp,
-        piv,
-        pin_status,
-        touch_policies,
-    }))
+    // GET DATA 0x6E — Application Related Data (TLV-constructed)
+    let app_data = match card::get_data(card, 0x00, 0x6E) {
+        Ok(d) => d,
+        Err(_) => {
+            return Ok(super::openpgp::OpenPgpState {
+                card_present: true,
+                version,
+                signature_key: None,
+                encryption_key: None,
+                authentication_key: None,
+                cardholder_name: None,
+                public_key_url: None,
+            });
+        }
+    };
+
+    // Navigate into Discretionary Data Objects (tag 0x73)
+    let disc = card::tlv_find(&app_data, 0x73);
+
+    let (sig_fp, enc_fp, aut_fp, sig_algo_raw, enc_algo_raw, aut_algo_raw) =
+        if let Some(d) = disc {
+            (
+                card::tlv_find(d, 0xC7).map(|b| b.to_vec()),
+                card::tlv_find(d, 0xC8).map(|b| b.to_vec()),
+                card::tlv_find(d, 0xC9).map(|b| b.to_vec()),
+                card::tlv_find(d, 0xC1).map(|b| b.to_vec()),
+                card::tlv_find(d, 0xC2).map(|b| b.to_vec()),
+                card::tlv_find(d, 0xC3).map(|b| b.to_vec()),
+            )
+        } else {
+            (None, None, None, None, None, None)
+        };
+
+    let signature_key = build_key_info(sig_fp.as_deref(), sig_algo_raw.as_deref());
+    let encryption_key = build_key_info(enc_fp.as_deref(), enc_algo_raw.as_deref());
+    let authentication_key = build_key_info(aut_fp.as_deref(), aut_algo_raw.as_deref());
+
+    // GET DATA 0x65 — Cardholder Related Data
+    let cardholder_name = card::get_data(card, 0x00, 0x65).ok().and_then(|ch_data| {
+        card::tlv_find(&ch_data, 0x5B).and_then(|name_bytes| {
+            let name = String::from_utf8_lossy(name_bytes).trim().to_string();
+            if name.is_empty() { None } else { Some(name) }
+        })
+    });
+
+    // GET DATA 0x5F50 — URL of public key
+    let public_key_url = card::get_data_2byte_tag(card, 0x5F, 0x50).ok().and_then(|url_bytes| {
+        if url_bytes.is_empty() {
+            None
+        } else {
+            let url = String::from_utf8_lossy(&url_bytes).trim().to_string();
+            if url.is_empty() { None } else { Some(url) }
+        }
+    });
+
+    Ok(super::openpgp::OpenPgpState {
+        card_present: true,
+        version,
+        signature_key,
+        encryption_key,
+        authentication_key,
+        cardholder_name,
+        public_key_url,
+    })
+}
+
+/// Read touch policies from the card via GET DATA DOs 0xD6/0xD7/0xD8.
+/// Returns None for any slot where the GET DATA fails (e.g., older firmware).
+fn read_touch_policies_from_card(
+    card: &pcsc::Card,
+) -> Result<super::touch_policy::TouchPolicies> {
+    let sig_policy = card::get_data(card, 0x00, 0xD6)
+        .ok()
+        .and_then(|d| d.first().copied())
+        .map(policy_byte_to_touch_policy);
+    let enc_policy = card::get_data(card, 0x00, 0xD7)
+        .ok()
+        .and_then(|d| d.first().copied())
+        .map(policy_byte_to_touch_policy);
+    let aut_policy = card::get_data(card, 0x00, 0xD8)
+        .ok()
+        .and_then(|d| d.first().copied())
+        .map(policy_byte_to_touch_policy);
+    let att_policy = card::get_data(card, 0x00, 0xD9)
+        .ok()
+        .and_then(|d| d.first().copied())
+        .map(policy_byte_to_touch_policy);
+
+    // Only return Some(TouchPolicies) if we got at least one policy
+    if sig_policy.is_none() && enc_policy.is_none() && aut_policy.is_none() {
+        anyhow::bail!("No touch policy data available");
+    }
+
+    Ok(super::touch_policy::TouchPolicies {
+        signature: sig_policy.unwrap_or(super::touch_policy::TouchPolicy::Off),
+        encryption: enc_policy.unwrap_or(super::touch_policy::TouchPolicy::Off),
+        authentication: aut_policy.unwrap_or(super::touch_policy::TouchPolicy::Off),
+        attestation: att_policy.unwrap_or(super::touch_policy::TouchPolicy::Off),
+    })
+}
+
+/// Map a raw touch policy byte to the TouchPolicy enum.
+fn policy_byte_to_touch_policy(byte: u8) -> super::touch_policy::TouchPolicy {
+    match byte {
+        0x00 => super::touch_policy::TouchPolicy::Off,
+        0x01 => super::touch_policy::TouchPolicy::On,
+        0x02 => super::touch_policy::TouchPolicy::Fixed,
+        0x03 => super::touch_policy::TouchPolicy::Cached,
+        0x04 => super::touch_policy::TouchPolicy::CachedFixed,
+        _ => super::touch_policy::TouchPolicy::Off,
+    }
+}
+
+/// Build a KeyInfo from raw fingerprint bytes and algorithm attribute bytes.
+/// Returns None if the fingerprint is all-zeros (no key in slot).
+fn build_key_info(
+    fp_bytes: Option<&[u8]>,
+    algo_bytes: Option<&[u8]>,
+) -> Option<super::openpgp::KeyInfo> {
+    let fp_bytes = fp_bytes?;
+    if fp_bytes.iter().all(|&b| b == 0) {
+        return None;
+    }
+    let fingerprint = format_fingerprint(fp_bytes);
+    if fingerprint.is_empty() {
+        return None;
+    }
+    let key_attributes = algo_bytes
+        .map(parse_algorithm_attributes)
+        .unwrap_or_else(|| "Unknown".to_string());
+    Some(super::openpgp::KeyInfo {
+        fingerprint,
+        created: None,
+        key_attributes,
+    })
+}
+
+/// Format a fingerprint byte slice as an uppercase hex string.
+pub fn format_fingerprint(fp: &[u8]) -> String {
+    if fp.iter().all(|&b| b == 0) {
+        return String::new();
+    }
+    fp.iter()
+        .map(|b| format!("{:02X}", b))
+        .collect::<Vec<_>>()
+        .join("")
+}
+
+/// Parse algorithm attribute bytes to a human-readable string.
+///
+/// First byte encodes the algorithm type:
+///   0x01 = RSA (bytes 1-2 = bit length big-endian)
+///   0x12 = ECDH (Cv25519 or other curve)
+///   0x13 = ECDSA (P-256 or other curve)
+///   0x16 = EdDSA (Ed25519)
+pub fn parse_algorithm_attributes(data: &[u8]) -> String {
+    if data.is_empty() {
+        return "Unknown".to_string();
+    }
+    match data[0] {
+        0x01 => {
+            if data.len() >= 3 {
+                let bits = u16::from_be_bytes([data[1], data[2]]);
+                format!("RSA {}", bits)
+            } else {
+                "RSA".to_string()
+            }
+        }
+        0x12 => "ECDH (Cv25519)".to_string(),
+        0x13 => "ECDSA (P-256)".to_string(),
+        0x16 => "EdDSA (Ed25519)".to_string(),
+        _ => format!("Unknown (0x{:02X})", data[0]),
+    }
 }
 
 pub fn detect_model_from_version(version: &Version) -> Model {
@@ -182,6 +352,7 @@ pub fn detect_model_from_version(version: &Version) -> Model {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::Version;
 
     #[test]
     fn test_detect_model_yubikey5() {
@@ -208,26 +379,42 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_serial_list_single() {
-        let result = parse_serial_list("13390292\n");
-        assert_eq!(result, vec![13390292u32]);
+    fn test_format_fingerprint_all_zeros() {
+        assert_eq!(format_fingerprint(&[0u8; 20]), "");
     }
 
     #[test]
-    fn test_parse_serial_list_multiple() {
-        let result = parse_serial_list("13390292\n99887766\n");
-        assert_eq!(result, vec![13390292u32, 99887766u32]);
+    fn test_format_fingerprint_valid() {
+        let fp = [0xABu8, 0xCD, 0xEF];
+        assert_eq!(format_fingerprint(&fp), "ABCDEF");
     }
 
     #[test]
-    fn test_parse_serial_list_empty() {
-        let result = parse_serial_list("");
-        assert_eq!(result, vec![]);
+    fn test_parse_algorithm_rsa2048() {
+        let data = [0x01u8, 0x08, 0x00]; // RSA 2048
+        assert_eq!(parse_algorithm_attributes(&data), "RSA 2048");
     }
 
     #[test]
-    fn test_parse_serial_list_invalid() {
-        let result = parse_serial_list("not_a_number\n13390292\n");
-        assert_eq!(result, vec![13390292u32]);
+    fn test_parse_algorithm_rsa4096() {
+        let data = [0x01u8, 0x10, 0x00]; // RSA 4096
+        assert_eq!(parse_algorithm_attributes(&data), "RSA 4096");
+    }
+
+    #[test]
+    fn test_parse_algorithm_eddsa() {
+        let data = [0x16u8]; // EdDSA
+        assert_eq!(parse_algorithm_attributes(&data), "EdDSA (Ed25519)");
+    }
+
+    #[test]
+    fn test_parse_algorithm_ecdh() {
+        let data = [0x12u8]; // ECDH
+        assert_eq!(parse_algorithm_attributes(&data), "ECDH (Cv25519)");
+    }
+
+    #[test]
+    fn test_parse_algorithm_empty() {
+        assert_eq!(parse_algorithm_attributes(&[]), "Unknown");
     }
 }

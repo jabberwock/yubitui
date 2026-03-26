@@ -1,5 +1,4 @@
 use anyhow::Result;
-use std::process::Command;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -21,25 +20,131 @@ pub struct KeyInfo {
     pub key_attributes: String,
 }
 
+/// Read OpenPGP card state via native PC/SC GET DATA APDUs.
+///
+/// Uses:
+///   - AID select response for firmware version
+///   - GET DATA 0x6E for fingerprints and algorithm attributes (TLV-parsed)
+///   - GET DATA 0x65 for cardholder name (tag 0x5B)
+///   - GET DATA 0x5F50 for URL of public key
+///
+/// On any connect failure, returns OpenPgpState with card_present=false.
+#[allow(dead_code)]
 pub fn get_openpgp_state() -> Result<OpenPgpState> {
-    let output = Command::new("gpg").arg("--no-tty").arg("--batch").arg("--card-status").output()?;
+    let (card, aid_data) = match super::card::connect_to_openpgp_card() {
+        Ok(pair) => pair,
+        Err(_) => {
+            return Ok(OpenPgpState {
+                card_present: false,
+                version: String::new(),
+                signature_key: None,
+                encryption_key: None,
+                authentication_key: None,
+                cardholder_name: None,
+                public_key_url: None,
+            });
+        }
+    };
 
-    if !output.status.success() {
-        return Ok(OpenPgpState {
-            card_present: false,
-            version: String::new(),
-            signature_key: None,
-            encryption_key: None,
-            authentication_key: None,
-            cardholder_name: None,
-            public_key_url: None,
+    // Version from AID bytes 6-7
+    let version = if aid_data.len() >= 8 {
+        format!("{}.{}", aid_data[6], aid_data[7])
+    } else {
+        String::new()
+    };
+
+    // GET DATA 0x6E — Application Related Data (TLV-constructed)
+    let app_data = match super::card::get_data(&card, 0x00, 0x6E) {
+        Ok(d) => d,
+        Err(_) => {
+            return Ok(OpenPgpState {
+                card_present: true,
+                version,
+                signature_key: None,
+                encryption_key: None,
+                authentication_key: None,
+                cardholder_name: None,
+                public_key_url: None,
+            });
+        }
+    };
+
+    // Navigate into Discretionary Data Objects (tag 0x73)
+    let disc = super::card::tlv_find(&app_data, 0x73);
+
+    let (sig_fp, enc_fp, aut_fp, sig_algo, enc_algo, aut_algo) = if let Some(d) = disc {
+        (
+            super::card::tlv_find(d, 0xC7).map(|b| b.to_vec()),
+            super::card::tlv_find(d, 0xC8).map(|b| b.to_vec()),
+            super::card::tlv_find(d, 0xC9).map(|b| b.to_vec()),
+            super::card::tlv_find(d, 0xC1).map(|b| b.to_vec()),
+            super::card::tlv_find(d, 0xC2).map(|b| b.to_vec()),
+            super::card::tlv_find(d, 0xC3).map(|b| b.to_vec()),
+        )
+    } else {
+        (None, None, None, None, None, None)
+    };
+
+    let signature_key = build_key_info(sig_fp.as_deref(), sig_algo.as_deref());
+    let encryption_key = build_key_info(enc_fp.as_deref(), enc_algo.as_deref());
+    let authentication_key = build_key_info(aut_fp.as_deref(), aut_algo.as_deref());
+
+    // GET DATA 0x65 — Cardholder Related Data
+    let cardholder_name = super::card::get_data(&card, 0x00, 0x65)
+        .ok()
+        .and_then(|ch_data| {
+            super::card::tlv_find(&ch_data, 0x5B).and_then(|name_bytes| {
+                let name = String::from_utf8_lossy(name_bytes).trim().to_string();
+                if name.is_empty() { None } else { Some(name) }
+            })
         });
-    }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_card_status(&stdout)
+    // GET DATA 0x5F50 — URL of public key
+    let public_key_url = super::card::get_data_2byte_tag(&card, 0x5F, 0x50)
+        .ok()
+        .and_then(|url_bytes| {
+            if url_bytes.is_empty() {
+                None
+            } else {
+                let url = String::from_utf8_lossy(&url_bytes).trim().to_string();
+                if url.is_empty() { None } else { Some(url) }
+            }
+        });
+
+    Ok(OpenPgpState {
+        card_present: true,
+        version,
+        signature_key,
+        encryption_key,
+        authentication_key,
+        cardholder_name,
+        public_key_url,
+    })
 }
 
+/// Build a KeyInfo from raw fingerprint bytes and algorithm attribute bytes.
+/// Returns None if the fingerprint is all-zeros or absent (no key in slot).
+#[allow(dead_code)]
+fn build_key_info(fp_bytes: Option<&[u8]>, algo_bytes: Option<&[u8]>) -> Option<KeyInfo> {
+    let fp_bytes = fp_bytes?;
+    if fp_bytes.iter().all(|&b| b == 0) {
+        return None;
+    }
+    let fingerprint = super::detection::format_fingerprint(fp_bytes);
+    if fingerprint.is_empty() {
+        return None;
+    }
+    let key_attributes = algo_bytes
+        .map(super::detection::parse_algorithm_attributes)
+        .unwrap_or_else(|| "Unknown".to_string());
+    Some(KeyInfo {
+        fingerprint,
+        created: None,
+        key_attributes,
+    })
+}
+
+#[allow(dead_code)]
 pub fn parse_card_status(output: &str) -> Result<OpenPgpState> {
     let mut signature_key = None;
     let mut encryption_key = None;

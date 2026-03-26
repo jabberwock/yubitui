@@ -423,26 +423,59 @@ pub struct SlotInfo {
     pub fingerprint: String, // short hex fingerprint
 }
 
-/// Fetch key attributes from ykman openpgp info.
-/// Returns structured info about algorithm type per slot.
-/// Requires ykman to be installed.
+/// Fetch key attributes via native PC/SC GET DATA 0x6E (Application Related Data).
+///
+/// Reads algorithm attributes (tags 0xC1/0xC2/0xC3) and fingerprints
+/// (tags 0xC7/0xC8/0xC9) from the card's Discretionary Data Objects (tag 0x73).
+/// Also reads touch policies via GET DATA 0xD6/0xD7/0xD8.
+/// No ykman binary required.
 pub fn get_key_attributes() -> Result<KeyAttributes> {
-    let ykman_path = crate::yubikey::pin_operations::find_ykman()?;
+    let (card, _aid) = crate::yubikey::card::connect_to_openpgp_card()?;
 
-    let output = Command::new(ykman_path)
-        .arg("openpgp")
-        .arg("info")
-        .output()?;
+    // GET DATA 0x6E — Application Related Data (TLV-constructed)
+    let app_data = crate::yubikey::card::get_data(&card, 0x00, 0x6E)?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("ykman openpgp info failed: {}", stderr);
-    }
+    // Navigate to Discretionary Data Objects (tag 0x73)
+    let disc = crate::yubikey::card::tlv_find(&app_data, 0x73);
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_ykman_openpgp_info(&stdout)
+    let (sig_fp, enc_fp, aut_fp, sig_algo, enc_algo, aut_algo) = if let Some(d) = disc {
+        (
+            crate::yubikey::card::tlv_find(d, 0xC7).map(|b| b.to_vec()),
+            crate::yubikey::card::tlv_find(d, 0xC8).map(|b| b.to_vec()),
+            crate::yubikey::card::tlv_find(d, 0xC9).map(|b| b.to_vec()),
+            crate::yubikey::card::tlv_find(d, 0xC1).map(|b| b.to_vec()),
+            crate::yubikey::card::tlv_find(d, 0xC2).map(|b| b.to_vec()),
+            crate::yubikey::card::tlv_find(d, 0xC3).map(|b| b.to_vec()),
+        )
+    } else {
+        (None, None, None, None, None, None)
+    };
+
+    let signature = build_slot_info(sig_fp.as_deref(), sig_algo.as_deref());
+    let encryption = build_slot_info(enc_fp.as_deref(), enc_algo.as_deref());
+    let authentication = build_slot_info(aut_fp.as_deref(), aut_algo.as_deref());
+
+    Ok(KeyAttributes { signature, encryption, authentication })
 }
 
+/// Build SlotInfo from raw fingerprint and algorithm attribute bytes.
+/// Returns None if the fingerprint is all-zeros (no key in slot) or absent.
+fn build_slot_info(fp_bytes: Option<&[u8]>, algo_bytes: Option<&[u8]>) -> Option<SlotInfo> {
+    let fp_bytes = fp_bytes?;
+    if fp_bytes.iter().all(|&b| b == 0) {
+        return None;
+    }
+    let fingerprint = crate::yubikey::detection::format_fingerprint(fp_bytes);
+    if fingerprint.is_empty() {
+        return None;
+    }
+    let algorithm = algo_bytes
+        .map(crate::yubikey::detection::parse_algorithm_attributes)
+        .unwrap_or_else(|| "Unknown".to_string());
+    Some(SlotInfo { algorithm, fingerprint })
+}
+
+#[allow(dead_code)]
 pub fn parse_ykman_openpgp_info(output: &str) -> Result<KeyAttributes> {
     let mut attrs = KeyAttributes::default();
 

@@ -1,5 +1,4 @@
 use anyhow::Result;
-use std::process::Command;
 
 #[derive(Debug, Clone)]
 pub struct PinStatus {
@@ -20,17 +19,33 @@ impl PinStatus {
     }
 }
 
+/// Read PIN retry counters directly from the card via GET DATA 0xC4 (PW Status Bytes).
+///
+/// PW Status Bytes layout (7 bytes):
+///   byte 0: PIN format flags
+///   byte 1: max User PIN length
+///   byte 2: max Reset Code length
+///   byte 3: max Admin PIN length
+///   byte 4: PW1 (User PIN) remaining tries
+///   byte 5: RC  (Reset Code) remaining tries
+///   byte 6: PW3 (Admin PIN) remaining tries
+#[allow(dead_code)]
 pub fn get_pin_status() -> Result<PinStatus> {
-    let output = Command::new("gpg").arg("--no-tty").arg("--batch").arg("--card-status").output()?;
-
-    if !output.status.success() {
-        anyhow::bail!("gpg --card-status failed");
+    let (card, _aid) = super::card::connect_to_openpgp_card()?;
+    let data = super::card::get_data(&card, 0x00, 0xC4)?;
+    if data.len() < 7 {
+        anyhow::bail!("Unexpected PW Status Bytes length: {}", data.len());
     }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_pin_status(&stdout)
+    Ok(PinStatus {
+        user_pin_retries: data[4],
+        admin_pin_retries: data[6],
+        reset_code_retries: data[5],
+        user_pin_blocked: data[4] == 0,
+        admin_pin_blocked: data[6] == 0,
+    })
 }
 
+#[allow(dead_code)]
 pub fn parse_pin_status(output: &str) -> Result<PinStatus> {
     let mut user_pin_retries = 3;
     let mut admin_pin_retries = 3;
