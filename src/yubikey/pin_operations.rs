@@ -1,5 +1,4 @@
 use anyhow::Result;
-use std::path::PathBuf;
 use std::process::Command;
 
 /// Result of a programmatic PIN operation, containing success flag and
@@ -224,33 +223,6 @@ fn run_gpg_pin_operation(
 
     Ok(PinOperationResult { success, messages })
 }
-
-/// Find ykman binary. Tries PATH first, then well-known Windows location.
-///
-/// Kept for use by factory_reset_openpgp; Plan 03 will fully remove this.
-#[allow(dead_code)]
-pub fn find_ykman() -> Result<PathBuf> {
-    // Try PATH first -- spawn a simple version check
-    if let Ok(output) = Command::new("ykman").arg("--version").output() {
-        if output.status.success() {
-            return Ok(PathBuf::from("ykman"));
-        }
-    }
-
-    // Well-known Windows location
-    #[cfg(target_os = "windows")]
-    {
-        let path = PathBuf::from(r"C:\Program Files\Yubico\YubiKey Manager\ykman.exe");
-        if path.exists() {
-            return Ok(path);
-        }
-    }
-
-    anyhow::bail!(
-        "ykman not found. Install from https://www.yubico.com/support/download/yubikey-manager/"
-    )
-}
-
 
 /// Hardware factory reset of the OpenPGP application via direct PC/SC APDU.
 ///

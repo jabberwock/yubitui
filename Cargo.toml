@@ -21,9 +21,6 @@ ratatui = "0.29"
 crossterm = { version = "0.28", features = ["event-stream"] }
 
 # YubiKey Communication
-yubikey = { version = "0.8", features = ["untested"] }
-openpgp-card = "0.5"
-card-backend-pcsc = "0.5"
 pcsc = "2.8"
 
 # Async Runtime

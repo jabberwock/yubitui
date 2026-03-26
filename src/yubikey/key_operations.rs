@@ -626,37 +626,26 @@ fn save_slot(attrs: &mut KeyAttributes, slot: &str, algo: &str, fp: &str) {
 }
 
 /// Get SSH public key as text without interactive terminal output.
-/// Uses gpg --export-ssh-key to get the key in authorized_keys format.
+///
+/// Reads the authentication key fingerprint via native PC/SC GET DATA (no gpg --card-status),
+/// then exports the SSH public key from the GPG keyring using gpg --export-ssh-key.
 pub fn get_ssh_public_key_text() -> Result<String> {
-    // First get the authentication key fingerprint from card status
-    let card_output = Command::new("gpg").arg("--no-tty").arg("--batch").arg("--card-status").output()?;
+    // Get the authentication key fingerprint from the card via native PC/SC.
+    let states = crate::yubikey::YubiKeyState::detect_all()
+        .map_err(|e| anyhow::anyhow!("Could not read card state: {e}"))?;
 
-    if !card_output.status.success() {
-        anyhow::bail!("Could not read card status");
-    }
-
-    let stdout = String::from_utf8_lossy(&card_output.stdout);
-
-    // Find authentication key fingerprint
-    // Look for line after "Authentication key" containing fingerprint
-    let mut found_auth = false;
-    let mut auth_fp = String::new();
-    for line in stdout.lines() {
-        if line.contains("Authentication key") {
-            // The fingerprint is on the next non-empty line or same line
-            // Format varies: "Authentication key ....: XXXX XXXX XXXX..."
-            if let Some(fp_part) = line.split(':').nth(1) {
-                auth_fp = fp_part.trim().replace(' ', "");
-                if !auth_fp.is_empty() {
-                    found_auth = true;
-                }
-            }
-        }
-    }
-
-    if !found_auth || auth_fp.is_empty() {
-        anyhow::bail!("No authentication key found on card. Import or generate a key first.");
-    }
+    let auth_fp = states
+        .into_iter()
+        .find_map(|s| {
+            s.openpgp
+                .as_ref()
+                .and_then(|o| o.authentication_key.as_ref())
+                .map(|k| k.fingerprint.clone())
+        })
+        .filter(|fp| !fp.is_empty())
+        .ok_or_else(|| {
+            anyhow::anyhow!("No authentication key found on card. Import or generate a key first.")
+        })?;
 
     // Export as SSH key using the fingerprint.
     // `--` prevents the fingerprint from being interpreted as a flag.
@@ -681,11 +670,55 @@ pub fn get_ssh_public_key_text() -> Result<String> {
     Ok(key)
 }
 
-/// View card status
+/// View card status — reads card state via native PC/SC APDUs and formats it as
+/// human-readable text. No gpg --card-status subprocess call.
 pub fn view_card_status() -> Result<String> {
-    let output = Command::new("gpg").arg("--no-tty").arg("--batch").arg("--card-status").output()?;
+    let states = crate::yubikey::YubiKeyState::detect_all()
+        .map_err(|e| anyhow::anyhow!("Could not read card state: {e}"))?;
 
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    if states.is_empty() {
+        anyhow::bail!("No YubiKey detected. Make sure your YubiKey is inserted.");
+    }
+
+    let mut lines = Vec::new();
+    for (i, s) in states.iter().enumerate() {
+        if i > 0 {
+            lines.push(String::new());
+        }
+        if states.len() > 1 {
+            lines.push(format!("YubiKey {} of {}:", i + 1, states.len()));
+        }
+        lines.push(format!("Serial number: {}", s.info.serial));
+        lines.push(format!(
+            "Firmware:      {}.{}.{}",
+            s.info.version.major, s.info.version.minor, s.info.version.patch
+        ));
+        lines.push(format!("Model:         {:?}", s.info.model));
+        lines.push(format!(
+            "PIN retries:   User={} Admin={} Reset={}",
+            s.pin_status.user_pin_retries,
+            s.pin_status.admin_pin_retries,
+            s.pin_status.reset_code_retries,
+        ));
+        if let Some(ref openpgp) = s.openpgp {
+            let fp_or = |k: &Option<crate::yubikey::openpgp::KeyInfo>| {
+                k.as_ref()
+                    .map(|i| i.fingerprint.as_str())
+                    .unwrap_or("[none]")
+                    .to_string()
+            };
+            lines.push(format!("Sig key:       {}", fp_or(&openpgp.signature_key)));
+            lines.push(format!("Enc key:       {}", fp_or(&openpgp.encryption_key)));
+            lines.push(format!("Aut key:       {}", fp_or(&openpgp.authentication_key)));
+            if let Some(ref name) = openpgp.cardholder_name {
+                if !name.is_empty() {
+                    lines.push(format!("Name:          {}", name));
+                }
+            }
+        }
+    }
+
+    Ok(lines.join("\n"))
 }
 
 /// List available GPG keys that can be imported
