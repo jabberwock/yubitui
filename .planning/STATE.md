@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: Completed 08-05-PLAN.md (Dashboard + Keys screen migration, all 7 screens migrated)
-last_updated: "2026-03-27T14:12:22.610Z"
+stopped_at: Completed 08-06-PLAN.md (Pilot tests + insta snapshots for all 7 textual-rs screens)
+last_updated: "2026-03-27T14:20:00.000Z"
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 
 ## Current Position
 
-Phase: 08 (textual-rs-migration) — EXECUTING
-Plan: 6 of 6
+Phase: 08 (textual-rs-migration) — COMPLETE
+Plan: 6 of 6 (all plans executed)
 
 ## Performance Metrics
 
@@ -66,6 +66,8 @@ Plan: 6 of 6
 - [Phase 08]: PinManagementScreen uses push_screen_deferred+ModalScreen for all wizard sub-screens (change/admin/reset/unblock)
 - [Phase 08]: textual-rs App runner handles 'q' quit and Ctrl+T theme globally — on_action does not re-implement these
 - [Phase 08]: KeyState.pin_input removed — pushed PinInputWidget screen replaces inline state in textual-rs model
+- [Phase 08-06]: Snapshot dimensions 80x24 over 120x40 — standard terminal width produces realistic snapshots
+- [Phase 08-06]: Pilot navigation tests: pilot.press() + settle() + snapshot captures full screen-push rendering
 
 ### Roadmap Evolution
 
@@ -81,6 +83,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T14:12:22.608Z
-Stopped at: Completed 08-05-PLAN.md (Dashboard + Keys screen migration, all 7 screens migrated)
+Last session: 2026-03-27T14:20:00.000Z
+Stopped at: Completed 08-06-PLAN.md (Pilot tests + insta snapshots for all 7 textual-rs screens)
 Resume file: None
