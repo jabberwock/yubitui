@@ -83,7 +83,7 @@ Plans:
 - [x] 08-01-PLAN.md — Dependency upgrade (ratatui 0.30 + crossterm 0.29 + textual-rs 0.2) + delete ClickRegion + retire tmux E2E
 - [x] 08-02-PLAN.md — Replace app.rs event loop with textual-rs App runner + theme/config modules + migrate Help screen
 - [ ] 08-03-PLAN.md — Migrate Diagnostics, PIV, and SSH screens to textual-rs Widgets
-- [ ] 08-04-PLAN.md — Port pin_input/popup widgets + migrate PIN Management screen
+- [x] 08-04-PLAN.md — Port pin_input/popup widgets + migrate PIN Management screen
 - [ ] 08-05-PLAN.md — Migrate Dashboard (root screen) + Keys screen (most complex, with KeyGenWizard)
 - [ ] 08-06-PLAN.md — Pilot-based tests for all 7 screens + snapshot re-acceptance + human verification
 **UI hint**: yes
