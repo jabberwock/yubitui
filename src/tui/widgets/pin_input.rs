@@ -4,6 +4,8 @@
 //! as masked dots (●). Supports Tab navigation between fields, Enter to submit,
 //! and Esc to cancel.
 
+#![allow(dead_code)]
+
 use std::cell::RefCell;
 
 use textual_rs::{Widget, Input, Label, Vertical, Footer};
@@ -242,4 +244,91 @@ impl Widget for PinInputWidget {
     fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {
         // Layout and content are handled by compose() children.
     }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy ratatui free function — used by unmigrated keys.rs screen.
+// Removed in plan 08-05 when keys.rs is migrated to textual-rs.
+// ---------------------------------------------------------------------------
+
+/// Compute a centered rect from `area` using percentage width and fixed height.
+fn centered_area_legacy(area: ratatui::layout::Rect, width_pct: u16, height: u16) -> ratatui::layout::Rect {
+    let v_margin = (area.height.saturating_sub(height)) / 2;
+    let vertical = ratatui::layout::Layout::default()
+        .direction(ratatui::layout::Direction::Vertical)
+        .constraints([
+            ratatui::layout::Constraint::Length(v_margin),
+            ratatui::layout::Constraint::Length(height),
+            ratatui::layout::Constraint::Min(0),
+        ])
+        .split(area);
+
+    let horizontal = ratatui::layout::Layout::default()
+        .direction(ratatui::layout::Direction::Horizontal)
+        .constraints([
+            ratatui::layout::Constraint::Percentage((100 - width_pct) / 2),
+            ratatui::layout::Constraint::Percentage(width_pct),
+            ratatui::layout::Constraint::Percentage((100 - width_pct) / 2),
+        ])
+        .split(vertical[1]);
+
+    horizontal[1]
+}
+
+/// Render the PIN input form as a centered popup over `area` (legacy ratatui function).
+/// Used by keys.rs until it is migrated in plan 08-05.
+pub fn render_pin_input(frame: &mut ratatui::Frame, area: ratatui::layout::Rect, state: &PinInputState) {
+    use ratatui::{
+        prelude::*,
+        widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    };
+
+    let field_count = state.fields.len() as u16;
+    let height = 2 + field_count * 2 + 2 + if state.error_message.is_some() { 1 } else { 0 };
+    let popup_area = centered_area_legacy(area, 50, height);
+    frame.render_widget(Clear, popup_area);
+
+    let mut lines: Vec<ratatui::text::Line> = Vec::new();
+    for field in &state.fields {
+        lines.push(ratatui::text::Line::from(ratatui::text::Span::raw(field.label.clone())));
+        let dots: String = "\u{25cf}".repeat(field.value.len());
+        let value_display = if field.active {
+            format!("{}\u{2588}", dots)
+        } else {
+            dots
+        };
+        let style = if field.active {
+            ratatui::style::Style::default().fg(ratatui::style::Color::Yellow)
+        } else {
+            ratatui::style::Style::default()
+        };
+        lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(value_display, style)));
+    }
+    lines.push(ratatui::text::Line::from(""));
+
+    let submit_hint = if state.all_filled() {
+        "[Enter] Submit"
+    } else {
+        "[Enter] Next field"
+    };
+    lines.push(ratatui::text::Line::from(format!(
+        "[Tab] Next field  {}  [Esc] Cancel",
+        submit_hint
+    )));
+
+    if let Some(err) = &state.error_message {
+        lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(
+            err.clone(),
+            ratatui::style::Style::default().fg(ratatui::style::Color::Red),
+        )));
+    }
+
+    let text = ratatui::text::Text::from(lines);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(state.title.clone());
+    let paragraph = Paragraph::new(text)
+        .block(block)
+        .wrap(Wrap { trim: false });
+    frame.render_widget(paragraph, popup_area);
 }

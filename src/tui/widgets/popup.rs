@@ -6,6 +6,9 @@
 //! This module provides:
 //! - `PopupScreen` — a generic titled popup with body text and a Close button.
 //! - `ConfirmScreen` — a confirmation dialog with Cancel (default) and Confirm buttons.
+//! - Legacy ratatui free functions (kept for unmigrated screens — removed in 08-05/08-06).
+
+#![allow(dead_code)]
 
 use std::cell::Cell;
 
@@ -192,4 +195,128 @@ impl Widget for ConfirmScreen {
     }
 
     fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+}
+
+// ---------------------------------------------------------------------------
+// Legacy ratatui free functions — used by unmigrated screens (keys.rs, dashboard.rs).
+// These will be removed when those screens are migrated in plans 08-05 and 08-06.
+// ---------------------------------------------------------------------------
+
+use ratatui::{
+    prelude::*,
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
+};
+
+/// Compute a centered rect from the given area using percentage width and fixed height.
+fn centered_area_legacy(
+    area: ratatui::layout::Rect,
+    width_pct: u16,
+    height: u16,
+) -> ratatui::layout::Rect {
+    let vertical = ratatui::layout::Layout::default()
+        .direction(ratatui::layout::Direction::Vertical)
+        .constraints([
+            ratatui::layout::Constraint::Percentage((100 - height.min(100)) / 2),
+            ratatui::layout::Constraint::Length(height),
+            ratatui::layout::Constraint::Percentage((100 - height.min(100)) / 2),
+        ])
+        .split(area);
+
+    let horizontal = ratatui::layout::Layout::default()
+        .direction(ratatui::layout::Direction::Horizontal)
+        .constraints([
+            ratatui::layout::Constraint::Percentage((100 - width_pct) / 2),
+            ratatui::layout::Constraint::Percentage(width_pct),
+            ratatui::layout::Constraint::Percentage((100 - width_pct) / 2),
+        ])
+        .split(vertical[1]);
+
+    horizontal[1]
+}
+
+/// Render a generic popup with a title and body text, centered on screen.
+pub fn render_popup(
+    frame: &mut ratatui::Frame,
+    area: ratatui::layout::Rect,
+    title: &str,
+    body: &str,
+    width_pct: u16,
+    height: u16,
+) {
+    let popup_area = centered_area_legacy(area, width_pct, height);
+    frame.render_widget(Clear, popup_area);
+    let paragraph = Paragraph::new(body)
+        .block(Block::default().borders(Borders::ALL).title(title))
+        .wrap(Wrap { trim: true });
+    frame.render_widget(paragraph, popup_area);
+}
+
+/// Render a confirmation dialog with [Y]es / [N]o prompt.
+pub fn render_confirm_dialog(
+    frame: &mut ratatui::Frame,
+    area: ratatui::layout::Rect,
+    title: &str,
+    message: &str,
+    destructive: bool,
+) {
+    let popup_area = centered_area_legacy(area, 60, 8);
+    frame.render_widget(Clear, popup_area);
+
+    let (block_title, body_text) = if destructive {
+        let styled_title = format!("WARNING: {}", title);
+        let body = format!("{}\n\n[Y] Yes  [N] No", message);
+        (styled_title, body)
+    } else {
+        let body = format!("{}\n\n[Y] Yes  [N] No", message);
+        (title.to_string(), body)
+    };
+
+    let title_style = if destructive {
+        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default()
+    };
+
+    let paragraph = Paragraph::new(body_text)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(block_title)
+                .title_style(title_style),
+        )
+        .wrap(Wrap { trim: true });
+    frame.render_widget(paragraph, popup_area);
+}
+
+/// Render a context menu (floating list) at a given position.
+pub fn render_context_menu(
+    frame: &mut ratatui::Frame,
+    area: ratatui::layout::Rect,
+    title: &str,
+    items: &[&str],
+    selected_index: usize,
+) -> ratatui::layout::Rect {
+    let height = (items.len() as u16).saturating_add(2);
+    let popup_area = centered_area_legacy(area, 40, height);
+    frame.render_widget(Clear, popup_area);
+
+    let list_items: Vec<ListItem> = items
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            if i == selected_index {
+                ListItem::new(format!("> {}", item)).style(
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                )
+            } else {
+                ListItem::new(format!("  {}", item))
+            }
+        })
+        .collect();
+
+    let list = List::new(list_items).block(Block::default().borders(Borders::ALL).title(title));
+    frame.render_widget(list, popup_area);
+    popup_area
 }
