@@ -1,12 +1,11 @@
 use textual_rs::{Widget, Header, Label, Footer};
+use textual_rs::widget::button::{Button, messages as btn_messages};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
 use crossterm::event::{KeyCode, KeyModifiers, KeyEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-
-use crate::tui::widgets::nav_button;
 
 use crate::model::AppState;
 use crate::diagnostics::Diagnostics;
@@ -216,12 +215,12 @@ impl Widget for DashboardScreen {
         children.push(Box::new(Label::new("")));
 
         // Navigation buttons (D-06: all navigable elements are Buttons)
-        children.push(Box::new(nav_button::NavButton::new("[1] Open Keys", "nav_1")));
-        children.push(Box::new(nav_button::NavButton::new("[2] Diagnostics", "nav_2")));
-        children.push(Box::new(nav_button::NavButton::new("[3] PIN Management", "nav_3")));
-        children.push(Box::new(nav_button::NavButton::new("[4] SSH Setup", "nav_4")));
-        children.push(Box::new(nav_button::NavButton::new("[5] PIV Certificates", "nav_5")));
-        children.push(Box::new(nav_button::NavButton::new("[6] Help", "nav_6")));
+        children.push(Box::new(Button::new("[1] Open Keys")));
+        children.push(Box::new(Button::new("[2] Diagnostics")));
+        children.push(Box::new(Button::new("[3] PIN Management")));
+        children.push(Box::new(Button::new("[4] SSH Setup")));
+        children.push(Box::new(Button::new("[5] PIV Certificates")));
+        children.push(Box::new(Button::new("[6] Help")));
 
         children.push(Box::new(Footer));
         children
@@ -232,12 +231,19 @@ impl Widget for DashboardScreen {
     }
 
     fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
-        // NavButton activation (Enter/Space/click on a focused nav button)
-        if let Some(activated) = event.downcast_ref::<nav_button::messages::Activated>() {
-            self.on_action(&activated.action, ctx);
+        if let Some(pressed) = event.downcast_ref::<btn_messages::Pressed>() {
+            let action = match pressed.label.as_str() {
+                "[1] Open Keys"        => "nav_1",
+                "[2] Diagnostics"      => "nav_2",
+                "[3] PIN Management"   => "nav_3",
+                "[4] SSH Setup"        => "nav_4",
+                "[5] PIV Certificates" => "nav_5",
+                "[6] Help"             => "nav_6",
+                _ => return EventPropagation::Continue,
+            };
+            self.on_action(action, ctx);
             return EventPropagation::Stop;
         }
-        // Keyboard shortcuts: bubbled KeyEvents dispatched against key_bindings()
         if let Some(key) = event.downcast_ref::<KeyEvent>() {
             for binding in self.key_bindings() {
                 if binding.matches(key.code, key.modifiers) {
