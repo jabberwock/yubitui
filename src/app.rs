@@ -600,7 +600,7 @@ impl App {
 
     fn execute_keygen_batch(&mut self) -> Result<()> {
         use crate::tui::keys::{KeyGenStep, KeyScreen};
-        use crate::model::key_operations::generate_key_batch;
+        use crate::model::key_operations::{generate_key_batch, import_key_programmatic};
 
         let admin_pin = self
             .key_state
@@ -629,18 +629,46 @@ impl App {
         self.key_state.pin_input = None;
 
         match generate_key_batch(&params, &admin_pin) {
-            Ok(result) => {
-                let msg = if result.success {
-                    let mut parts = result.messages.clone();
-                    if let Some(fp) = &result.fingerprint {
+            Ok(gen_result) => {
+                let mut parts = gen_result.messages.clone();
+
+                if gen_result.success {
+                    if let Some(ref fp) = gen_result.fingerprint {
+                        // Key created in local keyring with %no-protection.
+                        // Transfer it to the card now. The key has no passphrase
+                        // (empty string) because %no-protection was used. The admin
+                        // PIN collected by the wizard is the card admin PIN.
+                        self.key_state.operation_status =
+                            Some("Transferring key to card...".to_string());
+                        match import_key_programmatic(fp, "", &admin_pin) {
+                            Ok(import_result) => {
+                                parts.push(format!(
+                                    "Card: {}",
+                                    import_result.format_slots()
+                                ));
+                                let all_failed = !import_result.sig_filled
+                                    && !import_result.enc_filled
+                                    && !import_result.aut_filled;
+                                if all_failed {
+                                    parts.push(
+                                        "Key transfer to card failed — key remains in local keyring."
+                                            .to_string(),
+                                    );
+                                }
+                                parts.extend(import_result.messages);
+                            }
+                            Err(e) => {
+                                parts.push(format!("Key transfer error: {}", e));
+                            }
+                        }
                         parts.push(format!("Fingerprint: {}", fp));
                     }
-                    if parts.is_empty() { "Key generated successfully.".to_string() } else { parts.join("\n") }
-                } else {
-                    let msgs = if result.messages.is_empty() { vec!["Key generation failed.".to_string()] } else { result.messages };
-                    msgs.join("\n")
-                };
-                self.key_state.message = Some(msg);
+                } else if parts.is_empty() {
+                    parts.push("Key generation failed.".to_string());
+                }
+
+                self.key_state.message =
+                    Some(if parts.is_empty() { "Key generated and transferred to card.".to_string() } else { parts.join("\n") });
                 if let Some(ref mut w) = self.key_state.keygen_wizard { w.step = KeyGenStep::Result; }
                 self.key_state.screen = KeyScreen::KeyOperationResult;
                 if !self.state.mock_mode {
