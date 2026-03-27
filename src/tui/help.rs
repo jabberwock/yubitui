@@ -4,6 +4,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
+#[derive(Clone, Debug)]
 pub enum HelpAction {
     None,
     Close,

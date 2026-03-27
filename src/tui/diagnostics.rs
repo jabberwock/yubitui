@@ -6,6 +6,7 @@ use ratatui::{
 
 use crate::diagnostics::Diagnostics;
 
+#[derive(Clone, Debug)]
 pub enum DiagnosticsAction {
     None,
     NavigateTo(crate::model::Screen),

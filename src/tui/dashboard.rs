@@ -12,6 +12,7 @@ pub struct DashboardState {
     pub menu_selected_index: usize,
 }
 
+#[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub enum DashboardAction {
     None,
