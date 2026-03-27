@@ -78,7 +78,14 @@ Plans:
   4. User can select a theme from the available textual-rs built-ins (tokyo-night, nord, gruvbox, dracula, catppuccin) via a setting
   5. All existing mouse click navigation and keyboard shortcuts continue to work identically after migration
   6. CI passes on Linux/macOS/Windows with the new renderer
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 08-01-PLAN.md — Dependency upgrade (ratatui 0.30 + crossterm 0.29 + textual-rs 0.2) + delete ClickRegion + retire tmux E2E
+- [ ] 08-02-PLAN.md — Replace app.rs event loop with textual-rs App runner + theme/config modules + migrate Help screen
+- [ ] 08-03-PLAN.md — Migrate Diagnostics, PIV, and SSH screens to textual-rs Widgets
+- [ ] 08-04-PLAN.md — Port pin_input/popup widgets + migrate PIN Management screen
+- [ ] 08-05-PLAN.md — Migrate Dashboard (root screen) + Keys screen (most complex, with KeyGenWizard)
+- [ ] 08-06-PLAN.md — Pilot-based tests for all 7 screens + snapshot re-acceptance + human verification
 **UI hint**: yes
 
 ### Phase 9: OATH/TOTP Screen
@@ -133,7 +140,7 @@ Plans:
 | 5. Native Card Protocol | v1.0 | 6/6 | Complete | 2026-03-26 |
 | 6. Tech Debt + Infrastructure | v1.1 | 1/3 | In Progress|  |
 | 7. Mouse Support + E2E Test Harness | v1.1 | 3/4 | In Progress|  |
-| 8. textual-rs Migration | v1.1 | 0/TBD | Not started | - |
+| 8. textual-rs Migration | v1.1 | 0/6 | Not started | - |
 | 9. OATH/TOTP Screen | v1.1 | 0/TBD | Not started | - |
 | 10. FIDO2 Screen | v1.1 | 0/TBD | Not started | - |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
