@@ -83,9 +83,9 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 
 ### Active
 
-- [ ] Full mouse support (click, scroll — currently broken)
-- [ ] Model/View architectural separation (no ratatui in business logic)
-- [ ] Tmux-based E2E test suite
+- ✓ Full mouse support (click navigation + scroll — region-based dispatch) — Phase 07
+- ✓ Model/View architectural separation (no ratatui in business logic) — Phase 06
+- ✓ Tmux-based E2E test suite (6 smoke tests + 15 insta snapshots) — Phase 07
 - [ ] Feature parity with Yubico Authenticator (TOTP/HOTP, FIDO/FIDO2, OTP slots)
 - [ ] In-TUI protocol education (PIV, FIDO, FIDO2, OpenPGP, SSH, TOTP, OTP/HOTP)
 - [ ] New user onboarding flow
@@ -135,4 +135,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-26 — v1.1 milestone started*
+*Last updated: 2026-03-27 — Phase 07 complete (mouse support + E2E harness)*
