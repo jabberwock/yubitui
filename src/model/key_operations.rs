@@ -387,6 +387,21 @@ pub fn import_key_programmatic(key_id: &str, key_passphrase: &str, admin_pin: &s
             }
         }
 
+        // For passphrase-protected keys, flush the gpg-agent passphrase cache for
+        // this keygrip before starting the keytocard session. When the cache is warm
+        // (from a prior gpg operation in this session) gpg issues only ONE
+        // passphrase.enter prompt — the card Admin PIN — without asking for the key
+        // passphrase at all. With the cache cleared gpg always asks for the key
+        // passphrase first (prompt 1) then the Admin PIN (prompt 2), making the
+        // prompt count deterministic so run_keytocard_session can distinguish them.
+        // CLEAR_PASSPHRASE is a no-op if the keygrip is not currently cached.
+        if !keygrip.is_empty() && !key_passphrase.is_empty() {
+            let _ = Command::new("gpg-connect-agent")
+                .arg(format!("CLEAR_PASSPHRASE {}", keygrip))
+                .arg("/bye")
+                .output();
+        }
+
         let ok = run_keytocard_session(key_id, key_passphrase, admin_pin, subkey_idx, slot, &mut all_messages)?;
         match (label, ok) {
             ("SIG", true) => sig_filled = true,

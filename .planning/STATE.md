@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
-status: Ready to plan
-stopped_at: Completed 07-04-PLAN.md (insta snapshot tests for all 7 screens)
-last_updated: "2026-03-27T03:49:47.545Z"
+status: Ready to execute
+stopped_at: Completed 08-02-PLAN.md (textual-rs App runner + Help screen migration)
+last_updated: "2026-03-27T13:33:34.447Z"
 progress:
-  total_phases: 5
+  total_phases: 7
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 13
+  completed_plans: 9
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Zero-friction YubiKey management — detect problems automatically, guide users through fixes
-**Current focus:** Phase 07 — mouse-support-e2e-test-harness
+**Current focus:** Phase 08 — textual-rs-migration
 
 ## Current Position
 
-Phase: 8
-Plan: Not started
+Phase: 08 (textual-rs-migration) — EXECUTING
+Plan: 3 of 6
 
 ## Performance Metrics
 
@@ -56,6 +56,14 @@ Plan: Not started
 - [Phase 07-02]: std::mem::take(&mut click_regions) in render() to resolve borrow checker conflict; render() signature changed to &mut self
 - [Phase 07-mouse-support-e2e-test-harness]: dashboard::render() decoupled to &AppState — enables test isolation without constructing full App
 - [Phase 07-mouse-support-e2e-test-harness]: ssh::render() had unused _app: &App parameter — removed entirely (simpler, no data needed)
+- [Phase 08]: textual-rs not on crates.io — use git dep (jabberwock/textual-rs); update to registry version when published
+- [Phase 08]: ratatui 0.30 upgrade had zero breaking changes in yubitui codebase — cargo check passed immediately after dep bump
+- [Phase 08-02]: app.rs is now thin pub fn run() — old App struct and crossterm event loop fully deleted; HelpScreen uses compose() with Label widgets for display-only content
+- [Phase 08-02]: Theme names verified against actual textual-rs builtin_themes(): use gruvbox-dark and catppuccin-mocha (not gruvbox/catppuccin)
+
+### Roadmap Evolution
+
+- Phase 11 added: yubikey slot delete workflow — no delete workflow exists for OpenPGP/PIV slots without factory reset
 
 ### Pending Todos
 
@@ -67,6 +75,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T03:45:07.957Z
-Stopped at: Completed 07-04-PLAN.md (insta snapshot tests for all 7 screens)
+Last session: 2026-03-27T13:33:34.445Z
+Stopped at: Completed 08-02-PLAN.md (textual-rs App runner + Help screen migration)
 Resume file: None
