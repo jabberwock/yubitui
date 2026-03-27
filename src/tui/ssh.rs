@@ -91,7 +91,7 @@ impl Widget for SshWizardScreen {
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
-        let state = self.state.get();
+        let state = self.state.get_untracked();
 
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("SSH Setup Wizard")),
@@ -339,7 +339,7 @@ impl Widget for SshWizardScreen {
     fn on_action(&self, action: &str, ctx: &AppContext) {
         match action {
             "back" => {
-                let current = self.state.get().screen;
+                let current = self.state.get_untracked().screen;
                 if current == SshScreen::Main {
                     ctx.pop_screen_deferred();
                 } else {

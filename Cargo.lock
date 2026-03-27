@@ -2279,7 +2279,6 @@ dependencies = [
 [[package]]
 name = "textual-rs"
 version = "0.1.0"
-source = "git+https://github.com/jabberwock/textual-rs#84e01b65e7ff54d150c7be51554db6459df44bd1"
 dependencies = [
  "any_spawner",
  "anyhow",
@@ -2303,7 +2302,6 @@ dependencies = [
 [[package]]
 name = "textual-rs-macros"
 version = "0.1.0"
-source = "git+https://github.com/jabberwock/textual-rs#84e01b65e7ff54d150c7be51554db6459df44bd1"
 dependencies = [
  "proc-macro2",
  "quote",
