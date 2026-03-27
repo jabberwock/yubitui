@@ -403,3 +403,35 @@ fn render_operation_screen(
         .wrap(ratatui::widgets::Wrap { trim: true });
     frame.render_widget(paragraph, chunks[1]);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+    use ratatui::{backend::TestBackend, Terminal};
+
+    #[test]
+    fn ssh_main_screen() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let state = SshState::default();
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &state, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+
+    #[test]
+    fn ssh_enable_screen() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = SshState::default();
+        state.screen = SshScreen::EnableSSH;
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &state, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+}

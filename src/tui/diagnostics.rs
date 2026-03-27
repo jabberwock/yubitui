@@ -152,3 +152,23 @@ pub fn render(frame: &mut Frame, area: Rect, diagnostics: &Diagnostics, click_re
         ),
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+    use ratatui::{backend::TestBackend, Terminal};
+    use crate::diagnostics::Diagnostics;
+
+    #[test]
+    fn diagnostics_default() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let diag = Diagnostics::default();
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &diag, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+}

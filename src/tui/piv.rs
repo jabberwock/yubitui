@@ -110,3 +110,34 @@ pub fn render(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState
         ),
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+    use ratatui::{backend::TestBackend, Terminal};
+    use crate::model::mock::mock_yubikey_states;
+
+    #[test]
+    fn piv_default_state() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let yk = mock_yubikey_states().into_iter().next();
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &yk, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+
+    #[test]
+    fn piv_no_yubikey() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &None, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+}

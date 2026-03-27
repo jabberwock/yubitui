@@ -751,3 +751,50 @@ fn render_operation_screen(
         .wrap(ratatui::widgets::Wrap { trim: true });
     frame.render_widget(paragraph, chunks[1]);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+    use ratatui::{backend::TestBackend, Terminal};
+    use crate::model::mock::mock_yubikey_states;
+
+    #[test]
+    fn pin_default_state() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let yk = mock_yubikey_states().into_iter().next();
+        let state = PinState::default();
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &yk, &state, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+
+    #[test]
+    fn pin_no_yubikey() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let state = PinState::default();
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &None, &state, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+
+    #[test]
+    fn pin_unblock_wizard() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let yk = mock_yubikey_states().into_iter().next();
+        let mut state = PinState::default();
+        state.screen = PinScreen::UnblockWizardCheck;
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &yk, &state, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+}
