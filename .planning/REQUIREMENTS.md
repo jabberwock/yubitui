@@ -23,7 +23,7 @@
 - [x] **TEST-01**: E2E test harness exists under `tests/e2e/` using tmux `send-keys`/`capture-pane` — runs without YubiKey hardware using `--mock` flag
 - [x] **TEST-02**: All existing screens have at least one tmux E2E smoke test covering navigation and key interactions
 - [x] **TEST-03**: New screens (OATH, FIDO2, OTP) each have tmux E2E tests written before or alongside implementation (TDD)
-- [ ] **TEST-04**: Ratatui TestBackend + insta snapshot tests cover rendering of each screen's key states
+- [x] **TEST-04**: Ratatui TestBackend + insta snapshot tests cover rendering of each screen's key states
 
 ### OATH / TOTP
 
@@ -112,7 +112,7 @@
 | TEST-01 | Phase 7 | Complete |
 | TEST-02 | Phase 7 | Complete |
 | TEST-03 | Phase 7 | Complete |
-| TEST-04 | Phase 7 | Pending |
+| TEST-04 | Phase 7 | Complete |
 | OATH-01 | Phase 8 | Pending |
 | OATH-02 | Phase 8 | Pending |
 | OATH-03 | Phase 8 | Pending |

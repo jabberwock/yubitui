@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
-status: Ready to execute
-stopped_at: Completed 07-02-PLAN.md (mouse click dispatch + scroll support)
-last_updated: "2026-03-27T03:39:17.351Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 07-04-PLAN.md (insta snapshot tests for all 7 screens)
+last_updated: "2026-03-27T03:45:07.959Z"
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -54,6 +54,8 @@ Plan: 4 of 4 (07-01, 07-03 complete)
 - [Phase 07-02]: PivTuiState/DiagnosticsTuiState created as TUI-layer structs — model::piv::PivState is card hardware data; no DiagnosticsState existed; followed SshState/KeyState pattern
 - [Phase 07-02]: render_context_menu returns Rect so dashboard registers per-item click regions without recomputing centered_area geometry
 - [Phase 07-02]: std::mem::take(&mut click_regions) in render() to resolve borrow checker conflict; render() signature changed to &mut self
+- [Phase 07-mouse-support-e2e-test-harness]: dashboard::render() decoupled to &AppState — enables test isolation without constructing full App
+- [Phase 07-mouse-support-e2e-test-harness]: ssh::render() had unused _app: &App parameter — removed entirely (simpler, no data needed)
 
 ### Pending Todos
 
@@ -65,6 +67,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T03:39:17.349Z
-Stopped at: Completed 07-02-PLAN.md (mouse click dispatch + scroll support)
+Last session: 2026-03-27T03:45:07.957Z
+Stopped at: Completed 07-04-PLAN.md (insta snapshot tests for all 7 screens)
 Resume file: None

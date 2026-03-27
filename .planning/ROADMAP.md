@@ -63,7 +63,7 @@ Plans:
 - [x] 07-01-PLAN.md — ClickRegion types + action enum Clone + AppState field + ConPTY graceful degradation
 - [x] 07-02-PLAN.md — Wire all 7 screens for mouse click regions + region-based dispatch + scroll
 - [x] 07-03-PLAN.md — tmux E2E test harness (6 screen smoke tests + run_all.sh driver)
-- [ ] 07-04-PLAN.md — insta snapshot tests for all screens + decouple dashboard/ssh from &App
+- [x] 07-04-PLAN.md — insta snapshot tests for all screens + decouple dashboard/ssh from &App
 **UI hint**: yes
 
 ### Phase 8: OATH/TOTP Screen
