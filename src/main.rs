@@ -8,7 +8,6 @@ mod tui;
 mod utils;
 mod model;
 
-use app::App;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -88,8 +87,7 @@ fn main() -> Result<()> {
     }
 
     // Run the TUI application
-    let mut app = App::new(args.mock)?;
-    app.run()?;
+    app::run(args.mock)?;
 
     Ok(())
 }
