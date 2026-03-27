@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to plan
-stopped_at: Completed 06-03-PLAN.md (--mock flag, mock fixture, mock status bar, 50ms sleep audit)
-last_updated: "2026-03-26T20:36:00.339Z"
+stopped_at: Completed 07-01-PLAN.md (ClickRegion types, Clone on action enums, AppState field, ConPTY graceful degradation)
+last_updated: "2026-03-27T06:03:00Z"
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 7
+  completed_plans: 4
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 ## Current Position
 
 Phase: 7
-Plan: Not started
+Plan: 2 of 4 (07-01 complete)
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Plan: Not started
 - [Phase 06-tech-debt-infrastructure]: firmware=None in DeviceInfo now returns Model::Unknown (not YubiKeyNeo); openpgp_version is OpenPGP spec version, never hardware firmware fallback
 - [Phase 06-tech-debt-infrastructure]: Mock fixture is hardcoded Rust struct — no file I/O, deterministic for CI; --mock flag passes through App::new() and guards all detect_all() call sites
 - [Phase 06-tech-debt-infrastructure]: 50ms sleep after kill_scdaemon() is now present at all card APDU entry points (detection.rs and factory_reset gaps fixed)
+- [Phase 07-01]: ClickAction placed in src/model/click_region.rs referencing tui action enums; cross-layer reference valid within single Rust crate; From<Rect> for Region in tui/mod.rs as sole Rect conversion boundary; EnableMouseCapture wrapped in if-let-Err for Windows ConPTY graceful degradation
 
 ### Pending Todos
 
@@ -59,6 +60,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-26T20:19:45.687Z
-Stopped at: Completed 06-03-PLAN.md (--mock flag, mock fixture, mock status bar, 50ms sleep audit)
+Last session: 2026-03-27T06:03:00Z
+Stopped at: Completed 07-01-PLAN.md (ClickRegion types, Clone on action enums, AppState field, ConPTY graceful degradation)
 Resume file: None
