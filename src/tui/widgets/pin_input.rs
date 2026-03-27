@@ -4,12 +4,16 @@
 //! as masked dots (●). Supports Tab navigation between fields, Enter to submit,
 //! and Esc to cancel.
 
-use ratatui::{
-    prelude::*,
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
-};
+#![allow(dead_code)]
 
-use crossterm::event::KeyCode;
+use std::cell::RefCell;
+
+use textual_rs::{Widget, Input, Label, Vertical, Footer};
+use textual_rs::widget::context::AppContext;
+use textual_rs::event::keybinding::KeyBinding;
+use crossterm::event::{KeyCode, KeyModifiers};
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
 
 /// A single PIN input field with a label and masked value buffer.
 #[allow(dead_code)]
@@ -145,81 +149,181 @@ impl PinInputState {
     }
 }
 
+/// textual-rs Widget wrapping a multi-field masked PIN input form.
+///
+/// Used by sub-screens in PinScreen (ChangeUserPin, ChangeAdminPin, etc.).
+/// The widget renders a vertical list of labelled password Input fields plus
+/// a Footer showing Tab/Enter/Esc bindings.
+pub struct PinInputWidget {
+    /// Immutable form spec: field labels and form title.
+    field_labels: Vec<String>,
+    title: String,
+    /// Error message to show below the form (e.g. "All fields required").
+    error_message: RefCell<Option<String>>,
+    /// True after on_action("cancel") — parent checks this to dismiss.
+    pub cancelled: RefCell<bool>,
+}
+
+impl PinInputWidget {
+    pub fn new(title: &str, field_labels: &[&str]) -> Self {
+        Self {
+            field_labels: field_labels.iter().map(|s| s.to_string()).collect(),
+            title: title.to_string(),
+            error_message: RefCell::new(None),
+            cancelled: RefCell::new(false),
+        }
+    }
+}
+
+impl Widget for PinInputWidget {
+    fn widget_type_name(&self) -> &'static str {
+        "PinInputWidget"
+    }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let mut children: Vec<Box<dyn Widget>> = Vec::new();
+
+        children.push(Box::new(
+            textual_rs::Header::new(&self.title)
+        ));
+
+        for label in &self.field_labels {
+            children.push(Box::new(
+                Vertical::with_children(vec![
+                    Box::new(Label::new(label.as_str())),
+                    Box::new(Input::new("").with_password()),
+                ])
+            ));
+        }
+
+        // Error message line — shown when validation fails.
+        if let Some(err) = self.error_message.borrow().as_ref() {
+            children.push(Box::new(Label::new(format!("Error: {}", err).as_str())));
+        }
+
+        children.push(Box::new(Footer));
+        children
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        &[
+            KeyBinding {
+                key: KeyCode::Tab,
+                modifiers: KeyModifiers::NONE,
+                action: "next_field",
+                description: "Next field",
+                show: true,
+            },
+            KeyBinding {
+                key: KeyCode::Enter,
+                modifiers: KeyModifiers::NONE,
+                action: "submit",
+                description: "Submit",
+                show: true,
+            },
+            KeyBinding {
+                key: KeyCode::Esc,
+                modifiers: KeyModifiers::NONE,
+                action: "cancel",
+                description: "Cancel",
+                show: true,
+            },
+        ]
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "cancel" => {
+                *self.cancelled.borrow_mut() = true;
+                ctx.pop_screen_deferred();
+            }
+            _ => {}
+        }
+    }
+
+    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {
+        // Layout and content are handled by compose() children.
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy ratatui free function — used by unmigrated keys.rs screen.
+// Removed in plan 08-05 when keys.rs is migrated to textual-rs.
+// ---------------------------------------------------------------------------
+
 /// Compute a centered rect from `area` using percentage width and fixed height.
-fn centered_area(area: Rect, width_pct: u16, height: u16) -> Rect {
+fn centered_area_legacy(area: ratatui::layout::Rect, width_pct: u16, height: u16) -> ratatui::layout::Rect {
     let v_margin = (area.height.saturating_sub(height)) / 2;
-    let vertical = Layout::default()
-        .direction(Direction::Vertical)
+    let vertical = ratatui::layout::Layout::default()
+        .direction(ratatui::layout::Direction::Vertical)
         .constraints([
-            Constraint::Length(v_margin),
-            Constraint::Length(height),
-            Constraint::Min(0),
+            ratatui::layout::Constraint::Length(v_margin),
+            ratatui::layout::Constraint::Length(height),
+            ratatui::layout::Constraint::Min(0),
         ])
         .split(area);
 
-    let horizontal = Layout::default()
-        .direction(Direction::Horizontal)
+    let horizontal = ratatui::layout::Layout::default()
+        .direction(ratatui::layout::Direction::Horizontal)
         .constraints([
-            Constraint::Percentage((100 - width_pct) / 2),
-            Constraint::Percentage(width_pct),
-            Constraint::Percentage((100 - width_pct) / 2),
+            ratatui::layout::Constraint::Percentage((100 - width_pct) / 2),
+            ratatui::layout::Constraint::Percentage(width_pct),
+            ratatui::layout::Constraint::Percentage((100 - width_pct) / 2),
         ])
         .split(vertical[1]);
 
     horizontal[1]
 }
 
-/// Render the PIN input form as a centered popup over `area`.
-///
-/// - Each field shows a label line and a masked value line (dots or dots + cursor).
-/// - The active field is highlighted in yellow.
-/// - A hint line shows available key actions.
-/// - If `state.error_message` is set, it is shown in red below the hint.
-#[allow(dead_code)]
-pub fn render_pin_input(frame: &mut Frame, area: Rect, state: &PinInputState) {
+/// Render the PIN input form as a centered popup over `area` (legacy ratatui function).
+/// Used by keys.rs until it is migrated in plan 08-05.
+pub fn render_pin_input(frame: &mut ratatui::Frame, area: ratatui::layout::Rect, state: &PinInputState) {
+    use ratatui::{
+        prelude::*,
+        widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    };
+
     let field_count = state.fields.len() as u16;
-    // Height: border top (1) + per-field label+value (2 each) + blank after fields (1) + hint (1) + error maybe (1) + border bottom (1)
     let height = 2 + field_count * 2 + 2 + if state.error_message.is_some() { 1 } else { 0 };
-    let popup_area = centered_area(area, 50, height);
+    let popup_area = centered_area_legacy(area, 50, height);
     frame.render_widget(Clear, popup_area);
 
-    // Build body text
-    let mut lines: Vec<Line> = Vec::new();
+    let mut lines: Vec<ratatui::text::Line> = Vec::new();
     for field in &state.fields {
-        lines.push(Line::from(Span::raw(field.label.clone())));
-        let dots: String = "●".repeat(field.value.len());
+        lines.push(ratatui::text::Line::from(ratatui::text::Span::raw(field.label.clone())));
+        let dots: String = "\u{25cf}".repeat(field.value.len());
         let value_display = if field.active {
-            format!("{}\u{2588}", dots) // cursor block
+            format!("{}\u{2588}", dots)
         } else {
             dots
         };
         let style = if field.active {
-            Style::default().fg(Color::Yellow)
+            ratatui::style::Style::default().fg(ratatui::style::Color::Yellow)
         } else {
-            Style::default()
+            ratatui::style::Style::default()
         };
-        lines.push(Line::from(Span::styled(value_display, style)));
+        lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(value_display, style)));
     }
-    lines.push(Line::from("")); // blank separator
+    lines.push(ratatui::text::Line::from(""));
 
     let submit_hint = if state.all_filled() {
         "[Enter] Submit"
     } else {
         "[Enter] Next field"
     };
-    lines.push(Line::from(format!(
+    lines.push(ratatui::text::Line::from(format!(
         "[Tab] Next field  {}  [Esc] Cancel",
         submit_hint
     )));
 
     if let Some(err) = &state.error_message {
-        lines.push(Line::from(Span::styled(
+        lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(
             err.clone(),
-            Style::default().fg(Color::Red),
+            ratatui::style::Style::default().fg(ratatui::style::Color::Red),
         )));
     }
 
-    let text = Text::from(lines);
+    let text = ratatui::text::Text::from(lines);
     let block = Block::default()
         .borders(Borders::ALL)
         .title(state.title.clone());
