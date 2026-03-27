@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 Production-Ready** — Phases 1–5 (shipped 2026-03-26)
-- 🚧 **v1.1 Accessible to New Users** — Phases 6–10 (in progress)
+- 🚧 **v1.1 Accessible to New Users** — Phases 6–12 (in progress)
 
 ## Phases
 
@@ -26,9 +26,10 @@ See full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 - [ ] **Phase 6: Tech Debt + Infrastructure** - Pay v1.0 debt, Model/View split, mock mode, CI lint enforcement
 - [ ] **Phase 7: Mouse Support + E2E Test Harness** - Working click navigation, ClickRegionMap, tmux E2E tests, snapshot tests
-- [ ] **Phase 8: OATH/TOTP Screen** - Full OATH credential management with live TOTP codes and countdown timer
-- [ ] **Phase 9: FIDO2 Screen** - FIDO2 info, PIN management, resident credential list/delete, reset
-- [ ] **Phase 10: OTP Slots + Education + Onboarding** - OTP slot view, per-screen help panels, protocol glossary, new user onboarding flow
+- [ ] **Phase 8: textual-rs Migration** - Replace raw ratatui composition with textual-rs component model across all 7 screens; retire tmux harness for Pilot tests
+- [ ] **Phase 9: OATH/TOTP Screen** - Full OATH credential management with live TOTP codes and countdown timer, built in textual-rs
+- [ ] **Phase 10: FIDO2 Screen** - FIDO2 info, PIN management, resident credential list/delete, reset
+- [ ] **Phase 11: OTP Slots + Education + Onboarding** - OTP slot view, per-screen help panels, protocol glossary, new user onboarding flow
 
 ## Phase Details
 
@@ -66,9 +67,23 @@ Plans:
 - [x] 07-04-PLAN.md — insta snapshot tests for all screens + decouple dashboard/ssh from &App
 **UI hint**: yes
 
-### Phase 8: OATH/TOTP Screen
+### Phase 8: textual-rs Migration
+**Goal**: All 7 existing screens are rebuilt as textual-rs components — rule-of-thirds layout, visible keybindings via Footer, explicit Button click targets, user-configurable themes — while src/model/ is untouched
+**Depends on**: Phase 7
+**Requirements**: INFRA-03 (model/view boundary preserved through migration)
+**Success Criteria** (what must be TRUE):
+  1. All 7 screens (Dashboard, Keys, Pin, SSH, Diagnostics, PIV, Help) render via textual-rs components — no raw ratatui widget composition remains in src/tui/
+  2. src/model/ is byte-for-byte unchanged — zero model layer changes required by the migration
+  3. tmux E2E harness is retired; all screen coverage replaced by textual-rs Pilot-based tests in cargo test
+  4. User can select a theme from the available textual-rs built-ins (tokyo-night, nord, gruvbox, dracula, catppuccin) via a setting
+  5. All existing mouse click navigation and keyboard shortcuts continue to work identically after migration
+  6. CI passes on Linux/macOS/Windows with the new renderer
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 9: OATH/TOTP Screen
 **Goal**: Users can manage all their OATH credentials directly in the TUI — view live codes, add accounts, delete stale ones, and be prompted for OATH password when needed
-**Depends on**: Phase 6
+**Depends on**: Phase 8
 **Requirements**: OATH-01, OATH-02, OATH-03, OATH-04, OATH-05, OATH-06
 **Success Criteria** (what must be TRUE):
   1. User can open the OATH screen and see all stored credentials with their current TOTP or HOTP codes
@@ -79,9 +94,9 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 9: FIDO2 Screen
+### Phase 10: FIDO2 Screen
 **Goal**: Users can inspect, configure, and recover their FIDO2 security key directly in the TUI — no need for external tools
-**Depends on**: Phase 6
+**Depends on**: Phase 8
 **Requirements**: FIDO-01, FIDO-02, FIDO-03, FIDO-04, FIDO-05, FIDO-06, FIDO-07
 **Success Criteria** (what must be TRUE):
   1. User can open the FIDO2 screen and see firmware version, supported algorithms, PIN status (set or not set), and PIN retry count
@@ -94,9 +109,9 @@ Plans:
 **Research flag**: yes — CTAP2 credential enumeration and management over HID has MEDIUM confidence; spike on ctap-hid-fido2 credential management API before locking full plan scope
 **UI hint**: yes
 
-### Phase 10: OTP Slots + Education + Onboarding
+### Phase 11: OTP Slots + Education + Onboarding
 **Goal**: Users can see their OTP slot configuration, get in-TUI explanations of every protocol on every screen, and new users are guided through initial device setup
-**Depends on**: Phase 8, Phase 9
+**Depends on**: Phase 9, Phase 10
 **Requirements**: OTP-01, EDU-01, EDU-02, EDU-03, EDU-04
 **Success Criteria** (what must be TRUE):
   1. User can open the OTP slots screen and see whether slot 1 and slot 2 are occupied and what type each contains (Yubico OTP, static password, HMAC-SHA1, or empty)
@@ -118,9 +133,10 @@ Plans:
 | 5. Native Card Protocol | v1.0 | 6/6 | Complete | 2026-03-26 |
 | 6. Tech Debt + Infrastructure | v1.1 | 1/3 | In Progress|  |
 | 7. Mouse Support + E2E Test Harness | v1.1 | 3/4 | In Progress|  |
-| 8. OATH/TOTP Screen | v1.1 | 0/TBD | Not started | - |
-| 9. FIDO2 Screen | v1.1 | 0/TBD | Not started | - |
-| 10. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
+| 8. textual-rs Migration | v1.1 | 0/TBD | Not started | - |
+| 9. OATH/TOTP Screen | v1.1 | 0/TBD | Not started | - |
+| 10. FIDO2 Screen | v1.1 | 0/TBD | Not started | - |
+| 11. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
 
 ## Backlog
 
@@ -133,3 +149,13 @@ Plans:
 - Application enable/disable toggle (enterprise niche — deferred to v2)
 - Backup/restore workflows (deferred to v2)
 - Reactive ratatui rendering engine (app.rs componentization — future milestone)
+
+### Phase 12: yubikey slot delete workflow
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 11
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 12 to break down)
