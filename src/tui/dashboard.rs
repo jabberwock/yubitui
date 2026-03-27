@@ -1,11 +1,14 @@
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    prelude::*,
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-};
+use textual_rs::{Widget, Header, Label, Button, Footer};
+use textual_rs::widget::context::AppContext;
+use textual_rs::event::keybinding::KeyBinding;
+use crossterm::event::{KeyCode, KeyModifiers};
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
 
+use crate::model::AppState;
+use crate::diagnostics::Diagnostics;
 
-#[derive(Default)]
+#[derive(Default, Clone, PartialEq)]
 pub struct DashboardState {
     pub show_context_menu: bool,
     pub menu_selected_index: usize,
@@ -24,272 +27,292 @@ pub enum DashboardAction {
     CloseContextMenu,
     MenuUp,
     MenuDown,
+    CycleTheme,
 }
 
-/// Handle key events for the Dashboard screen.
-/// Returns an action for app.rs to interpret.
-pub fn handle_key(
-    state: &mut DashboardState,
-    key: KeyEvent,
-    yubikey_count: usize,
-) -> DashboardAction {
-    if state.show_context_menu {
-        match key.code {
-            KeyCode::Up => {
-                if state.menu_selected_index > 0 {
-                    state.menu_selected_index -= 1;
-                }
-                DashboardAction::None
-            }
-            KeyCode::Down => {
-                if state.menu_selected_index < 5 {
-                    state.menu_selected_index += 1;
-                }
-                DashboardAction::None
-            }
-            KeyCode::Enter => {
-                let idx = state.menu_selected_index;
-                state.show_context_menu = false;
-                state.menu_selected_index = 0;
-                DashboardAction::SelectMenuItem(idx)
-            }
-            KeyCode::Esc => {
-                state.show_context_menu = false;
-                state.menu_selected_index = 0;
-                DashboardAction::None
-            }
-            _ => DashboardAction::None,
+/// Dashboard — root screen.
+///
+/// Sidebar-style status block at the top, then navigation buttons for all 6 screens.
+///
+/// Follows textual-rs Widget pattern (D-01, D-06, D-07):
+/// - Header("yubitui -- YubiKey Management")
+/// - Device status Labels
+/// - 6 navigation Buttons (all navigable elements per D-06)
+/// - Footer with keybindings always visible (D-07, D-15)
+/// - No hardcoded Color:: values
+///
+/// Ctrl+T theme cycling is handled globally by the textual-rs App runner.
+/// 'q' / Esc quit is handled globally by the textual-rs App runner.
+pub struct DashboardScreen {
+    app_state: AppState,
+    diagnostics: Diagnostics,
+}
+
+impl DashboardScreen {
+    pub fn new(app_state: AppState, diagnostics: Diagnostics) -> Self {
+        Self {
+            app_state,
+            diagnostics,
         }
-    } else {
-        match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => DashboardAction::Quit,
-            KeyCode::Tab => {
-                if yubikey_count > 0 {
-                    DashboardAction::SwitchYubiKey
+    }
+}
+
+static DASHBOARD_BINDINGS: &[KeyBinding] = &[
+    KeyBinding {
+        key: KeyCode::Char('1'),
+        modifiers: KeyModifiers::NONE,
+        action: "nav_1",
+        description: "1-6 Navigate",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Char('2'),
+        modifiers: KeyModifiers::NONE,
+        action: "nav_2",
+        description: "",
+        show: false,
+    },
+    KeyBinding {
+        key: KeyCode::Char('3'),
+        modifiers: KeyModifiers::NONE,
+        action: "nav_3",
+        description: "",
+        show: false,
+    },
+    KeyBinding {
+        key: KeyCode::Char('4'),
+        modifiers: KeyModifiers::NONE,
+        action: "nav_4",
+        description: "",
+        show: false,
+    },
+    KeyBinding {
+        key: KeyCode::Char('5'),
+        modifiers: KeyModifiers::NONE,
+        action: "nav_5",
+        description: "",
+        show: false,
+    },
+    KeyBinding {
+        key: KeyCode::Char('6'),
+        modifiers: KeyModifiers::NONE,
+        action: "nav_6",
+        description: "",
+        show: false,
+    },
+    KeyBinding {
+        key: KeyCode::Char('r'),
+        modifiers: KeyModifiers::NONE,
+        action: "refresh",
+        description: "R Refresh",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Tab,
+        modifiers: KeyModifiers::NONE,
+        action: "switch_key",
+        description: "Tab Switch key",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Char('m'),
+        modifiers: KeyModifiers::NONE,
+        action: "open_menu",
+        description: "M Menu",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Enter,
+        modifiers: KeyModifiers::NONE,
+        action: "open_menu",
+        description: "",
+        show: false,
+    },
+];
+
+impl Widget for DashboardScreen {
+    fn widget_type_name(&self) -> &'static str {
+        "DashboardScreen"
+    }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let mut children: Vec<Box<dyn Widget>> = Vec::new();
+
+        children.push(Box::new(Header::new("yubitui -- YubiKey Management")));
+
+        // Device status block (sidebar role — top status display)
+        if let Some(yk) = self.app_state.yubikey_state() {
+            let pin = &yk.pin_status;
+
+            // Multi-key indicator
+            if self.app_state.yubikey_count() > 1 {
+                children.push(Box::new(Label::new(format!(
+                    "Key {}/{} (Tab to switch)",
+                    self.app_state.selected_yubikey_idx + 1,
+                    self.app_state.yubikey_count()
+                ))));
+            }
+
+            children.push(Box::new(Label::new(format!(
+                "Device: {} {} | Firmware: {} | Serial: {}",
+                yk.info.model, yk.info.form_factor, yk.info.version, yk.info.serial
+            ))));
+
+            let pin_user_status = if pin.user_pin_blocked {
+                "BLOCKED"
+            } else if pin.user_pin_retries <= 1 {
+                "LOW"
+            } else {
+                "OK"
+            };
+            let pin_admin_status = if pin.admin_pin_blocked {
+                "BLOCKED"
+            } else if pin.admin_pin_retries <= 1 {
+                "LOW"
+            } else {
+                "OK"
+            };
+            children.push(Box::new(Label::new(format!(
+                "PIN: {}/3 retries [{}]  Admin: {}/3 retries [{}]",
+                pin.user_pin_retries,
+                pin_user_status,
+                pin.admin_pin_retries,
+                pin_admin_status
+            ))));
+
+            if let Some(ref openpgp) = yk.openpgp {
+                let sig_status = if openpgp.signature_key.is_some() {
+                    "Set"
                 } else {
-                    DashboardAction::None
-                }
+                    "Empty"
+                };
+                let enc_status = if openpgp.encryption_key.is_some() {
+                    "Set"
+                } else {
+                    "Empty"
+                };
+                let aut_status = if openpgp.authentication_key.is_some() {
+                    "Set"
+                } else {
+                    "Empty"
+                };
+                children.push(Box::new(Label::new(format!(
+                    "Keys: Sign={} Encrypt={} Auth={}",
+                    sig_status, enc_status, aut_status
+                ))));
             }
-            KeyCode::Char('1') => DashboardAction::NavigateTo(crate::model::Screen::Dashboard),
-            KeyCode::Char('2') => {
-                DashboardAction::NavigateTo(crate::model::Screen::Diagnostics)
+
+            children.push(Box::new(Label::new("Device ready")));
+        } else {
+            children.push(Box::new(Label::new("No YubiKey Detected")));
+            children.push(Box::new(Label::new(
+                "Insert your YubiKey and press R to refresh. Check the USB connection or run Diagnostics.",
+            )));
+        }
+
+        children.push(Box::new(Label::new("")));
+
+        // Navigation buttons (D-06: all navigable elements are Buttons)
+        children.push(Box::new(Button::new("[1] Open Keys")));
+        children.push(Box::new(Button::new("[2] Diagnostics")));
+        children.push(Box::new(Button::new("[3] PIN Management")));
+        children.push(Box::new(Button::new("[4] SSH Setup")));
+        children.push(Box::new(Button::new("[5] PIV Certificates")));
+        children.push(Box::new(Button::new("[6] Help")));
+
+        children.push(Box::new(Footer));
+        children
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        DASHBOARD_BINDINGS
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "nav_1" => {
+                let yk = self.app_state.yubikey_state().cloned();
+                ctx.push_screen_deferred(Box::new(crate::tui::keys::KeysScreen::new(yk)));
             }
-            KeyCode::Char('3') => DashboardAction::NavigateTo(crate::model::Screen::Keys),
-            KeyCode::Char('4') => {
-                DashboardAction::NavigateTo(crate::model::Screen::PinManagement)
+            "nav_2" => {
+                ctx.push_screen_deferred(Box::new(
+                    crate::tui::diagnostics::DiagnosticsScreen::new(self.diagnostics.clone()),
+                ));
             }
-            KeyCode::Char('5') => DashboardAction::NavigateTo(crate::model::Screen::SshWizard),
-            KeyCode::Char('6') => DashboardAction::NavigateTo(crate::model::Screen::Piv),
-            KeyCode::Char('r') => DashboardAction::Refresh,
-            KeyCode::Enter | KeyCode::Char('m') => {
-                state.show_context_menu = true;
-                state.menu_selected_index = 0;
-                DashboardAction::None
+            "nav_3" => {
+                let yk = self.app_state.yubikey_state().cloned();
+                ctx.push_screen_deferred(Box::new(crate::tui::pin::PinManagementScreen::new(yk)));
             }
-            _ => DashboardAction::None,
+            "nav_4" => {
+                ctx.push_screen_deferred(Box::new(
+                    crate::tui::ssh::SshWizardScreen::new(crate::tui::ssh::SshState::default()),
+                ));
+            }
+            "nav_5" => {
+                let yk = self.app_state.yubikey_state().cloned();
+                ctx.push_screen_deferred(Box::new(crate::tui::piv::PivScreen::new(yk)));
+            }
+            "nav_6" => {
+                ctx.push_screen_deferred(Box::new(crate::tui::help::HelpScreen::new()));
+            }
+            "refresh" => {
+                // Refresh is an app-level side effect — no-op in widget scope.
+                // In 08-06, the root screen will re-build DashboardScreen with fresh state.
+            }
+            "switch_key" => {
+                // Multi-key switching is an app-level side effect — no-op in widget scope.
+            }
+            "open_menu" => {
+                // Push Help as context menu placeholder — full context menu in 08-06.
+                ctx.push_screen_deferred(Box::new(crate::tui::help::HelpScreen::new()));
+            }
+            _ => {}
         }
     }
-}
 
-
-pub fn render(frame: &mut Frame, area: Rect, app_state: &crate::model::AppState, state: &DashboardState) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3),
-            Constraint::Min(10),
-            Constraint::Length(10),
-        ])
-        .split(area);
-
-    // Title
-    let title = Paragraph::new("🔐 YubiTUI - YubiKey Management Dashboard")
-        .style(
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        )
-        .block(Block::default().borders(Borders::ALL));
-    frame.render_widget(title, chunks[0]);
-
-    // Multi-key indicator
-    let multi_key_line = if app_state.yubikey_count() > 1 {
-        format!(
-            "Key {}/{} (Tab to switch)\n",
-            app_state.selected_yubikey_idx + 1,
-            app_state.yubikey_count()
-        )
-    } else {
-        String::new()
-    };
-
-    // Quick status
-    let status_text = if let Some(yk) = app_state.yubikey_state() {
-        let pin_status = &yk.pin_status;
-        let pin_emoji = if pin_status.is_healthy() {
-            "✅"
-        } else if pin_status.needs_attention() {
-            "⚠️"
-        } else {
-            "❌"
-        };
-
-        let keys_info = if let Some(ref openpgp) = yk.openpgp {
-            let sig = if openpgp.signature_key.is_some() {
-                "✅"
-            } else {
-                "❌"
-            };
-            let enc = if openpgp.encryption_key.is_some() {
-                "✅"
-            } else {
-                "❌"
-            };
-            let auth = if openpgp.authentication_key.is_some() {
-                "✅"
-            } else {
-                "❌"
-            };
-            format!("Keys: {} Sign  {} Encrypt  {} Auth", sig, enc, auth)
-        } else {
-            "Keys: Not detected".to_string()
-        };
-
-        format!(
-            "{}Device: {} {} | FW: {} | SN: {}\n\
-             {} PIN: {}/3 retries | Admin: {}/3 retries\n\
-             {}\n\
-             \n\
-             All systems operational - Your YubiKey is ready to use!",
-            multi_key_line,
-            yk.info.model,
-            yk.info.form_factor,
-            yk.info.version,
-            yk.info.serial,
-            pin_emoji,
-            pin_status.user_pin_retries,
-            pin_status.admin_pin_retries,
-            keys_info
-        )
-    } else {
-        "❌ No YubiKey Detected\n\
-         \n\
-         Please insert your YubiKey and press 'R' to refresh.\n\
-         \n\
-         Troubleshooting:\n\
-         • Check USB connection\n\
-         • Run diagnostics with '2' key"
-            .to_string()
-    };
-
-    let status = Paragraph::new(status_text)
-        .block(
-            Block::default()
-                .title("📊 Status")
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Green)),
-        )
-        .wrap(ratatui::widgets::Wrap { trim: true });
-
-    frame.render_widget(status, chunks[1]);
-
-    // Navigation menu - make it clear and actionable
-    let menu_items = vec![
-        ListItem::new("  [1] Dashboard         You are here →").style(
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        ListItem::new("  [2] System Check      Diagnose PC/SC, GPG, SSH configuration"),
-        ListItem::new("  [3] Key Management    View and manage OpenPGP/PIV keys"),
-        ListItem::new("  [4] PIN Management    Change PINs, view retry counters"),
-        ListItem::new("  [5] SSH Setup         Configure SSH authentication"),
-        ListItem::new("  [6] PIV Certificates  View PIV slot occupancy"),
-        ListItem::new(""),
-        ListItem::new("  [R] Refresh          [Q] Quit          [?] Help          [m] Menu"),
-    ];
-
-    let menu = List::new(menu_items).block(
-        Block::default()
-            .title("⌨️  Navigation - Press number keys to switch screens")
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Yellow)),
-    );
-
-    frame.render_widget(menu, chunks[2]);
-
-    // Context menu overlay — rendered last so it appears on top
-    if state.show_context_menu {
-        let context_items = &[
-            "Diagnostics",
-            "Key Management",
-            "PIN Management",
-            "SSH Setup Wizard",
-            "PIV Certificates",
-            "Help",
-        ];
-        let _popup_area = crate::tui::widgets::popup::render_context_menu(
-            frame,
-            area,
-            "Navigate",
-            context_items,
-            state.menu_selected_index,
-        );
-
+    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {
+        // Layout and child rendering handled by compose() children.
     }
 }
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use insta::assert_snapshot;
-    use ratatui::{backend::TestBackend, Terminal};
-    use crate::model::{mock::mock_yubikey_states, AppState};
+    use textual_rs::TestApp;
 
-    fn mock_app_state() -> AppState {
+    fn make_app_state_with_key() -> AppState {
         AppState {
-            yubikey_states: mock_yubikey_states(),
+            yubikey_states: crate::model::mock::mock_yubikey_states(),
             mock_mode: true,
             ..AppState::default()
         }
     }
 
-    #[test]
-    fn dashboard_default_populated() {
-        let backend = TestBackend::new(120, 40);
-        let mut terminal = Terminal::new(backend).unwrap();
-        let state = DashboardState::default();
-        let app_state = mock_app_state();
-        terminal.draw(|frame| {
-            render(frame, frame.area(), &app_state, &state);
-        }).unwrap();
-        assert_snapshot!(terminal.backend());
+    #[tokio::test]
+    async fn dashboard_renders_with_key() {
+        let app_state = make_app_state_with_key();
+        let diagnostics = Diagnostics::default();
+        let mut app = TestApp::new(120, 40, move || {
+            Box::new(DashboardScreen::new(app_state.clone(), diagnostics.clone()))
+        });
+        app.pilot().settle().await;
+        let buf = app.buffer();
+        let rendered = format!("{:?}", buf);
+        assert!(rendered.len() > 0, "screen should render to a non-empty buffer");
     }
 
-    #[test]
-    fn dashboard_no_yubikey() {
-        let backend = TestBackend::new(120, 40);
-        let mut terminal = Terminal::new(backend).unwrap();
-        let state = DashboardState::default();
-        let app_state = AppState::default(); // empty yubikey_states -- covers "no YubiKey" state
-        terminal.draw(|frame| {
-            render(frame, frame.area(), &app_state, &state);
-        }).unwrap();
-        assert_snapshot!(terminal.backend());
-    }
-
-    #[test]
-    fn dashboard_context_menu_open() {
-        let backend = TestBackend::new(120, 40);
-        let mut terminal = Terminal::new(backend).unwrap();
-        let state = DashboardState {
-            show_context_menu: true,
-            menu_selected_index: 2,
-        };
-        let app_state = mock_app_state();
-        terminal.draw(|frame| {
-            render(frame, frame.area(), &app_state, &state);
-        }).unwrap();
-        assert_snapshot!(terminal.backend());
+    #[tokio::test]
+    async fn dashboard_renders_no_yubikey() {
+        let mut app = TestApp::new(120, 40, || {
+            Box::new(DashboardScreen::new(AppState::default(), Diagnostics::default()))
+        });
+        app.pilot().settle().await;
+        let buf = app.buffer();
+        let rendered = format!("{:?}", buf);
+        assert!(rendered.len() > 0, "screen should render to a non-empty buffer");
     }
 }

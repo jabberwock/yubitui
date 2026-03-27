@@ -18,7 +18,7 @@ pub fn run(mock: bool) -> Result<()> {
         YubiKeyState::detect_all().unwrap_or_default()
     };
 
-    let _app_state = AppState {
+    let app_state = AppState {
         yubikey_states,
         mock_mode: mock,
         ..AppState::default()
@@ -26,16 +26,11 @@ pub fn run(mock: bool) -> Result<()> {
 
     let theme = load_theme_from_config();
 
-    // TODO: RootScreen will be built in subsequent plans as screens are migrated.
-    // For now, start with Help screen as the first migrated widget.
     let mut app = App::new(move || {
-        Box::new(crate::tui::help::HelpScreen::new())
+        Box::new(crate::tui::dashboard::DashboardScreen::new(app_state.clone(), diagnostics.clone()))
     });
     app.set_theme(theme);
     app.run()?;
-
-    // diagnostics is kept alive through the run but not currently used
-    drop(diagnostics);
 
     Ok(())
 }
