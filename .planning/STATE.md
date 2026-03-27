@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
-status: Ready to plan
-stopped_at: Completed 06-03-PLAN.md (--mock flag, mock fixture, mock status bar, 50ms sleep audit)
-last_updated: "2026-03-26T20:36:00.339Z"
+status: Ready to execute
+stopped_at: "Completed 07-03-PLAN.md (E2E harness: helpers.sh with wait_for_text, 6 screen smoke tests, run_all.sh driver)"
+last_updated: "2026-03-27T03:23:03.970Z"
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 7
+  completed_plans: 4
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Zero-friction YubiKey management — detect problems automatically, guide users through fixes
-**Current focus:** Phase 06 — tech-debt-infrastructure
+**Current focus:** Phase 07 — mouse-support-e2e-test-harness
 
 ## Current Position
 
-Phase: 7
-Plan: Not started
+Phase: 07 (mouse-support-e2e-test-harness) — EXECUTING
+Plan: 2 of 4
 
 ## Performance Metrics
 
@@ -48,6 +48,8 @@ Plan: Not started
 - [Phase 06-tech-debt-infrastructure]: firmware=None in DeviceInfo now returns Model::Unknown (not YubiKeyNeo); openpgp_version is OpenPGP spec version, never hardware firmware fallback
 - [Phase 06-tech-debt-infrastructure]: Mock fixture is hardcoded Rust struct — no file I/O, deterministic for CI; --mock flag passes through App::new() and guards all detect_all() call sites
 - [Phase 06-tech-debt-infrastructure]: 50ms sleep after kill_scdaemon() is now present at all card APDU entry points (detection.rs and factory_reset gaps fixed)
+- [Phase 07-03]: wait_for_text retry loop (0.3s poll) replaces fixed sleep+assert — eliminates CI timing races in E2E tests
+- [Phase 07-03]: E2E smoke test pattern: start_session -> wait_for_text -> menu nav -> assert content -> Esc back -> cleanup -> echo PASS
 
 ### Pending Todos
 
@@ -59,6 +61,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-26T20:19:45.687Z
-Stopped at: Completed 06-03-PLAN.md (--mock flag, mock fixture, mock status bar, 50ms sleep audit)
+Last session: 2026-03-27T03:23:03.968Z
+Stopped at: Completed 07-03-PLAN.md (E2E harness: helpers.sh with wait_for_text, 6 screen smoke tests, run_all.sh driver)
 Resume file: None
