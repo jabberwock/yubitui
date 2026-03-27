@@ -6,6 +6,11 @@ use ratatui::{
 
 use crate::model::YubiKeyState;
 
+#[derive(Default)]
+pub struct PivTuiState {
+    pub scroll_offset: usize,
+}
+
 #[derive(Clone, Debug)]
 pub enum PivAction {
     None,

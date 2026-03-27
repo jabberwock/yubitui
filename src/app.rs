@@ -25,6 +25,8 @@ pub struct App {
     key_state: crate::tui::keys::KeyState,
     ssh_state: crate::tui::ssh::SshState,
     dashboard_state: crate::tui::dashboard::DashboardState,
+    piv_tui_state: crate::tui::piv::PivTuiState,
+    diagnostics_tui_state: crate::tui::diagnostics::DiagnosticsTuiState,
     import_task: Option<
         std::sync::mpsc::Receiver<anyhow::Result<crate::model::key_operations::ImportResult>>,
     >,
@@ -55,6 +57,8 @@ impl App {
             key_state: crate::tui::keys::KeyState::default(),
             ssh_state: crate::tui::ssh::SshState::default(),
             dashboard_state: crate::tui::dashboard::DashboardState::default(),
+            piv_tui_state: crate::tui::piv::PivTuiState::default(),
+            diagnostics_tui_state: crate::tui::diagnostics::DiagnosticsTuiState::default(),
             import_task: None,
         })
     }
@@ -148,15 +152,91 @@ impl App {
     }
 
     fn handle_mouse_event(&mut self, mouse: MouseEvent) -> Result<()> {
-        match self.state.current_screen {
-            Screen::Dashboard => {
-                let action =
-                    crate::tui::dashboard::handle_mouse(&mut self.dashboard_state, mouse);
-                self.execute_dashboard_action(action)?;
+        use crossterm::event::{MouseButton, MouseEventKind};
+        match mouse.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                let col = mouse.column;
+                let row = mouse.row;
+                // REVERSE iteration: last-pushed regions (popups/modals) are checked first.
+                // This is the "last-in-first-win" pattern that prevents click-through
+                // on overlapping UI elements like context menus over the dashboard.
+                if let Some(action) = self.state.click_regions.iter().rev()
+                    .find(|r| r.region.contains(col, row))
+                    .map(|r| r.action.clone())
+                {
+                    self.execute_click_action(action)?;
+                }
             }
+            MouseEventKind::ScrollUp => {
+                self.handle_scroll(true)?;
+            }
+            MouseEventKind::ScrollDown => {
+                self.handle_scroll(false)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn execute_click_action(&mut self, action: crate::model::click_region::ClickAction) -> Result<()> {
+        use crate::model::click_region::ClickAction;
+        match action {
+            ClickAction::Dashboard(a) => self.execute_dashboard_action(a)?,
+            ClickAction::Keys(a) => self.execute_key_action(a)?,
+            ClickAction::Pin(a) => self.execute_pin_action(a)?,
+            ClickAction::Piv(a) => self.execute_piv_action(a)?,
+            ClickAction::Ssh(a) => self.execute_ssh_action(a)?,
+            ClickAction::Diagnostics(a) => self.execute_diagnostics_action(a)?,
+            ClickAction::Help(a) => {
+                use crate::tui::help::HelpAction;
+                match a {
+                    HelpAction::Close => {
+                        self.state.current_screen = self.state.previous_screen;
+                    }
+                    HelpAction::None => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_scroll(&mut self, up: bool) -> Result<()> {
+        match self.state.current_screen {
             Screen::Keys => {
-                let action = crate::tui::keys::handle_mouse(&mut self.key_state, mouse);
-                self.execute_key_action(action)?;
+                if up {
+                    if self.key_state.selected_key_index > 0 {
+                        self.key_state.selected_key_index -= 1;
+                    }
+                } else {
+                    let max = self.key_state.available_keys.len().saturating_sub(1);
+                    if self.key_state.selected_key_index < max {
+                        self.key_state.selected_key_index += 1;
+                    }
+                }
+            }
+            Screen::Piv => {
+                if up {
+                    self.piv_tui_state.scroll_offset = self.piv_tui_state.scroll_offset.saturating_sub(1);
+                } else {
+                    self.piv_tui_state.scroll_offset += 1;
+                    // Clamp to content length in render
+                }
+            }
+            Screen::SshWizard => {
+                if up {
+                    self.ssh_state.scroll_offset = self.ssh_state.scroll_offset.saturating_sub(1);
+                } else {
+                    self.ssh_state.scroll_offset += 1;
+                    // Clamp to content length in render
+                }
+            }
+            Screen::Diagnostics => {
+                if up {
+                    self.diagnostics_tui_state.scroll_offset = self.diagnostics_tui_state.scroll_offset.saturating_sub(1);
+                } else {
+                    self.diagnostics_tui_state.scroll_offset += 1;
+                    // Clamp to content length in render
+                }
             }
             _ => {}
         }

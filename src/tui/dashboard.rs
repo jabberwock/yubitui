@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, Paragraph},
@@ -92,30 +92,6 @@ pub fn handle_key(
     }
 }
 
-/// Handle mouse events for the Dashboard screen.
-pub fn handle_mouse(state: &mut DashboardState, mouse: MouseEvent) -> DashboardAction {
-    match mouse.kind {
-        MouseEventKind::Down(MouseButton::Left) => {
-            if state.show_context_menu {
-                state.show_context_menu = false;
-            }
-            DashboardAction::None
-        }
-        MouseEventKind::ScrollUp => {
-            if state.show_context_menu && state.menu_selected_index > 0 {
-                state.menu_selected_index -= 1;
-            }
-            DashboardAction::None
-        }
-        MouseEventKind::ScrollDown => {
-            if state.show_context_menu && state.menu_selected_index < 5 {
-                state.menu_selected_index += 1;
-            }
-            DashboardAction::None
-        }
-        _ => DashboardAction::None,
-    }
-}
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
     click_regions.clear();

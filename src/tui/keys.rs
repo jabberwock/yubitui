@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, Paragraph},
@@ -382,26 +382,6 @@ pub fn handle_key(
 }
 
 /// Handle mouse events for the Keys screen (scroll in import list).
-pub fn handle_mouse(state: &mut KeyState, mouse: MouseEvent) -> KeyAction {
-    match mouse.kind {
-        MouseEventKind::ScrollUp => {
-            if state.screen == KeyScreen::ImportKey && state.selected_key_index > 0 {
-                state.selected_key_index -= 1;
-            }
-            KeyAction::None
-        }
-        MouseEventKind::ScrollDown => {
-            if state.screen == KeyScreen::ImportKey {
-                let max = state.available_keys.len().saturating_sub(1);
-                if state.selected_key_index < max {
-                    state.selected_key_index += 1;
-                }
-            }
-            KeyAction::None
-        }
-        _ => KeyAction::None,
-    }
-}
 
 /// Handle key events for the key generation wizard sub-screen.
 fn handle_keygen_wizard_key(state: &mut KeyState, code: KeyCode) -> KeyAction {

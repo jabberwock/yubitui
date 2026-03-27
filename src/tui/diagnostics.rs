@@ -6,6 +6,11 @@ use ratatui::{
 
 use crate::diagnostics::Diagnostics;
 
+#[derive(Default)]
+pub struct DiagnosticsTuiState {
+    pub scroll_offset: usize,
+}
+
 #[derive(Clone, Debug)]
 pub enum DiagnosticsAction {
     None,

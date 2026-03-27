@@ -110,6 +110,8 @@ pub struct SshState {
     pub test_conn_host: String,
     /// Which field is focused: 0 = username, 1 = hostname
     pub test_conn_focused: u8,
+    /// Scroll offset for scrollable list content
+    pub scroll_offset: usize,
 }
 
 impl Default for SshState {
@@ -123,6 +125,7 @@ impl Default for SshState {
             test_conn_user: String::new(),
             test_conn_host: String::new(),
             test_conn_focused: 0,
+            scroll_offset: 0,
         }
     }
 }
