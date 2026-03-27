@@ -89,13 +89,14 @@ pub fn render_confirm_dialog(
 /// Render a context menu (floating list) at a given position.
 /// Items are `&[&str]`, selected_index highlights current item.
 /// Yellow bold for selected item, white for others.
+/// Returns the popup Rect so callers can register click regions.
 pub fn render_context_menu(
     frame: &mut Frame,
     area: Rect,
     title: &str,
     items: &[&str],
     selected_index: usize,
-) {
+) -> Rect {
     let height = (items.len() as u16).saturating_add(2);
     let popup_area = centered_area(area, 40, height);
     frame.render_widget(Clear, popup_area);
@@ -118,4 +119,5 @@ pub fn render_context_menu(
 
     let list = List::new(list_items).block(Block::default().borders(Borders::ALL).title(title));
     frame.render_widget(list, popup_area);
+    popup_area
 }

@@ -582,10 +582,14 @@ fn handle_keygen_wizard_key(state: &mut KeyState, code: KeyCode) -> KeyAction {
             KeyCode::Enter => {
                 if let Some(ref mut w) = state.keygen_wizard {
                     if w.editing_path {
+                        // Finish editing the path and advance to the next step.
                         w.editing_path = false;
+                        w.step = KeyGenStep::Confirm;
                     } else if w.backup {
+                        // Enter the path editor so the user can review/change it.
                         w.editing_path = true;
                     } else {
+                        // backup=false: nothing to edit, advance.
                         w.step = KeyGenStep::Confirm;
                     }
                 }
@@ -717,9 +721,11 @@ pub fn render(
     area: Rect,
     yubikey_state: &Option<YubiKeyState>,
     state: &KeyState,
+    click_regions: &mut Vec<crate::model::click_region::ClickRegion>,
 ) {
+    click_regions.clear();
     match state.screen {
-        KeyScreen::Main => render_main(frame, area, yubikey_state, state),
+        KeyScreen::Main => render_main(frame, area, yubikey_state, state, click_regions),
         KeyScreen::ViewStatus => render_view_status(frame, area, yubikey_state, state),
         KeyScreen::ImportKey => render_import_key(frame, area, state),
         KeyScreen::ExportSSH => render_export_ssh(frame, area, state),
@@ -741,6 +747,14 @@ pub fn render(
     if state.attestation_popup.is_some() {
         render_attestation_popup(frame, area, state);
     }
+
+    // Register back button (whole area) — Esc navigates to Dashboard from any keys sub-screen
+    click_regions.push(crate::model::click_region::ClickRegion {
+        region: area.into(),
+        action: crate::model::click_region::ClickAction::Keys(
+            KeyAction::NavigateTo(crate::model::Screen::Dashboard),
+        ),
+    });
 }
 
 fn render_main(
@@ -748,6 +762,7 @@ fn render_main(
     area: Rect,
     yubikey_state: &Option<YubiKeyState>,
     state: &KeyState,
+    click_regions: &mut Vec<crate::model::click_region::ClickRegion>,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -913,6 +928,27 @@ fn render_main(
     let action_list =
         List::new(actions).block(Block::default().title("Actions").borders(Borders::ALL));
     frame.render_widget(action_list, chunks[2]);
+
+    // Register click regions for each action row in the actions list
+    let actions_y = chunks[2].y + 1; // skip top border
+    let actions_x = chunks[2].x + 1;
+    let actions_w = chunks[2].width.saturating_sub(2);
+    let key_actions = [
+        KeyAction::ExecuteViewStatus,
+        KeyAction::LoadGpgKeys,
+        KeyAction::ExecuteKeyGen,
+        KeyAction::ExecuteExportSSH,
+        KeyAction::LoadKeyAttributes,
+    ];
+    for (i, action) in key_actions.into_iter().enumerate() {
+        let row = actions_y + i as u16;
+        if row < chunks[2].y + chunks[2].height {
+            click_regions.push(crate::model::click_region::ClickRegion {
+                region: crate::model::click_region::Region { x: actions_x, y: row, w: actions_w, h: 1 },
+                action: crate::model::click_region::ClickAction::Keys(action),
+            });
+        }
+    }
 }
 
 fn render_view_status(
@@ -1189,8 +1225,9 @@ fn render_ssh_pubkey_popup(
     yubikey_state: &Option<YubiKeyState>,
     state: &KeyState,
 ) {
-    // Render the main screen as background
-    render_main(frame, area, yubikey_state, state);
+    // Render the main screen as background (regions not needed for background)
+    let mut _dummy_regions = Vec::new();
+    render_main(frame, area, yubikey_state, state, &mut _dummy_regions);
 
     // Overlay the SSH pubkey popup
     if let Some(ref key) = state.ssh_pubkey {

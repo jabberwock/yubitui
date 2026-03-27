@@ -21,7 +21,8 @@ pub fn handle_key(key: KeyEvent) -> DiagnosticsAction {
     }
 }
 
-pub fn render(frame: &mut Frame, area: Rect, diagnostics: &Diagnostics) {
+pub fn render(frame: &mut Frame, area: Rect, diagnostics: &Diagnostics, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
+    click_regions.clear();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(0)])
@@ -137,4 +138,12 @@ pub fn render(frame: &mut Frame, area: Rect, diagnostics: &Diagnostics) {
         .style(Style::default().fg(Color::White));
 
     frame.render_widget(list, chunks[1]);
+
+    // Register back button click region (title area acts as back target)
+    click_regions.push(crate::model::click_region::ClickRegion {
+        region: chunks[0].into(),
+        action: crate::model::click_region::ClickAction::Diagnostics(
+            DiagnosticsAction::NavigateTo(crate::model::Screen::Dashboard),
+        ),
+    });
 }

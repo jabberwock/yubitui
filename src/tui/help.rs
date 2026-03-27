@@ -17,7 +17,8 @@ pub fn handle_key(key: KeyEvent) -> HelpAction {
     }
 }
 
-pub fn render(frame: &mut Frame, area: Rect) {
+pub fn render(frame: &mut Frame, area: Rect, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
+    click_regions.clear();
     let lines: Vec<Line> = vec![
         Line::from(vec![Span::styled(
             " Global",
@@ -183,4 +184,10 @@ pub fn render(frame: &mut Frame, area: Rect) {
         .style(Style::default().fg(Color::White));
 
     frame.render_widget(paragraph, area);
+
+    // Register the entire help area as a close click target
+    click_regions.push(crate::model::click_region::ClickRegion {
+        region: area.into(),
+        action: crate::model::click_region::ClickAction::Help(HelpAction::Close),
+    });
 }

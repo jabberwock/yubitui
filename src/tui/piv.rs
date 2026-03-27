@@ -23,7 +23,8 @@ pub fn handle_key(key: KeyEvent) -> PivAction {
 ///
 /// Shows each standard PIV slot and whether it is occupied or empty,
 /// based on YubiKeyState.piv populated by detect_all().
-pub fn render(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState>) {
+pub fn render(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState>, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
+    click_regions.clear();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(0)])
@@ -95,4 +96,12 @@ pub fn render(frame: &mut Frame, area: Rect, yubikey_state: &Option<YubiKeyState
         .block(Block::default().borders(Borders::ALL))
         .wrap(ratatui::widgets::Wrap { trim: false });
     frame.render_widget(content, chunks[1]);
+
+    // Register back button click region (title area acts as back target)
+    click_regions.push(crate::model::click_region::ClickRegion {
+        region: chunks[0].into(),
+        action: crate::model::click_region::ClickAction::Piv(
+            PivAction::NavigateTo(crate::model::Screen::Dashboard),
+        ),
+    });
 }

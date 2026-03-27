@@ -95,37 +95,42 @@ impl App {
         Ok(())
     }
 
-    fn render(&self, frame: &mut ratatui::Frame) {
+    fn render(&mut self, frame: &mut ratatui::Frame) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(0), Constraint::Length(3)])
             .split(frame.area());
 
+        // Extract click_regions to satisfy borrow checker during render
+        let mut click_regions = std::mem::take(&mut self.state.click_regions);
+
         // Render current screen
         match self.state.current_screen {
             Screen::Dashboard => {
-                crate::tui::dashboard::render(frame, chunks[0], self, &self.dashboard_state)
+                crate::tui::dashboard::render(frame, chunks[0], self, &self.dashboard_state, &mut click_regions)
             }
             Screen::Diagnostics => {
-                crate::tui::diagnostics::render(frame, chunks[0], &self.diagnostics)
+                crate::tui::diagnostics::render(frame, chunks[0], &self.diagnostics, &mut click_regions)
             }
-            Screen::Help => crate::tui::help::render(frame, chunks[0]),
+            Screen::Help => crate::tui::help::render(frame, chunks[0], &mut click_regions),
             Screen::Keys => {
                 let yk = self.yubikey_state().cloned();
-                crate::tui::keys::render(frame, chunks[0], &yk, &self.key_state)
+                crate::tui::keys::render(frame, chunks[0], &yk, &self.key_state, &mut click_regions)
             }
             Screen::PinManagement => {
                 let yk = self.yubikey_state().cloned();
-                crate::tui::pin::render(frame, chunks[0], &yk, &self.pin_state)
+                crate::tui::pin::render(frame, chunks[0], &yk, &self.pin_state, &mut click_regions)
             }
             Screen::SshWizard => {
-                crate::tui::ssh::render(frame, chunks[0], self, &self.ssh_state)
+                crate::tui::ssh::render(frame, chunks[0], self, &self.ssh_state, &mut click_regions)
             }
             Screen::Piv => {
                 let yk = self.yubikey_state().cloned();
-                crate::tui::piv::render(frame, chunks[0], &yk)
+                crate::tui::piv::render(frame, chunks[0], &yk, &mut click_regions)
             }
         }
+
+        self.state.click_regions = click_regions;
 
         // Render status bar
         crate::tui::render_status_bar(frame, chunks[1], self);

@@ -117,7 +117,8 @@ pub fn handle_mouse(state: &mut DashboardState, mouse: MouseEvent) -> DashboardA
     }
 }
 
-pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState) {
+pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
+    click_regions.clear();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -243,7 +244,46 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState) 
 
     frame.render_widget(menu, chunks[2]);
 
+    // Register click regions for nav menu items (background elements — pushed first)
+    // Nav menu items are rendered in chunks[2] starting at y+1 (skip border)
+    let nav_y = chunks[2].y + 1;
+    let nav_x = chunks[2].x + 1;
+    let nav_w = chunks[2].width.saturating_sub(2);
+    let nav_screens = [
+        crate::model::Screen::Dashboard,
+        crate::model::Screen::Diagnostics,
+        crate::model::Screen::Keys,
+        crate::model::Screen::PinManagement,
+        crate::model::Screen::SshWizard,
+        crate::model::Screen::Piv,
+    ];
+    for (i, screen) in nav_screens.iter().enumerate() {
+        let row = nav_y + i as u16;
+        if row < chunks[2].y + chunks[2].height {
+            click_regions.push(crate::model::click_region::ClickRegion {
+                region: crate::model::click_region::Region { x: nav_x, y: row, w: nav_w, h: 1 },
+                action: crate::model::click_region::ClickAction::Dashboard(
+                    DashboardAction::NavigateTo(*screen),
+                ),
+            });
+        }
+    }
+
+    // Refresh/Menu items row (index 7 = "[R] Refresh ...")
+    let refresh_row = nav_y + 7;
+    if refresh_row < chunks[2].y + chunks[2].height {
+        click_regions.push(crate::model::click_region::ClickRegion {
+            region: crate::model::click_region::Region { x: nav_x, y: refresh_row, w: nav_w / 3, h: 1 },
+            action: crate::model::click_region::ClickAction::Dashboard(DashboardAction::Refresh),
+        });
+        click_regions.push(crate::model::click_region::ClickRegion {
+            region: crate::model::click_region::Region { x: nav_x + nav_w / 3, y: refresh_row, w: nav_w / 3, h: 1 },
+            action: crate::model::click_region::ClickAction::Dashboard(DashboardAction::OpenContextMenu),
+        });
+    }
+
     // Context menu overlay — rendered last so it appears on top
+    // Its click regions are pushed AFTER nav regions so .iter().rev() checks them first.
     if state.show_context_menu {
         let context_items = &[
             "Diagnostics",
@@ -253,12 +293,29 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState) 
             "PIV Certificates",
             "Help",
         ];
-        crate::tui::widgets::popup::render_context_menu(
+        let popup_area = crate::tui::widgets::popup::render_context_menu(
             frame,
             area,
             "Navigate",
             context_items,
             state.menu_selected_index,
         );
+
+        // Register each context menu item row as a click region
+        // These are pushed AFTER background nav regions — .iter().rev() checks them first
+        let menu_items_y = popup_area.y + 1; // skip top border
+        let menu_items_x = popup_area.x + 1;
+        let menu_items_w = popup_area.width.saturating_sub(2);
+        for i in 0..context_items.len() {
+            let row = menu_items_y + i as u16;
+            if row < popup_area.y + popup_area.height {
+                click_regions.push(crate::model::click_region::ClickRegion {
+                    region: crate::model::click_region::Region { x: menu_items_x, y: row, w: menu_items_w, h: 1 },
+                    action: crate::model::click_region::ClickAction::Dashboard(
+                        DashboardAction::SelectMenuItem(i),
+                    ),
+                });
+            }
+        }
     }
 }
