@@ -1,8 +1,10 @@
-//! Spinner + status line progress popup.
+//! Progress/spinner widget for textual-rs.
 //!
-//! Shows an animated spinner and a current status message while a gpg/ykman
-//! operation is running in the background. Caller increments `tick` on each
-//! TUI render cycle to advance the spinner.
+//! Previously used raw ratatui frame rendering; now ported to the textual-rs
+//! Widget trait pattern. Use `ProgressLabel` directly from `crate::tui::keys`.
+//!
+//! The old `render_progress_popup` free function is retained as a dead-code stub
+//! for any remaining references, but is no longer actively used.
 
 use ratatui::{
     prelude::*,
@@ -38,9 +40,8 @@ fn centered_area(area: Rect, width_pct: u16, height: u16) -> Rect {
 
 /// Render a progress popup with an animated spinner and status message.
 ///
-/// - `title` is shown in the popup border title.
-/// - `status` is the current operation description (e.g. "Verifying current PIN...").
-/// - `tick` advances the spinner; increment it on each render frame.
+/// Legacy ratatui free function — kept for reference only (no active callers).
+/// The textual-rs equivalent is `ProgressLabel` in `crate::tui::keys`.
 #[allow(dead_code)]
 pub fn render_progress_popup(
     frame: &mut Frame,
