@@ -111,7 +111,7 @@ impl App {
         // Render current screen
         match self.state.current_screen {
             Screen::Dashboard => {
-                crate::tui::dashboard::render(frame, chunks[0], self, &self.dashboard_state, &mut click_regions)
+                crate::tui::dashboard::render(frame, chunks[0], &self.state, &self.dashboard_state, &mut click_regions)
             }
             Screen::Diagnostics => {
                 crate::tui::diagnostics::render(frame, chunks[0], &self.diagnostics, &mut click_regions)
@@ -126,7 +126,7 @@ impl App {
                 crate::tui::pin::render(frame, chunks[0], &yk, &self.pin_state, &mut click_regions)
             }
             Screen::SshWizard => {
-                crate::tui::ssh::render(frame, chunks[0], self, &self.ssh_state, &mut click_regions)
+                crate::tui::ssh::render(frame, chunks[0], &self.ssh_state, &mut click_regions)
             }
             Screen::Piv => {
                 let yk = self.yubikey_state().cloned();

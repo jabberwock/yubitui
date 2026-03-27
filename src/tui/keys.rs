@@ -1921,3 +1921,52 @@ fn render_key_import_pin_input(frame: &mut Frame, area: Rect, state: &KeyState) 
         crate::tui::widgets::pin_input::render_pin_input(frame, area, pin_state);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+    use ratatui::{backend::TestBackend, Terminal};
+    use crate::model::mock::mock_yubikey_states;
+
+    #[test]
+    fn keys_default_state() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let yk_states = mock_yubikey_states();
+        let yk = yk_states.first().cloned();
+        let state = KeyState::default();
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &yk, &state, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+
+    #[test]
+    fn keys_no_yubikey() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let state = KeyState::default();
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &None, &state, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+
+    #[test]
+    fn keys_import_screen() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let yk_states = mock_yubikey_states();
+        let yk = yk_states.first().cloned();
+        let mut state = KeyState::default();
+        state.screen = KeyScreen::ImportKey;
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &yk, &state, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+}

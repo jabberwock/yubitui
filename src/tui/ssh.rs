@@ -4,7 +4,6 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
-use crate::app::App;
 
 #[derive(Clone, Debug)]
 pub enum SshAction {
@@ -130,10 +129,10 @@ impl Default for SshState {
     }
 }
 
-pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &SshState, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
+pub fn render(frame: &mut Frame, area: Rect, state: &SshState, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
     click_regions.clear();
     match state.screen {
-        SshScreen::Main => render_main(frame, area, app, state, click_regions),
+        SshScreen::Main => render_main(frame, area, state, click_regions),
         SshScreen::EnableSSH => render_enable_ssh(frame, area, state),
         SshScreen::ConfigureShell => render_configure_shell(frame, area, state),
         SshScreen::RestartAgent => render_restart_agent(frame, area, state),
@@ -150,7 +149,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &SshState, click_
     });
 }
 
-fn render_main(frame: &mut Frame, area: Rect, _app: &App, state: &SshState, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
+fn render_main(frame: &mut Frame, area: Rect, state: &SshState, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([

@@ -4,7 +4,6 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
-use crate::app::App;
 
 #[derive(Default)]
 pub struct DashboardState {
@@ -93,7 +92,7 @@ pub fn handle_key(
 }
 
 
-pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
+pub fn render(frame: &mut Frame, area: Rect, app_state: &crate::model::AppState, state: &DashboardState, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
     click_regions.clear();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -115,18 +114,18 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState, 
     frame.render_widget(title, chunks[0]);
 
     // Multi-key indicator
-    let multi_key_line = if app.yubikey_count() > 1 {
+    let multi_key_line = if app_state.yubikey_count() > 1 {
         format!(
             "Key {}/{} (Tab to switch)\n",
-            app.selected_yubikey_idx() + 1,
-            app.yubikey_count()
+            app_state.selected_yubikey_idx + 1,
+            app_state.yubikey_count()
         )
     } else {
         String::new()
     };
 
     // Quick status
-    let status_text = if let Some(yk) = app.yubikey_state() {
+    let status_text = if let Some(yk) = app_state.yubikey_state() {
         let pin_status = &yk.pin_status;
         let pin_emoji = if pin_status.is_healthy() {
             "✅"
@@ -293,5 +292,63 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, state: &DashboardState, 
                 });
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+    use ratatui::{backend::TestBackend, Terminal};
+    use crate::model::{mock::mock_yubikey_states, AppState};
+
+    fn mock_app_state() -> AppState {
+        AppState {
+            yubikey_states: mock_yubikey_states(),
+            mock_mode: true,
+            ..AppState::default()
+        }
+    }
+
+    #[test]
+    fn dashboard_default_populated() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let state = DashboardState::default();
+        let app_state = mock_app_state();
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &app_state, &state, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+
+    #[test]
+    fn dashboard_no_yubikey() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let state = DashboardState::default();
+        let app_state = AppState::default(); // empty yubikey_states -- covers "no YubiKey" state
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &app_state, &state, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
+    }
+
+    #[test]
+    fn dashboard_context_menu_open() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let state = DashboardState {
+            show_context_menu: true,
+            menu_selected_index: 2,
+        };
+        let app_state = mock_app_state();
+        let mut click_regions = Vec::new();
+        terminal.draw(|frame| {
+            render(frame, frame.area(), &app_state, &state, &mut click_regions);
+        }).unwrap();
+        assert_snapshot!(terminal.backend());
     }
 }

@@ -1,0 +1,44 @@
+---
+source: src/tui/dashboard.rs
+expression: terminal.backend()
+---
+"┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐"
+"│🔐 YubiTUI - YubiKey Management Dashboard                                                                             │" Hidden by multi-width symbols: [(2, " ")]
+"└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘"
+"┌📊 Status─────────────────────────────────────────────────────────────────────────────────────────────────────────────┐" Hidden by multi-width symbols: [(2, " ")]
+"│❌ No YubiKey Detected                                                                                                │" Hidden by multi-width symbols: [(2, " ")]
+"│                                                                                                                      │"
+"│Please insert your YubiKey and press 'R' to refresh.                                                                  │"
+"│                                                                                                                      │"
+"│Troubleshooting:                                                                                                      │"
+"│• Check USB connection                                                                                                │"
+"│• Run diagnostics with '2' key                                                                                        │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"│                                                                                                                      │"
+"└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘"
+"┌⌨️  Navigation - Press number keys to switch screens──────────────────────────────────────────────────────────────────┐" Hidden by multi-width symbols: [(2, " ")]
+"│  [1] Dashboard         You are here →                                                                                │"
+"│  [2] System Check      Diagnose PC/SC, GPG, SSH configuration                                                        │"
+"│  [3] Key Management    View and manage OpenPGP/PIV keys                                                              │"
+"│  [4] PIN Management    Change PINs, view retry counters                                                              │"
+"│  [5] SSH Setup         Configure SSH authentication                                                                  │"
+"│  [6] PIV Certificates  View PIV slot occupancy                                                                       │"
+"│                                                                                                                      │"
+"│  [R] Refresh          [Q] Quit          [?] Help          [m] Menu                                                   │"
+"└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘"
