@@ -4,6 +4,14 @@ Resolved debug sessions. Used by `gsd-debugger` to surface known-pattern hypothe
 
 ---
 
+## touch-policy-silent-fail — touch policy wizard silently fails: DO 0xF9 TLV tag byte mistaken for KDF-active flag
+- **Date:** 2026-03-26
+- **Error patterns:** touch policy unchanged, UIF off, set_touch_policy bail, KDF PIN hashing, DO 0xF9, VERIFY ykman, S2K, silent fail, no error message
+- **Root cause:** DO 0xF9 returns [81 01 00] (tag=0x81, len=1, value=0x00 = no KDF). Code read raw first byte 0x81 (the tag byte) and concluded KDF was active. Then tried to parse tags 0x82/0x83/0x86 which don't exist in a "no KDF" response → error → bail with "requires ykman" → VERIFY and PUT DATA never sent.
+- **Fix:** parse_kdf_do() now reads tag 0x81's VALUE (not the raw first byte) to determine algorithm; returns Ok(None) when algorithm == 0x00. kdf_hash_pin() added for when KDF is genuinely active. set_touch_policy() uses hashed or raw PIN depending on parse_kdf_do() result.
+- **Files changed:** Cargo.toml, src/model/touch_policy.rs, src/app.rs
+---
+
 ## keygen-backup-enter-silent-fail — keygen wizard: Enter stuck on backup step, no key on card, CardCtrl(3) noise after success
 - **Date:** 2026-03-26
 - **Error patterns:** backup path tilde expansion, Enter editing mode, silent failure keytocard, Card removed reinsert retry, AUT subkey missing, sc_op_failure bad PIN, CardCtrl 3, scdaemon card removed, %no-protection passphrase
