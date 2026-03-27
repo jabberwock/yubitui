@@ -37,6 +37,41 @@ pub fn mock_yubikey_states() -> Vec<YubiKeyState> {
             cardholder_name: Some("Mock User".to_string()),
             public_key_url: None,
         }),
+        oath: Some(oath::OathState {
+            credentials: vec![
+                oath::OathCredential {
+                    name: "GitHub:mockuser@github.com".to_string(),
+                    issuer: Some("GitHub".to_string()),
+                    oath_type: oath::OathType::Totp,
+                    algorithm: oath::OathAlgorithm::Sha1,
+                    digits: 6,
+                    period: 30,
+                    code: Some("123456".to_string()),
+                    touch_required: false,
+                },
+                oath::OathCredential {
+                    name: "Google:mock@gmail.com".to_string(),
+                    issuer: Some("Google".to_string()),
+                    oath_type: oath::OathType::Totp,
+                    algorithm: oath::OathAlgorithm::Sha256,
+                    digits: 6,
+                    period: 30,
+                    code: Some("789012".to_string()),
+                    touch_required: false,
+                },
+                oath::OathCredential {
+                    name: "AWS:mock-iam-user".to_string(),
+                    issuer: Some("AWS".to_string()),
+                    oath_type: oath::OathType::Hotp,
+                    algorithm: oath::OathAlgorithm::Sha1,
+                    digits: 6,
+                    period: 0,
+                    code: None,
+                    touch_required: false,
+                },
+            ],
+            password_required: false,
+        }),
         piv: Some(piv::PivState {
             slots: vec![
                 piv::SlotInfo {

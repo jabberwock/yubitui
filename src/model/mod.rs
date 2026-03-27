@@ -4,6 +4,7 @@ pub mod gpg_status;
 pub mod detection;
 pub mod mock;
 pub mod key_operations;
+pub mod oath;
 pub mod openpgp;
 pub mod pin;
 pub mod pin_operations;
@@ -153,6 +154,7 @@ impl fmt::Display for YubiKeyInfo {
 pub struct YubiKeyState {
     pub info: YubiKeyInfo,
     pub openpgp: Option<openpgp::OpenPgpState>,
+    pub oath: Option<oath::OathState>,
     #[allow(dead_code)]
     pub piv: Option<piv::PivState>,
     pub pin_status: pin::PinStatus,
