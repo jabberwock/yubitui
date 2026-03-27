@@ -58,7 +58,12 @@ Plans:
   3. After resizing the terminal, mouse click targets remain accurate — no phantom clicks or missed targets
   4. On Windows (ConPTY), the app continues to work keyboard-only with no crash or error message when mouse is unavailable
   5. `tests/e2e/` tmux harness runs against `--mock` in CI; all existing screens have at least one passing smoke test
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 07-01-PLAN.md — ClickRegion types + action enum Clone + AppState field + ConPTY graceful degradation
+- [ ] 07-02-PLAN.md — Wire all 7 screens for mouse click regions + region-based dispatch + scroll
+- [ ] 07-03-PLAN.md — tmux E2E test harness (6 screen smoke tests + run_all.sh driver)
+- [ ] 07-04-PLAN.md — insta snapshot tests for all screens + decouple dashboard/ssh from &App
 **UI hint**: yes
 
 ### Phase 8: OATH/TOTP Screen
@@ -112,7 +117,7 @@ Plans:
 | 4. Programmatic Subprocess Control | v1.0 | 4/4 | Complete | 2026-03-25 |
 | 5. Native Card Protocol | v1.0 | 6/6 | Complete | 2026-03-26 |
 | 6. Tech Debt + Infrastructure | v1.1 | 1/3 | In Progress|  |
-| 7. Mouse Support + E2E Test Harness | v1.1 | 0/TBD | Not started | - |
+| 7. Mouse Support + E2E Test Harness | v1.1 | 0/4 | Not started | - |
 | 8. OATH/TOTP Screen | v1.1 | 0/TBD | Not started | - |
 | 9. FIDO2 Screen | v1.1 | 0/TBD | Not started | - |
 | 10. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
