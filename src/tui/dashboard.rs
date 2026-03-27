@@ -283,6 +283,7 @@ impl Widget for DashboardScreen {
 mod tests {
     use super::*;
     use textual_rs::TestApp;
+    use crossterm::event::KeyCode;
 
     fn make_app_state_with_key() -> AppState {
         AppState {
@@ -293,26 +294,36 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn dashboard_renders_with_key() {
+    async fn dashboard_default_populated() {
         let app_state = make_app_state_with_key();
         let diagnostics = Diagnostics::default();
-        let mut app = TestApp::new(120, 40, move || {
+        let mut app = TestApp::new(80, 24, move || {
             Box::new(DashboardScreen::new(app_state.clone(), diagnostics.clone()))
         });
         app.pilot().settle().await;
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.len() > 0, "screen should render to a non-empty buffer");
+        insta::assert_display_snapshot!(app.backend());
     }
 
     #[tokio::test]
-    async fn dashboard_renders_no_yubikey() {
-        let mut app = TestApp::new(120, 40, || {
+    async fn dashboard_no_yubikey() {
+        let mut app = TestApp::new(80, 24, || {
             Box::new(DashboardScreen::new(AppState::default(), Diagnostics::default()))
         });
         app.pilot().settle().await;
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.len() > 0, "screen should render to a non-empty buffer");
+        insta::assert_display_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn dashboard_context_menu_open() {
+        let app_state = make_app_state_with_key();
+        let diagnostics = Diagnostics::default();
+        let mut app = TestApp::new(80, 24, move || {
+            Box::new(DashboardScreen::new(app_state.clone(), diagnostics.clone()))
+        });
+        let mut pilot = app.pilot();
+        pilot.press(KeyCode::Char('m')).await;
+        pilot.settle().await;
+        drop(pilot);
+        insta::assert_display_snapshot!(app.backend());
     }
 }

@@ -180,27 +180,11 @@ mod tests {
     use crate::diagnostics::Diagnostics;
 
     #[tokio::test]
-    async fn diagnostics_screen_renders() {
-        let diag = Diagnostics::default();
-        let mut app = TestApp::new(120, 40, || {
-            Box::new(DiagnosticsScreen::new(Diagnostics::default()))
-        });
-        drop(diag);
-        app.pilot().settle().await;
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.len() > 0);
-    }
-
-    #[tokio::test]
-    async fn diagnostics_screen_shows_pcscd() {
-        let mut app = TestApp::new(120, 40, || {
+    async fn diagnostics_default() {
+        let mut app = TestApp::new(80, 24, || {
             Box::new(DiagnosticsScreen::new(Diagnostics::default()))
         });
         app.pilot().settle().await;
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        // Default diagnostics has pcscd.running = true
-        assert!(rendered.contains("PC/SC") || rendered.contains("Diagnostics") || rendered.len() > 0);
+        insta::assert_display_snapshot!(app.backend());
     }
 }

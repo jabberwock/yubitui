@@ -488,29 +488,39 @@ pub fn push_result_popup(ctx: &AppContext, title: &str, message: String) {
 mod tests {
     use super::*;
     use textual_rs::TestApp;
+    use crossterm::event::KeyCode;
 
     #[tokio::test]
-    async fn pin_management_screen_renders() {
+    async fn pin_default_state() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new(120, 40, move || {
+        let mut app = TestApp::new(80, 24, move || {
             Box::new(PinManagementScreen::new(yk))
         });
         app.pilot().settle().await;
-        // Verify renders without panic; textual-rs TestApp buffer content validation
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.len() > 0, "screen should render to a non-empty buffer");
+        insta::assert_display_snapshot!(app.backend());
     }
 
     #[tokio::test]
-    async fn pin_no_yubikey_renders() {
-        let mut app = TestApp::new(120, 40, move || {
+    async fn pin_no_yubikey() {
+        let mut app = TestApp::new(80, 24, move || {
             Box::new(PinManagementScreen::new(None))
         });
         app.pilot().settle().await;
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.len() > 0, "screen should render to a non-empty buffer");
+        insta::assert_display_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn pin_unblock_wizard() {
+        let yubikey_states = crate::model::mock::mock_yubikey_states();
+        let yk = yubikey_states.into_iter().next();
+        let mut app = TestApp::new(80, 24, move || {
+            Box::new(PinManagementScreen::new(yk))
+        });
+        let mut pilot = app.pilot();
+        pilot.press(KeyCode::Char('u')).await;
+        pilot.settle().await;
+        drop(pilot);
+        insta::assert_display_snapshot!(app.backend());
     }
 }

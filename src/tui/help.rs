@@ -98,12 +98,9 @@ mod tests {
     use textual_rs::TestApp;
 
     #[tokio::test]
-    async fn help_screen_renders() {
-        let mut app = TestApp::new(120, 40, || Box::new(HelpScreen::new()));
+    async fn help_screen() {
+        let mut app = TestApp::new(80, 24, || Box::new(HelpScreen::new()));
         app.pilot().settle().await;
-        // Verify the screen renders without panicking and shows expected content
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.contains("yubitui") || rendered.contains("Help") || rendered.len() > 0);
+        insta::assert_display_snapshot!(app.backend());
     }
 }
