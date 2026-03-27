@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: Completed 08-04-PLAN.md (PIN Management screen + widgets migrated to textual-rs)
-last_updated: "2026-03-27T13:56:11.352Z"
+stopped_at: Completed 08-05-PLAN.md (Dashboard + Keys screen migration, all 7 screens migrated)
+last_updated: "2026-03-27T14:12:22.610Z"
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 13
-  completed_plans: 10
+  completed_plans: 12
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 ## Current Position
 
 Phase: 08 (textual-rs-migration) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 
 ## Performance Metrics
 
@@ -64,6 +64,8 @@ Plan: 5 of 6
 - [Phase 08-03]: DiagnosticsScreen uses full-width layout (no sidebar) — 4 diagnostic items flow naturally as a sequential list
 - [Phase 08]: Legacy ratatui shims kept in widgets for unmigrated keys.rs/dashboard.rs; removed in 08-05/08-06
 - [Phase 08]: PinManagementScreen uses push_screen_deferred+ModalScreen for all wizard sub-screens (change/admin/reset/unblock)
+- [Phase 08]: textual-rs App runner handles 'q' quit and Ctrl+T theme globally — on_action does not re-implement these
+- [Phase 08]: KeyState.pin_input removed — pushed PinInputWidget screen replaces inline state in textual-rs model
 
 ### Roadmap Evolution
 
@@ -79,6 +81,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T13:56:11.350Z
-Stopped at: Completed 08-04-PLAN.md (PIN Management screen + widgets migrated to textual-rs)
+Last session: 2026-03-27T14:12:22.608Z
+Stopped at: Completed 08-05-PLAN.md (Dashboard + Keys screen migration, all 7 screens migrated)
 Resume file: None

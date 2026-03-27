@@ -82,9 +82,9 @@ Plans:
 Plans:
 - [x] 08-01-PLAN.md — Dependency upgrade (ratatui 0.30 + crossterm 0.29 + textual-rs 0.2) + delete ClickRegion + retire tmux E2E
 - [x] 08-02-PLAN.md — Replace app.rs event loop with textual-rs App runner + theme/config modules + migrate Help screen
-- [ ] 08-03-PLAN.md — Migrate Diagnostics, PIV, and SSH screens to textual-rs Widgets
+- [x] 08-03-PLAN.md — Migrate Diagnostics, PIV, and SSH screens to textual-rs Widgets
 - [x] 08-04-PLAN.md — Port pin_input/popup widgets + migrate PIN Management screen
-- [ ] 08-05-PLAN.md — Migrate Dashboard (root screen) + Keys screen (most complex, with KeyGenWizard)
+- [x] 08-05-PLAN.md — Migrate Dashboard (root screen) + Keys screen (most complex, with KeyGenWizard)
 - [ ] 08-06-PLAN.md — Pilot-based tests for all 7 screens + snapshot re-acceptance + human verification
 **UI hint**: yes
 
@@ -140,7 +140,7 @@ Plans:
 | 5. Native Card Protocol | v1.0 | 6/6 | Complete | 2026-03-26 |
 | 6. Tech Debt + Infrastructure | v1.1 | 1/3 | In Progress|  |
 | 7. Mouse Support + E2E Test Harness | v1.1 | 3/4 | In Progress|  |
-| 8. textual-rs Migration | v1.1 | 2/6 | In Progress|  |
+| 8. textual-rs Migration | v1.1 | 5/6 | In Progress|  |
 | 9. OATH/TOTP Screen | v1.1 | 0/TBD | Not started | - |
 | 10. FIDO2 Screen | v1.1 | 0/TBD | Not started | - |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
@@ -162,7 +162,7 @@ Plans:
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 11
-**Plans:** 2/6 plans executed
+**Plans:** 5/6 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 12 to break down)
