@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: Completed 08-02-PLAN.md (textual-rs App runner + Help screen migration)
-last_updated: "2026-03-27T13:33:34.447Z"
+stopped_at: Completed 08-03-PLAN.md (Diagnostics, PIV, SSH migrated to textual-rs Widgets)
+last_updated: "2026-03-27T13:41:00Z"
 progress:
   total_phases: 7
   completed_phases: 2
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 ## Current Position
 
 Phase: 08 (textual-rs-migration) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 
 ## Performance Metrics
 
@@ -60,6 +60,8 @@ Plan: 3 of 6
 - [Phase 08]: ratatui 0.30 upgrade had zero breaking changes in yubitui codebase — cargo check passed immediately after dep bump
 - [Phase 08-02]: app.rs is now thin pub fn run() — old App struct and crossterm event loop fully deleted; HelpScreen uses compose() with Label widgets for display-only content
 - [Phase 08-02]: Theme names verified against actual textual-rs builtin_themes(): use gruvbox-dark and catppuccin-mocha (not gruvbox/catppuccin)
+- [Phase 08-03]: SshWizardScreen retains 6 sub-screens as Reactive<SshState>.screen — no push_screen_deferred; keeps SshState serializable (D-04)
+- [Phase 08-03]: DiagnosticsScreen uses full-width layout (no sidebar) — 4 diagnostic items flow naturally as a sequential list
 
 ### Roadmap Evolution
 
@@ -75,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T13:33:34.445Z
-Stopped at: Completed 08-02-PLAN.md (textual-rs App runner + Help screen migration)
+Last session: 2026-03-27T13:41:00Z
+Stopped at: Completed 08-03-PLAN.md (Diagnostics, PIV, SSH migrated to textual-rs Widgets)
 Resume file: None
