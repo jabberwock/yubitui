@@ -1147,32 +1147,42 @@ impl Widget for ProgressLabel {
 mod tests {
     use super::*;
     use textual_rs::TestApp;
+    use crossterm::event::KeyCode;
 
     #[tokio::test]
-    async fn keys_screen_renders_with_key() {
+    async fn keys_default_state() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new(120, 40, move || Box::new(KeysScreen::new(yk)));
+        let mut app = TestApp::new(80, 24, move || Box::new(KeysScreen::new(yk)));
         app.pilot().settle().await;
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.len() > 0, "screen should render to a non-empty buffer");
+        insta::assert_display_snapshot!(app.backend());
     }
 
     #[tokio::test]
-    async fn keys_screen_renders_no_yubikey() {
-        let mut app = TestApp::new(120, 40, || Box::new(KeysScreen::new(None)));
+    async fn keys_no_yubikey() {
+        let mut app = TestApp::new(80, 24, || Box::new(KeysScreen::new(None)));
         app.pilot().settle().await;
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.len() > 0, "screen should render to a non-empty buffer");
+        insta::assert_display_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn keys_import_screen() {
+        let yubikey_states = crate::model::mock::mock_yubikey_states();
+        let yk = yubikey_states.into_iter().next();
+        let mut app = TestApp::new(80, 24, move || Box::new(KeysScreen::new(yk)));
+        let mut pilot = app.pilot();
+        pilot.press(KeyCode::Char('i')).await;
+        pilot.settle().await;
+        drop(pilot);
+        insta::assert_display_snapshot!(app.backend());
     }
 
     #[tokio::test]
     async fn keygen_wizard_renders() {
         let wizard = KeyGenWizard::new("2026-01-01");
-        let mut app = TestApp::new(120, 40, move || Box::new(KeyGenWizardScreen::new(wizard)));
+        let mut app = TestApp::new(80, 24, move || Box::new(KeyGenWizardScreen::new(wizard)));
         app.pilot().settle().await;
+        // Basic render check for wizard (not part of plan snapshot set)
         let buf = app.buffer();
         let rendered = format!("{:?}", buf);
         assert!(rendered.len() > 0, "wizard should render to a non-empty buffer");

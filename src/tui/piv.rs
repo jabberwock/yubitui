@@ -167,26 +167,21 @@ mod tests {
     use crate::model::mock::mock_yubikey_states;
 
     #[tokio::test]
-    async fn piv_screen_renders_with_yubikey() {
+    async fn piv_default_state() {
         let yk = mock_yubikey_states().into_iter().next();
-        let mut app = TestApp::new(120, 40, move || {
+        let mut app = TestApp::new(80, 24, move || {
             Box::new(PivScreen::new(yk.clone()))
         });
         app.pilot().settle().await;
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.len() > 0);
+        insta::assert_display_snapshot!(app.backend());
     }
 
     #[tokio::test]
-    async fn piv_screen_renders_no_yubikey() {
-        let mut app = TestApp::new(120, 40, || {
+    async fn piv_no_yubikey() {
+        let mut app = TestApp::new(80, 24, || {
             Box::new(PivScreen::new(None))
         });
         app.pilot().settle().await;
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        // Should show "No YubiKey Detected"
-        assert!(rendered.contains("No YubiKey") || rendered.contains("PIV") || rendered.len() > 0);
+        insta::assert_display_snapshot!(app.backend());
     }
 }

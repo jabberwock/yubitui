@@ -396,28 +396,26 @@ impl Widget for SshWizardScreen {
 mod tests {
     use super::*;
     use textual_rs::TestApp;
+    use crossterm::event::KeyCode;
 
     #[tokio::test]
-    async fn ssh_screen_renders_main() {
-        let mut app = TestApp::new(120, 40, || {
+    async fn ssh_main_screen() {
+        let mut app = TestApp::new(80, 24, || {
             Box::new(SshWizardScreen::new(SshState::default()))
         });
         app.pilot().settle().await;
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.contains("SSH") || rendered.len() > 0);
+        insta::assert_display_snapshot!(app.backend());
     }
 
     #[tokio::test]
-    async fn ssh_screen_renders_enable_ssh() {
-        let mut state = SshState::default();
-        state.screen = SshScreen::EnableSSH;
-        let mut app = TestApp::new(120, 40, move || {
-            Box::new(SshWizardScreen::new(state.clone()))
+    async fn ssh_enable_screen() {
+        let mut app = TestApp::new(80, 24, || {
+            Box::new(SshWizardScreen::new(SshState::default()))
         });
-        app.pilot().settle().await;
-        let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.len() > 0);
+        let mut pilot = app.pilot();
+        pilot.press(KeyCode::Char('a')).await;
+        pilot.settle().await;
+        drop(pilot);
+        insta::assert_display_snapshot!(app.backend());
     }
 }
