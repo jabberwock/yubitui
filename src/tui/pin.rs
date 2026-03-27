@@ -260,9 +260,7 @@ pub fn render(
     area: Rect,
     yubikey_state: &Option<YubiKeyState>,
     state: &PinState,
-    click_regions: &mut Vec<crate::model::click_region::ClickRegion>,
 ) {
-    click_regions.clear();
     match state.screen {
         PinScreen::Main => render_main(frame, area, yubikey_state, state),
         PinScreen::ChangeUserPin => render_change_user_pin(frame, area, state),
@@ -307,13 +305,6 @@ pub fn render(
         }
     }
 
-    // Register back button click region (whole area — Esc goes back from any pin sub-screen)
-    click_regions.push(crate::model::click_region::ClickRegion {
-        region: area.into(),
-        action: crate::model::click_region::ClickAction::Pin(
-            PinAction::NavigateTo(crate::model::Screen::Dashboard),
-        ),
-    });
 }
 
 fn render_main(
@@ -765,9 +756,8 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let yk = mock_yubikey_states().into_iter().next();
         let state = PinState::default();
-        let mut click_regions = Vec::new();
         terminal.draw(|frame| {
-            render(frame, frame.area(), &yk, &state, &mut click_regions);
+            render(frame, frame.area(), &yk, &state);
         }).unwrap();
         assert_snapshot!(terminal.backend());
     }
@@ -777,9 +767,8 @@ mod tests {
         let backend = TestBackend::new(120, 40);
         let mut terminal = Terminal::new(backend).unwrap();
         let state = PinState::default();
-        let mut click_regions = Vec::new();
         terminal.draw(|frame| {
-            render(frame, frame.area(), &None, &state, &mut click_regions);
+            render(frame, frame.area(), &None, &state);
         }).unwrap();
         assert_snapshot!(terminal.backend());
     }
@@ -791,9 +780,8 @@ mod tests {
         let yk = mock_yubikey_states().into_iter().next();
         let mut state = PinState::default();
         state.screen = PinScreen::UnblockWizardCheck;
-        let mut click_regions = Vec::new();
         terminal.draw(|frame| {
-            render(frame, frame.area(), &yk, &state, &mut click_regions);
+            render(frame, frame.area(), &yk, &state);
         }).unwrap();
         assert_snapshot!(terminal.backend());
     }

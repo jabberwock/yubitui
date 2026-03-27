@@ -17,8 +17,7 @@ pub fn handle_key(key: KeyEvent) -> HelpAction {
     }
 }
 
-pub fn render(frame: &mut Frame, area: Rect, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
-    click_regions.clear();
+pub fn render(frame: &mut Frame, area: Rect) {
     let lines: Vec<Line> = vec![
         Line::from(vec![Span::styled(
             " Global",
@@ -185,11 +184,6 @@ pub fn render(frame: &mut Frame, area: Rect, click_regions: &mut Vec<crate::mode
 
     frame.render_widget(paragraph, area);
 
-    // Register the entire help area as a close click target
-    click_regions.push(crate::model::click_region::ClickRegion {
-        region: area.into(),
-        action: crate::model::click_region::ClickAction::Help(HelpAction::Close),
-    });
 }
 
 #[cfg(test)]
@@ -202,9 +196,8 @@ mod tests {
     fn help_screen() {
         let backend = TestBackend::new(120, 40);
         let mut terminal = Terminal::new(backend).unwrap();
-        let mut click_regions = Vec::new();
         terminal.draw(|frame| {
-            render(frame, frame.area(), &mut click_regions);
+            render(frame, frame.area());
         }).unwrap();
         assert_snapshot!(terminal.backend());
     }

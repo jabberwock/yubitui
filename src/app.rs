@@ -105,36 +105,31 @@ impl App {
             .constraints([Constraint::Min(0), Constraint::Length(3)])
             .split(frame.area());
 
-        // Extract click_regions to satisfy borrow checker during render
-        let mut click_regions = std::mem::take(&mut self.state.click_regions);
-
         // Render current screen
         match self.state.current_screen {
             Screen::Dashboard => {
-                crate::tui::dashboard::render(frame, chunks[0], &self.state, &self.dashboard_state, &mut click_regions)
+                crate::tui::dashboard::render(frame, chunks[0], &self.state, &self.dashboard_state)
             }
             Screen::Diagnostics => {
-                crate::tui::diagnostics::render(frame, chunks[0], &self.diagnostics, &mut click_regions)
+                crate::tui::diagnostics::render(frame, chunks[0], &self.diagnostics)
             }
-            Screen::Help => crate::tui::help::render(frame, chunks[0], &mut click_regions),
+            Screen::Help => crate::tui::help::render(frame, chunks[0]),
             Screen::Keys => {
                 let yk = self.yubikey_state().cloned();
-                crate::tui::keys::render(frame, chunks[0], &yk, &self.key_state, &mut click_regions)
+                crate::tui::keys::render(frame, chunks[0], &yk, &self.key_state)
             }
             Screen::PinManagement => {
                 let yk = self.yubikey_state().cloned();
-                crate::tui::pin::render(frame, chunks[0], &yk, &self.pin_state, &mut click_regions)
+                crate::tui::pin::render(frame, chunks[0], &yk, &self.pin_state)
             }
             Screen::SshWizard => {
-                crate::tui::ssh::render(frame, chunks[0], &self.ssh_state, &mut click_regions)
+                crate::tui::ssh::render(frame, chunks[0], &self.ssh_state)
             }
             Screen::Piv => {
                 let yk = self.yubikey_state().cloned();
-                crate::tui::piv::render(frame, chunks[0], &yk, &mut click_regions)
+                crate::tui::piv::render(frame, chunks[0], &yk)
             }
         }
-
-        self.state.click_regions = click_regions;
 
         // Render status bar
         crate::tui::render_status_bar(frame, chunks[1], self);
@@ -152,21 +147,8 @@ impl App {
     }
 
     fn handle_mouse_event(&mut self, mouse: MouseEvent) -> Result<()> {
-        use crossterm::event::{MouseButton, MouseEventKind};
+        use crossterm::event::{MouseEventKind};
         match mouse.kind {
-            MouseEventKind::Down(MouseButton::Left) => {
-                let col = mouse.column;
-                let row = mouse.row;
-                // REVERSE iteration: last-pushed regions (popups/modals) are checked first.
-                // This is the "last-in-first-win" pattern that prevents click-through
-                // on overlapping UI elements like context menus over the dashboard.
-                if let Some(action) = self.state.click_regions.iter().rev()
-                    .find(|r| r.region.contains(col, row))
-                    .map(|r| r.action.clone())
-                {
-                    self.execute_click_action(action)?;
-                }
-            }
             MouseEventKind::ScrollUp => {
                 self.handle_scroll(true)?;
             }
@@ -174,28 +156,6 @@ impl App {
                 self.handle_scroll(false)?;
             }
             _ => {}
-        }
-        Ok(())
-    }
-
-    fn execute_click_action(&mut self, action: crate::model::click_region::ClickAction) -> Result<()> {
-        use crate::model::click_region::ClickAction;
-        match action {
-            ClickAction::Dashboard(a) => self.execute_dashboard_action(a)?,
-            ClickAction::Keys(a) => self.execute_key_action(a)?,
-            ClickAction::Pin(a) => self.execute_pin_action(a)?,
-            ClickAction::Piv(a) => self.execute_piv_action(a)?,
-            ClickAction::Ssh(a) => self.execute_ssh_action(a)?,
-            ClickAction::Diagnostics(a) => self.execute_diagnostics_action(a)?,
-            ClickAction::Help(a) => {
-                use crate::tui::help::HelpAction;
-                match a {
-                    HelpAction::Close => {
-                        self.state.current_screen = self.state.previous_screen;
-                    }
-                    HelpAction::None => {}
-                }
-            }
         }
         Ok(())
     }

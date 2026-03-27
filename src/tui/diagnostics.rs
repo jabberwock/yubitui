@@ -26,8 +26,7 @@ pub fn handle_key(key: KeyEvent) -> DiagnosticsAction {
     }
 }
 
-pub fn render(frame: &mut Frame, area: Rect, diagnostics: &Diagnostics, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
-    click_regions.clear();
+pub fn render(frame: &mut Frame, area: Rect, diagnostics: &Diagnostics) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(0)])
@@ -144,13 +143,6 @@ pub fn render(frame: &mut Frame, area: Rect, diagnostics: &Diagnostics, click_re
 
     frame.render_widget(list, chunks[1]);
 
-    // Register back button click region (title area acts as back target)
-    click_regions.push(crate::model::click_region::ClickRegion {
-        region: chunks[0].into(),
-        action: crate::model::click_region::ClickAction::Diagnostics(
-            DiagnosticsAction::NavigateTo(crate::model::Screen::Dashboard),
-        ),
-    });
 }
 
 #[cfg(test)]
@@ -165,9 +157,8 @@ mod tests {
         let backend = TestBackend::new(120, 40);
         let mut terminal = Terminal::new(backend).unwrap();
         let diag = Diagnostics::default();
-        let mut click_regions = Vec::new();
         terminal.draw(|frame| {
-            render(frame, frame.area(), &diag, &mut click_regions);
+            render(frame, frame.area(), &diag);
         }).unwrap();
         assert_snapshot!(terminal.backend());
     }
