@@ -1,7 +1,8 @@
 ---
 phase: 8
 slug: textual-rs-migration
-status: draft
+status: approved
+reviewed_at: 2026-03-27
 shadcn_initialized: false
 preset: none
 created: 2026-03-27
@@ -305,14 +306,14 @@ Every migrated screen must have:
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: FLAG (non-blocking — no explicit focal point per screen; layout contract implies hierarchy)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved — 2026-03-27
 
 ---
 
