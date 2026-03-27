@@ -1,5 +1,4 @@
 pub mod app_state;
-pub mod click_region;
 pub mod card;
 pub mod gpg_status;
 pub mod detection;

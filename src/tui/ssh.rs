@@ -129,27 +129,18 @@ impl Default for SshState {
     }
 }
 
-pub fn render(frame: &mut Frame, area: Rect, state: &SshState, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
-    click_regions.clear();
+pub fn render(frame: &mut Frame, area: Rect, state: &SshState) {
     match state.screen {
-        SshScreen::Main => render_main(frame, area, state, click_regions),
+        SshScreen::Main => render_main(frame, area, state),
         SshScreen::EnableSSH => render_enable_ssh(frame, area, state),
         SshScreen::ConfigureShell => render_configure_shell(frame, area, state),
         SshScreen::RestartAgent => render_restart_agent(frame, area, state),
         SshScreen::ExportKey => render_export_key(frame, area, state),
         SshScreen::TestConnection => render_test_connection(frame, area, state),
     }
-
-    // Register back button click region for all sub-screens
-    click_regions.push(crate::model::click_region::ClickRegion {
-        region: area.into(),
-        action: crate::model::click_region::ClickAction::Ssh(
-            SshAction::NavigateTo(crate::model::Screen::Dashboard),
-        ),
-    });
 }
 
-fn render_main(frame: &mut Frame, area: Rect, state: &SshState, click_regions: &mut Vec<crate::model::click_region::ClickRegion>) {
+fn render_main(frame: &mut Frame, area: Rect, state: &SshState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -226,28 +217,6 @@ fn render_main(frame: &mut Frame, area: Rect, state: &SshState, click_regions: &
         List::new(actions).block(Block::default().title("⌨️  Actions").borders(Borders::ALL));
     frame.render_widget(action_list, chunks[2]);
 
-    // Register click regions for SSH wizard action items (1 row each, inside the actions block)
-    // Actions block has 1-line border at top, so items start at chunks[2].y + 1
-    let actions_y = chunks[2].y + 1; // skip top border
-    let actions_x = chunks[2].x + 1; // skip left border
-    let actions_w = chunks[2].width.saturating_sub(2);
-    let ssh_screen_actions = [
-        SshAction::NavigateTo(crate::model::Screen::SshWizard), // Placeholder: step 1 navigates into screen
-        SshAction::NavigateTo(crate::model::Screen::SshWizard),
-        SshAction::NavigateTo(crate::model::Screen::SshWizard),
-        SshAction::NavigateTo(crate::model::Screen::SshWizard),
-        SshAction::NavigateTo(crate::model::Screen::SshWizard),
-    ];
-    // Register each of the 5 wizard steps as clickable rows
-    for (i, action) in ssh_screen_actions.into_iter().enumerate() {
-        let row = actions_y + i as u16;
-        if row < chunks[2].y + chunks[2].height {
-            click_regions.push(crate::model::click_region::ClickRegion {
-                region: crate::model::click_region::Region { x: actions_x, y: row, w: actions_w, h: 1 },
-                action: crate::model::click_region::ClickAction::Ssh(action),
-            });
-        }
-    }
 }
 
 fn render_enable_ssh(frame: &mut Frame, area: Rect, state: &SshState) {
@@ -415,9 +384,8 @@ mod tests {
         let backend = TestBackend::new(120, 40);
         let mut terminal = Terminal::new(backend).unwrap();
         let state = SshState::default();
-        let mut click_regions = Vec::new();
         terminal.draw(|frame| {
-            render(frame, frame.area(), &state, &mut click_regions);
+            render(frame, frame.area(), &state);
         }).unwrap();
         assert_snapshot!(terminal.backend());
     }
@@ -428,9 +396,8 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let mut state = SshState::default();
         state.screen = SshScreen::EnableSSH;
-        let mut click_regions = Vec::new();
         terminal.draw(|frame| {
-            render(frame, frame.area(), &state, &mut click_regions);
+            render(frame, frame.area(), &state);
         }).unwrap();
         assert_snapshot!(terminal.backend());
     }

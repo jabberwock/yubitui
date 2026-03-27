@@ -7,16 +7,6 @@ pub mod piv;
 pub mod ssh;
 pub mod widgets;
 
-impl From<ratatui::layout::Rect> for crate::model::click_region::Region {
-    fn from(r: ratatui::layout::Rect) -> Self {
-        crate::model::click_region::Region {
-            x: r.x,
-            y: r.y,
-            w: r.width,
-            h: r.height,
-        }
-    }
-}
 
 #[allow(unused_imports)]
 pub use keys::{KeyScreen, KeyState};

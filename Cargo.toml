@@ -2,7 +2,7 @@
 name = "yubitui"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.88"
 authors = ["Your Name <you@example.com>"]
 description = "A blazingly fast, intelligent TUI for YubiKey management"
 license = "MIT OR Apache-2.0"
@@ -17,8 +17,9 @@ path = "src/main.rs"
 
 [dependencies]
 # TUI Framework
-ratatui = "0.29"
-crossterm = { version = "0.28", features = ["event-stream"] }
+ratatui = { version = "0.30.0", features = ["crossterm_0_29"] }
+crossterm = { version = "0.29.0", features = ["event-stream"] }
+textual-rs = { git = "https://github.com/jabberwock/textual-rs", package = "textual-rs" }
 
 # YubiKey Communication
 pcsc = "2.8"
