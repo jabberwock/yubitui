@@ -1,5 +1,7 @@
 use serde::Serialize;
 
+use super::click_region::ClickRegion;
+
 /// Screen navigation -- pure enum, no TUI types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Screen {
@@ -23,6 +25,8 @@ pub struct AppState {
     pub yubikey_states: Vec<super::YubiKeyState>,
     pub selected_yubikey_idx: usize,
     pub mock_mode: bool,
+    #[serde(skip)]
+    pub click_regions: Vec<ClickRegion>,
 }
 
 impl Default for AppState {
@@ -34,6 +38,17 @@ impl Default for AppState {
             yubikey_states: Vec::new(),
             selected_yubikey_idx: 0,
             mock_mode: false,
+            click_regions: Vec::new(),
         }
+    }
+}
+
+impl AppState {
+    pub fn yubikey_state(&self) -> Option<&super::YubiKeyState> {
+        self.yubikey_states.get(self.selected_yubikey_idx)
+    }
+
+    pub fn yubikey_count(&self) -> usize {
+        self.yubikey_states.len()
     }
 }

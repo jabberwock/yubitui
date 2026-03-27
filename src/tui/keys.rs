@@ -6,6 +6,7 @@ use ratatui::{
 
 use crate::model::YubiKeyState;
 
+#[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub enum KeyAction {
     None,

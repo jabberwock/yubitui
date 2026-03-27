@@ -67,7 +67,10 @@ impl App {
         // Setup terminal
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        execute!(stdout, EnterAlternateScreen)?;
+        if let Err(e) = execute!(stdout, EnableMouseCapture) {
+            tracing::debug!("Mouse capture unavailable (likely ConPTY): {}", e);
+        }
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
@@ -76,11 +79,8 @@ impl App {
 
         // Restore terminal
         disable_raw_mode()?;
-        execute!(
-            terminal.backend_mut(),
-            LeaveAlternateScreen,
-            DisableMouseCapture
-        )?;
+        let _ = execute!(terminal.backend_mut(), DisableMouseCapture);
+        execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
         terminal.show_cursor()?;
 
         result

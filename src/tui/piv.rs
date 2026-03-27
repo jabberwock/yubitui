@@ -6,6 +6,7 @@ use ratatui::{
 
 use crate::model::YubiKeyState;
 
+#[derive(Clone, Debug)]
 pub enum PivAction {
     None,
     NavigateTo(crate::model::Screen),

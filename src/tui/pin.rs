@@ -9,6 +9,7 @@ use crate::tui::widgets::pin_input::{render_pin_input, PinInputState};
 use crate::tui::widgets::progress::render_progress_popup;
 use crate::model::YubiKeyState;
 
+#[derive(Clone, Debug)]
 pub enum PinAction {
     None,
     NavigateTo(crate::model::Screen),

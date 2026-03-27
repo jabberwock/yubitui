@@ -6,6 +6,7 @@ use ratatui::{
 
 use crate::app::App;
 
+#[derive(Clone, Debug)]
 pub enum SshAction {
     None,
     NavigateTo(crate::model::Screen),

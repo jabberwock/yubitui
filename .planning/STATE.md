@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: "Completed 07-03-PLAN.md (E2E harness: helpers.sh with wait_for_text, 6 screen smoke tests, run_all.sh driver)"
-last_updated: "2026-03-27T03:23:03.970Z"
+stopped_at: "Completed Wave 1: 07-01 (ClickRegion types) + 07-03 (E2E harness, 6 smoke tests)"
+last_updated: "2026-03-27T06:10:00Z"
 progress:
   total_phases: 5
   completed_phases: 1
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 ## Current Position
 
 Phase: 07 (mouse-support-e2e-test-harness) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4 (07-01, 07-03 complete)
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Plan: 2 of 4
 - [Phase 06-tech-debt-infrastructure]: 50ms sleep after kill_scdaemon() is now present at all card APDU entry points (detection.rs and factory_reset gaps fixed)
 - [Phase 07-03]: wait_for_text retry loop (0.3s poll) replaces fixed sleep+assert — eliminates CI timing races in E2E tests
 - [Phase 07-03]: E2E smoke test pattern: start_session -> wait_for_text -> menu nav -> assert content -> Esc back -> cleanup -> echo PASS
+- [Phase 07-01]: ClickAction placed in src/model/click_region.rs referencing tui action enums; cross-layer reference valid within single Rust crate; From<Rect> for Region in tui/mod.rs as sole Rect conversion boundary; EnableMouseCapture wrapped in if-let-Err for Windows ConPTY graceful degradation
 
 ### Pending Todos
 
@@ -61,6 +62,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T03:23:03.968Z
-Stopped at: Completed 07-03-PLAN.md (E2E harness: helpers.sh with wait_for_text, 6 screen smoke tests, run_all.sh driver)
+Last session: 2026-03-27T06:10:00Z
+Stopped at: Completed Wave 1 — 07-01 (ClickRegion types) + 07-03 (E2E harness, 6 smoke tests)
 Resume file: None
