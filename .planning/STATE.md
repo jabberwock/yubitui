@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: "Completed Wave 1: 07-01 (ClickRegion types) + 07-03 (E2E harness, 6 smoke tests)"
-last_updated: "2026-03-27T06:10:00Z"
+stopped_at: Completed 07-02-PLAN.md (mouse click dispatch + scroll support)
+last_updated: "2026-03-27T03:39:17.351Z"
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 6
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 ## Current Position
 
 Phase: 07 (mouse-support-e2e-test-harness) — EXECUTING
-Plan: 3 of 4 (07-01, 07-03 complete)
+Plan: 4 of 4 (07-01, 07-03 complete)
 
 ## Performance Metrics
 
@@ -51,6 +51,9 @@ Plan: 3 of 4 (07-01, 07-03 complete)
 - [Phase 07-03]: wait_for_text retry loop (0.3s poll) replaces fixed sleep+assert — eliminates CI timing races in E2E tests
 - [Phase 07-03]: E2E smoke test pattern: start_session -> wait_for_text -> menu nav -> assert content -> Esc back -> cleanup -> echo PASS
 - [Phase 07-01]: ClickAction placed in src/model/click_region.rs referencing tui action enums; cross-layer reference valid within single Rust crate; From<Rect> for Region in tui/mod.rs as sole Rect conversion boundary; EnableMouseCapture wrapped in if-let-Err for Windows ConPTY graceful degradation
+- [Phase 07-02]: PivTuiState/DiagnosticsTuiState created as TUI-layer structs — model::piv::PivState is card hardware data; no DiagnosticsState existed; followed SshState/KeyState pattern
+- [Phase 07-02]: render_context_menu returns Rect so dashboard registers per-item click regions without recomputing centered_area geometry
+- [Phase 07-02]: std::mem::take(&mut click_regions) in render() to resolve borrow checker conflict; render() signature changed to &mut self
 
 ### Pending Todos
 
@@ -62,6 +65,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T06:10:00Z
-Stopped at: Completed Wave 1 — 07-01 (ClickRegion types) + 07-03 (E2E harness, 6 smoke tests)
+Last session: 2026-03-27T03:39:17.349Z
+Stopped at: Completed 07-02-PLAN.md (mouse click dispatch + scroll support)
 Resume file: None
