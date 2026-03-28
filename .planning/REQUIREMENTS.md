@@ -58,9 +58,9 @@
 ### Slot Delete
 
 - [x] **SLOTDEL-01**: User can delete a single OpenPGP key slot (SIG, ENC, or AUT) after Admin PIN authentication and confirmation — key material is destroyed, other slots remain intact
-- [ ] **SLOTDEL-02**: User can delete a PIV certificate from any standard slot (9a, 9c, 9d, 9e) after management key authentication
-- [ ] **SLOTDEL-03**: User can delete a PIV private key on firmware >= 5.7.0; on older firmware the delete-key option is visibly disabled with an explanation
-- [ ] **SLOTDEL-04**: All delete operations show clear success/error feedback and the affected screen refreshes to reflect the change
+- [x] **SLOTDEL-02**: User can delete a PIV certificate from any standard slot (9a, 9c, 9d, 9e) after management key authentication
+- [x] **SLOTDEL-03**: User can delete a PIV private key on firmware >= 5.7.0; on older firmware the delete-key option is visibly disabled with an explanation
+- [x] **SLOTDEL-04**: All delete operations show clear success/error feedback and the affected screen refreshes to reflect the change
 
 ## v2 Requirements (Deferred)
 
@@ -139,9 +139,9 @@
 | EDU-03 | Phase 10 | Pending |
 | EDU-04 | Phase 10 | Pending |
 | SLOTDEL-01 | Phase 12 | Complete |
-| SLOTDEL-02 | Phase 12 | Pending |
-| SLOTDEL-03 | Phase 12 | Pending |
-| SLOTDEL-04 | Phase 12 | Pending |
+| SLOTDEL-02 | Phase 12 | Complete |
+| SLOTDEL-03 | Phase 12 | Complete |
+| SLOTDEL-04 | Phase 12 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 38 total

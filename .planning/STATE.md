@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: Completed 12-01-PLAN.md — OpenPGP slot delete model + DeleteKeyScreen
-last_updated: "2026-03-28T23:41:14.607Z"
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-03-28T23:44:49.083Z"
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 27
-  completed_plans: 25
+  completed_plans: 26
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 ## Current Position
 
 Phase: 12 (yubikey-slot-delete-workflow) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -90,6 +90,8 @@ Plan: 2 of 3
 - [Phase 12-01]: OpenPGP slot delete uses PUT DATA attribute-change trick: RSA4096 then RSA2048 — no DELETE KEY APDU exists on OpenPGP card spec
 - [Phase 12-01]: Admin PIN VERIFY SW 0x63Cx: retry count from low nibble; 0x6983 = blocked — clear user messages returned from delete_openpgp_key()
 - [Phase 12-01]: Two-step delete TUI flow: PinThenDeleteScreen -> DeleteKeyScreen (mirrors fido2 PinAuthScreen -> DeleteCredentialScreen pattern)
+- [Phase 12]: des 0.9.0-rc.3 with cipher 0.5 required — cipher 0.4 incompatible with des pre-release
+- [Phase 12]: DeletePivConfirmScreen pushes PivScreen(None) after delete — full YubiKeyState not available in modal context; user refreshes with R
 
 ### Roadmap Evolution
 
@@ -105,6 +107,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-28T23:41:14.605Z
-Stopped at: Completed 12-01-PLAN.md — OpenPGP slot delete model + DeleteKeyScreen
+Last session: 2026-03-28T23:44:49.080Z
+Stopped at: Completed 12-02-PLAN.md
 Resume file: None
