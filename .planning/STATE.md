@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: "Completed 10-01-PLAN.md (FIDO2 model layer — types, CTAP2 ops, mock fixture, Screen::Fido2)"
-last_updated: "2026-03-28T04:04:50.170Z"
+stopped_at: Completed 10-02-PLAN.md (Fido2Screen TUI widget — info display, credential list, PIN set/change/auth, delete with confirmation)
+last_updated: "2026-03-28T04:10:57.550Z"
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 21
-  completed_plans: 18
+  completed_plans: 19
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 ## Current Position
 
 Phase: 10 (fido2-screen) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ Plan: 2 of 4
 - [Phase 09-oath-totp-screen]: nav_7 follows nav_1..nav_6 pattern; '[7] OATH / Authenticator' button label matches Yubico Authenticator branding
 - [Phase 10-fido2-screen]: Fido2State.firmware_version stored as Option<String> (formatted) — model layer converts from packed u32 so TUI just displays the string
 - [Phase 10-fido2-screen]: Fido2State.credentials: None=locked, Some([])=no creds, Some(creds)=populated — three-state distinction drives TUI rendering
+- [Phase 10-fido2-screen]: PinAuthScreen pops parent Fido2Screen on success and pushes new Fido2Screen with credentials — cleanest way to propagate credential list without cross-screen state mutation
 
 ### Roadmap Evolution
 
@@ -91,6 +92,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-28T04:04:50.154Z
-Stopped at: Completed 10-01-PLAN.md (FIDO2 model layer — types, CTAP2 ops, mock fixture, Screen::Fido2)
+Last session: 2026-03-28T04:10:57.527Z
+Stopped at: Completed 10-02-PLAN.md (Fido2Screen TUI widget — info display, credential list, PIN set/change/auth, delete with confirmation)
 Resume file: None
