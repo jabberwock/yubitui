@@ -3,9 +3,9 @@ source: src/tui/oath.rs
 expression: app.backend()
 ---
 "                                Add OATH Account                                "
-"Step 1/5: Issuer                                                                "
+"Step 2/5: Account Name                                                          "
 "                                                                                "
-"Enter issuer name (e.g., GitHub, Google):                                       "
+"Enter account name (e.g., user@example.com):                                    "
 "> _                                                                             "
 "                                                                                "
 "  Tab  Focus   Ctrl+P  Palette                                                  "
