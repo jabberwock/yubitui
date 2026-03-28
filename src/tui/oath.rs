@@ -771,4 +771,61 @@ mod tests {
         // Should now be on step 2 (Account Name)
         insta::assert_display_snapshot!(app.backend());
     }
+
+    // -----------------------------------------------------------------------
+    // Phase 09-04: Pilot snapshot tests using mock_yubikey_states
+    // -----------------------------------------------------------------------
+
+    #[tokio::test]
+    async fn oath_default_state() {
+        let states = crate::model::mock::mock_yubikey_states();
+        let oath_state = states.first().and_then(|yk| yk.oath.clone());
+        let mut app = TestApp::new(80, 24, move || {
+            Box::new(OathScreen::new(oath_state.clone()))
+        });
+        app.pilot().settle().await;
+        insta::assert_display_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn oath_no_credentials() {
+        let oath_state = Some(OathState {
+            credentials: vec![],
+            password_required: false,
+        });
+        let mut app = TestApp::new(80, 24, move || {
+            Box::new(OathScreen::new(oath_state.clone()))
+        });
+        app.pilot().settle().await;
+        insta::assert_display_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn oath_password_protected() {
+        let oath_state = Some(OathState {
+            credentials: vec![],
+            password_required: true,
+        });
+        let mut app = TestApp::new(80, 24, move || {
+            Box::new(OathScreen::new(oath_state.clone()))
+        });
+        app.pilot().settle().await;
+        insta::assert_display_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn oath_navigate_down() {
+        use crossterm::event::KeyCode;
+        let states = crate::model::mock::mock_yubikey_states();
+        let oath_state = states.first().and_then(|yk| yk.oath.clone());
+        let mut app = TestApp::new(80, 24, move || {
+            Box::new(OathScreen::new(oath_state.clone()))
+        });
+        let mut pilot = app.pilot();
+        pilot.settle().await;
+        pilot.press(KeyCode::Down).await;
+        pilot.settle().await;
+        drop(pilot);
+        insta::assert_display_snapshot!(app.backend());
+    }
 }
