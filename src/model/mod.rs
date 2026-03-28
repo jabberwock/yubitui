@@ -7,6 +7,7 @@ pub mod mock;
 pub mod key_operations;
 pub mod oath;
 pub mod openpgp;
+pub mod otp;
 pub mod pin;
 pub mod pin_operations;
 pub mod piv;
@@ -159,6 +160,7 @@ pub struct YubiKeyState {
     #[allow(dead_code)]
     pub piv: Option<piv::PivState>,
     pub fido2: Option<fido2::Fido2State>,
+    pub otp: Option<otp::OtpState>,
     pub pin_status: pin::PinStatus,
     pub touch_policies: Option<touch_policy::TouchPolicies>,
 }

@@ -46,7 +46,7 @@
 
 ### OTP Slots
 
-- [ ] **OTP-01**: User can view OTP slot status screen showing slot 1 and slot 2 occupancy and configured type (Yubico OTP, static password, HMAC-SHA1, empty)
+- [x] **OTP-01**: User can view OTP slot status screen showing slot 1 and slot 2 occupancy and configured type (Yubico OTP, static password, HMAC-SHA1, empty)
 
 ### Education & Onboarding
 
@@ -126,7 +126,7 @@
 | FIDO-05 | Phase 9 | Complete |
 | FIDO-06 | Phase 9 | Complete |
 | FIDO-07 | Phase 9 | Complete |
-| OTP-01 | Phase 10 | Pending |
+| OTP-01 | Phase 10 | Complete |
 | EDU-01 | Phase 10 | Pending |
 | EDU-02 | Phase 10 | Pending |
 | EDU-03 | Phase 10 | Pending |

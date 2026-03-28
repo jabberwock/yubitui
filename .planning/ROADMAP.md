@@ -156,7 +156,7 @@ Plans:
 | 8. textual-rs Migration | v1.1 | 6/6 | Complete |  |
 | 9. OATH/TOTP Screen | v1.1 | 4/4 | Complete | 2026-03-27 |
 | 10. FIDO2 Screen | v1.1 | 4/4 | Complete    | 2026-03-28 |
-| 11. OTP Slots + Education + Onboarding | v1.1 | 0/3 | Not started | - |
+| 11. OTP Slots + Education + Onboarding | v1.1 | 0/3 | Planned    |  |
 
 ## Backlog
 
@@ -175,7 +175,7 @@ Plans:
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 11
-**Plans:** 4/4 plans complete
+**Plans:** 0/3 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 12 to break down)

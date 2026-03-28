@@ -102,6 +102,12 @@ pub fn mock_yubikey_states() -> Vec<YubiKeyState> {
             ]),
             supports_cred_mgmt: true,
         }),
+        otp: Some(otp::OtpState {
+            slot1: otp::OtpSlotStatus::Occupied,
+            slot2: otp::OtpSlotStatus::Empty,
+            slot1_touch: false,
+            slot2_touch: false,
+        }),
         pin_status: pin::PinStatus {
             user_pin_retries: 3,
             admin_pin_retries: 3,

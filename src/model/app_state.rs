@@ -9,6 +9,7 @@ pub enum Screen {
     Help,
     Keys,
     Oath,
+    Otp,
     PinManagement,
     SshWizard,
     Piv,

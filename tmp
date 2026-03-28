@@ -1,0 +1,5 @@
+What is the correct command?
+
+❯ find ~/.claude/projects -name '*.jsonl' -exec cat {} + | jq -nR '[inputs] | sort_by(.timestamp) | .[0:5]'
+
+jq: error (at <stdin>:185004): Cannot index string with string "timestamp"

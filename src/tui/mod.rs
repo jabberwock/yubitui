@@ -5,6 +5,7 @@ pub mod help;
 pub mod keys;
 pub mod fido2;
 pub mod oath;
+pub mod otp;
 pub mod pin;
 pub mod piv;
 pub mod ssh;

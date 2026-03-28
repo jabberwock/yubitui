@@ -64,7 +64,7 @@ static DASHBOARD_BINDINGS: &[KeyBinding] = &[
         key: KeyCode::Char('1'),
         modifiers: KeyModifiers::NONE,
         action: "nav_1",
-        description: "1-8 Navigate",
+        description: "1-9 Navigate",
         show: true,
     },
     KeyBinding {
@@ -113,6 +113,13 @@ static DASHBOARD_BINDINGS: &[KeyBinding] = &[
         key: KeyCode::Char('8'),
         modifiers: KeyModifiers::NONE,
         action: "nav_8",
+        description: "",
+        show: false,
+    },
+    KeyBinding {
+        key: KeyCode::Char('9'),
+        modifiers: KeyModifiers::NONE,
+        action: "nav_9",
         description: "",
         show: false,
     },
@@ -237,6 +244,7 @@ impl Widget for DashboardScreen {
         children.push(Box::new(Button::new("[6] Help")));
         children.push(Box::new(Button::new("[7] OATH / Authenticator")));
         children.push(Box::new(Button::new("[8] FIDO2 / Security Key")));
+        children.push(Box::new(Button::new("[9] OTP Slots")));
 
         children.push(Box::new(Footer));
         children
@@ -257,6 +265,7 @@ impl Widget for DashboardScreen {
                 "[6] Help"                => "nav_6",
                 "[7] OATH / Authenticator" => "nav_7",
                 "[8] FIDO2 / Security Key" => "nav_8",
+                "[9] OTP Slots"           => "nav_9",
                 _ => return EventPropagation::Continue,
             };
             self.on_action(action, ctx);
@@ -309,6 +318,11 @@ impl Widget for DashboardScreen {
                 let fido2_state = self.app_state.yubikey_state()
                     .and_then(|yk| yk.fido2.clone());
                 ctx.push_screen_deferred(Box::new(crate::tui::fido2::Fido2Screen::new(fido2_state)));
+            }
+            "nav_9" => {
+                let otp_state = self.app_state.yubikey_state()
+                    .and_then(|yk| yk.otp.clone());
+                ctx.push_screen_deferred(Box::new(crate::tui::otp::OtpScreen::new(otp_state)));
             }
             "refresh" => {
                 // Refresh is an app-level side effect — no-op in widget scope.

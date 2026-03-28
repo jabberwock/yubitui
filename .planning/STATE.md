@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
-status: Ready to plan
-stopped_at: "Checkpoint: 10-04 Task 2 human-verify — run cargo run -- --mock to verify FIDO2 screen"
-last_updated: "2026-03-28T05:22:31.671Z"
+status: Ready to execute
+stopped_at: Completed 11-01-PLAN.md (OTP slot status model + screen)
+last_updated: "2026-03-28T06:28:37.524Z"
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 21
+  total_plans: 24
   completed_plans: 21
 ---
 
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Zero-friction YubiKey management — detect problems automatically, guide users through fixes
-**Current focus:** Phase 10 — fido2-screen
+**Current focus:** Phase 11 — yubikey-slot-delete-workflow
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
+Phase: 11 (yubikey-slot-delete-workflow) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -80,6 +80,8 @@ Plan: Not started
 - [Phase 10-fido2-screen]: reset_fido2() uses raw CTAPHID frames via hidapi — ctap-hid-fido2 does not expose authenticatorReset (0x07)
 - [Phase 10-fido2-screen]: ResetGuidanceScreen stores own_id via on_mount() Cell<Option<WidgetId>> for matching worker source_id in on_event()
 - [Phase 10-fido2-screen]: Dashboard nav_8 reads yk.fido2.clone() via yubikey_state().and_then() — same pattern as nav_7 oath
+- [Phase 11]: OTP slot status is Occupied/Empty only — credential type is write-only on hardware; screen includes hardware limitation note
+- [Phase 11]: nav_7 used for OTP Slots in current worktree state — phases 9/10 (oath/fido2) not yet executed; OTP becomes nav_7
 
 ### Roadmap Evolution
 
@@ -95,6 +97,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-28T04:31:15.268Z
-Stopped at: Checkpoint: 10-04 Task 2 human-verify — run cargo run -- --mock to verify FIDO2 screen
+Last session: 2026-03-28T06:28:37.498Z
+Stopped at: Completed 11-01-PLAN.md (OTP slot status model + screen)
 Resume file: None
