@@ -64,7 +64,7 @@ static DASHBOARD_BINDINGS: &[KeyBinding] = &[
         key: KeyCode::Char('1'),
         modifiers: KeyModifiers::NONE,
         action: "nav_1",
-        description: "1-6 Navigate",
+        description: "1-7 Navigate",
         show: true,
     },
     KeyBinding {
@@ -99,6 +99,13 @@ static DASHBOARD_BINDINGS: &[KeyBinding] = &[
         key: KeyCode::Char('6'),
         modifiers: KeyModifiers::NONE,
         action: "nav_6",
+        description: "",
+        show: false,
+    },
+    KeyBinding {
+        key: KeyCode::Char('7'),
+        modifiers: KeyModifiers::NONE,
+        action: "nav_7",
         description: "",
         show: false,
     },
@@ -221,6 +228,7 @@ impl Widget for DashboardScreen {
         children.push(Box::new(Button::new("[4] SSH Setup")));
         children.push(Box::new(Button::new("[5] PIV Certificates")));
         children.push(Box::new(Button::new("[6] Help")));
+        children.push(Box::new(Button::new("[7] OATH / Authenticator")));
 
         children.push(Box::new(Footer));
         children
@@ -237,8 +245,9 @@ impl Widget for DashboardScreen {
                 "[2] Diagnostics"      => "nav_2",
                 "[3] PIN Management"   => "nav_3",
                 "[4] SSH Setup"        => "nav_4",
-                "[5] PIV Certificates" => "nav_5",
-                "[6] Help"             => "nav_6",
+                "[5] PIV Certificates"    => "nav_5",
+                "[6] Help"                => "nav_6",
+                "[7] OATH / Authenticator" => "nav_7",
                 _ => return EventPropagation::Continue,
             };
             self.on_action(action, ctx);
@@ -281,6 +290,11 @@ impl Widget for DashboardScreen {
             }
             "nav_6" => {
                 ctx.push_screen_deferred(Box::new(crate::tui::help::HelpScreen::new()));
+            }
+            "nav_7" => {
+                let oath_state = self.app_state.yubikey_state()
+                    .and_then(|yk| yk.oath.clone());
+                ctx.push_screen_deferred(Box::new(crate::tui::oath::OathScreen::new(oath_state)));
             }
             "refresh" => {
                 // Refresh is an app-level side effect — no-op in widget scope.
