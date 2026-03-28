@@ -567,8 +567,8 @@ impl Widget for KeysScreen {
         }
     }
 
-    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {
-        // Layout and child rendering handled by compose() children.
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
     }
 }
 
