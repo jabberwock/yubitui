@@ -193,7 +193,7 @@ mod tests {
     #[tokio::test]
     async fn piv_default_state() {
         let yk = mock_yubikey_states().into_iter().next();
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(PivScreen::new(yk.clone()))
         });
         app.pilot().settle().await;
@@ -202,7 +202,7 @@ mod tests {
 
     #[tokio::test]
     async fn piv_no_yubikey() {
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(PivScreen::new(None))
         });
         app.pilot().settle().await;

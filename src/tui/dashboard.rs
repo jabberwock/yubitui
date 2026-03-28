@@ -371,7 +371,7 @@ mod tests {
     async fn dashboard_default_populated() {
         let app_state = make_app_state_with_key();
         let diagnostics = Diagnostics::default();
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(DashboardScreen::new(app_state.clone(), diagnostics.clone()))
         });
         app.pilot().settle().await;
@@ -380,7 +380,7 @@ mod tests {
 
     #[tokio::test]
     async fn dashboard_no_yubikey() {
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(DashboardScreen::new(AppState::default(), Diagnostics::default()))
         });
         app.pilot().settle().await;
@@ -391,7 +391,7 @@ mod tests {
     async fn dashboard_context_menu_open() {
         let app_state = make_app_state_with_key();
         let diagnostics = Diagnostics::default();
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(DashboardScreen::new(app_state.clone(), diagnostics.clone()))
         });
         let mut pilot = app.pilot();

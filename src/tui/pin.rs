@@ -513,7 +513,7 @@ mod tests {
     async fn pin_default_state() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(PinManagementScreen::new(yk))
         });
         app.pilot().settle().await;
@@ -522,7 +522,7 @@ mod tests {
 
     #[tokio::test]
     async fn pin_no_yubikey() {
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(PinManagementScreen::new(None))
         });
         app.pilot().settle().await;
@@ -533,7 +533,7 @@ mod tests {
     async fn pin_unblock_wizard() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(PinManagementScreen::new(yk))
         });
         let mut pilot = app.pilot();

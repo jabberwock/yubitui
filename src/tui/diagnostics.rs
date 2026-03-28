@@ -204,7 +204,7 @@ mod tests {
 
     #[tokio::test]
     async fn diagnostics_default() {
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(DiagnosticsScreen::new(Diagnostics::default()))
         });
         app.pilot().settle().await;

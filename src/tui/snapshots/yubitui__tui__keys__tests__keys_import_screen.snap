@@ -2,15 +2,15 @@
 source: src/tui/keys.rs
 expression: app.backend()
 ---
+"                             Import Key to YubiKey                              "
+"This will import a GPG key from your keyring to the YubiKey.                    "
+"Prerequisites:                                                                  "
+"  - You must have a GPG key already generated                                   "
+"  - The key must be in your GPG keyring                                         "
 "                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
+"No GPG keys found in keyring.                                                   "
+"Generate a key first, or import one with: gpg --import <file>                   "
+"  Tab  Focus   Ctrl+P  Palette   q  Quit                                        "
 "                                                                                "
 "                                                                                "
 "                                                                                "

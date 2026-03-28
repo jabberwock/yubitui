@@ -422,7 +422,7 @@ mod tests {
 
     #[tokio::test]
     async fn ssh_main_screen() {
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(SshWizardScreen::new(SshState::default()))
         });
         app.pilot().settle().await;
@@ -431,7 +431,7 @@ mod tests {
 
     #[tokio::test]
     async fn ssh_enable_screen() {
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(SshWizardScreen::new(SshState::default()))
         });
         let mut pilot = app.pilot();

@@ -1181,14 +1181,14 @@ mod tests {
     async fn keys_default_state() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new(80, 24, move || Box::new(KeysScreen::new(yk)));
+        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeysScreen::new(yk)));
         app.pilot().settle().await;
         insta::assert_display_snapshot!(app.backend());
     }
 
     #[tokio::test]
     async fn keys_no_yubikey() {
-        let mut app = TestApp::new(80, 24, || Box::new(KeysScreen::new(None)));
+        let mut app = TestApp::new_styled(80, 24, "", || Box::new(KeysScreen::new(None)));
         app.pilot().settle().await;
         insta::assert_display_snapshot!(app.backend());
     }
@@ -1197,7 +1197,7 @@ mod tests {
     async fn keys_import_screen() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new(80, 24, move || Box::new(KeysScreen::new(yk)));
+        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeysScreen::new(yk)));
         let mut pilot = app.pilot();
         pilot.press(KeyCode::Char('i')).await;
         pilot.settle().await;
@@ -1208,11 +1208,11 @@ mod tests {
     #[tokio::test]
     async fn keygen_wizard_renders() {
         let wizard = KeyGenWizard::new("2026-01-01");
-        let mut app = TestApp::new(80, 24, move || Box::new(KeyGenWizardScreen::new(wizard)));
+        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeyGenWizardScreen::new(wizard)));
         app.pilot().settle().await;
-        // Basic render check for wizard (not part of plan snapshot set)
+        // Check that the wizard actually rendered content (header/footer text visible)
         let buf = app.buffer();
-        let rendered = format!("{:?}", buf);
-        assert!(rendered.len() > 0, "wizard should render to a non-empty buffer");
+        let content: String = buf.content().iter().map(|c| c.symbol()).collect();
+        assert!(content.contains("Generate"), "wizard should render header with 'Generate'");
     }
 }
