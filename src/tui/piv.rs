@@ -28,11 +28,6 @@ pub struct PivTuiState {
     pub scroll_offset: usize,
 }
 
-#[derive(Clone, Debug)]
-pub enum PivAction {
-    None,
-    NavigateTo(crate::model::Screen),
-}
 
 /// PIV Certificates screen — shows each standard PIV slot and occupancy status.
 ///

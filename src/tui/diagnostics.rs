@@ -27,11 +27,6 @@ pub struct DiagnosticsTuiState {
     pub scroll_offset: usize,
 }
 
-#[derive(Clone, Debug)]
-pub enum DiagnosticsAction {
-    None,
-    NavigateTo(crate::model::Screen),
-}
 
 /// Diagnostics screen — displays PC/SC, GPG agent, Scdaemon, and SSH agent status.
 ///

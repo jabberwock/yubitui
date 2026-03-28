@@ -5,11 +5,6 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
-#[derive(Clone, Debug)]
-pub enum HelpAction {
-    None,
-    Close,
-}
 
 /// Help screen — displays all keybindings grouped by context.
 ///

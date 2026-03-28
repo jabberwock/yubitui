@@ -21,13 +21,6 @@ The wizard walks through:\n\
 This replaces traditional SSH key files with hardware-bound keys\n\
 that cannot be copied or extracted.";
 
-#[derive(Clone, Debug)]
-pub enum SshAction {
-    None,
-    NavigateTo(crate::model::Screen),
-    ExecuteSshOperation,
-    RefreshSshStatus,
-}
 
 /// SSH wizard sub-screen variants — retained as internal reactive state (D-04).
 /// Sub-screens are represented as pushed screens via push_screen_deferred or

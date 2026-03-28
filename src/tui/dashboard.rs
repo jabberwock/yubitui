@@ -10,11 +10,6 @@ use ratatui::layout::Rect;
 use crate::model::AppState;
 use crate::diagnostics::Diagnostics;
 
-#[derive(Default, Clone, PartialEq)]
-pub struct DashboardState {
-    pub show_context_menu: bool,
-    pub menu_selected_index: usize,
-}
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]

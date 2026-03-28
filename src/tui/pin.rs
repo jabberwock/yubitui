@@ -24,13 +24,6 @@ to unblock it, or set a Reset Code as a backup unblock method.\n\
 \n\
 Change both PINs from defaults immediately after setting up your key.";
 
-#[derive(Clone, Debug)]
-pub enum PinAction {
-    None,
-    NavigateTo(crate::model::Screen),
-    ExecutePinOperation,
-    ExecuteFactoryReset,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PinScreen {

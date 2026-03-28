@@ -11,7 +11,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
-use crate::model::fido2::{Fido2State, Fido2Credential};
+use crate::model::fido2::Fido2State;
 use crate::tui::widgets::popup::{ConfirmScreen, PopupScreen};
 
 const FIDO2_HELP_TEXT: &str = "\
