@@ -293,6 +293,13 @@ static KEYS_BINDINGS: &[KeyBinding] = &[
         show: true,
     },
     KeyBinding {
+        key: KeyCode::Char('q'),
+        modifiers: KeyModifiers::NONE,
+        action: "back",
+        description: "",
+        show: false,
+    },
+    KeyBinding {
         key: KeyCode::Char('?'),
         modifiers: KeyModifiers::NONE,
         action: "help",
@@ -602,6 +609,13 @@ static KEYGEN_BINDINGS: &[KeyBinding] = &[
         description: "Esc Cancel",
         show: true,
     },
+    KeyBinding {
+        key: KeyCode::Char('q'),
+        modifiers: KeyModifiers::NONE,
+        action: "back",
+        description: "",
+        show: false,
+    },
 ];
 
 /// KeyGenWizard — 7-step key generation wizard as a pushed screen.
@@ -871,6 +885,13 @@ static IMPORT_BINDINGS: &[KeyBinding] = &[
         description: "Esc Cancel",
         show: true,
     },
+    KeyBinding {
+        key: KeyCode::Char('q'),
+        modifiers: KeyModifiers::NONE,
+        action: "back",
+        description: "",
+        show: false,
+    },
 ];
 
 /// Import Key flow screen.
@@ -962,6 +983,13 @@ static KEY_DETAIL_BINDINGS: &[KeyBinding] = &[
         show: true,
     },
     KeyBinding {
+        key: KeyCode::Char('q'),
+        modifiers: KeyModifiers::NONE,
+        action: "back",
+        description: "",
+        show: false,
+    },
+    KeyBinding {
         key: KeyCode::Enter,
         modifiers: KeyModifiers::NONE,
         action: "execute",
@@ -1048,6 +1076,13 @@ static TOUCH_POLICY_BINDINGS: &[KeyBinding] = &[
         action: "back",
         description: "Esc Back",
         show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Char('q'),
+        modifiers: KeyModifiers::NONE,
+        action: "back",
+        description: "",
+        show: false,
     },
 ];
 

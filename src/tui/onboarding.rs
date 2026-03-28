@@ -108,6 +108,13 @@ impl Widget for OnboardingScreen {
                 description: "",
                 show: false,
             },
+            KeyBinding {
+                key: KeyCode::Char('q'),
+                modifiers: KeyModifiers::NONE,
+                action: "dismiss",
+                description: "",
+                show: false,
+            },
         ]
     }
 

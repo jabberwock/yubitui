@@ -135,6 +135,13 @@ static PIN_MAIN_BINDINGS: &[KeyBinding] = &[
         show: true,
     },
     KeyBinding {
+        key: KeyCode::Char('q'),
+        modifiers: KeyModifiers::NONE,
+        action: "back",
+        description: "",
+        show: false,
+    },
+    KeyBinding {
         key: KeyCode::Char('?'),
         modifiers: KeyModifiers::NONE,
         action: "help",
@@ -302,6 +309,13 @@ static UNBLOCK_WIZARD_BINDINGS: &[KeyBinding] = &[
         description: "Cancel",
         show: true,
     },
+    KeyBinding {
+        key: KeyCode::Char('q'),
+        modifiers: KeyModifiers::NONE,
+        action: "back",
+        description: "",
+        show: false,
+    },
 ];
 
 impl Widget for UnblockWizardScreen {
@@ -424,6 +438,13 @@ static FACTORY_RESET_BINDINGS: &[KeyBinding] = &[
         action: "cancel",
         description: "Cancel",
         show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Char('q'),
+        modifiers: KeyModifiers::NONE,
+        action: "cancel",
+        description: "",
+        show: false,
     },
     KeyBinding {
         key: KeyCode::Char('y'),

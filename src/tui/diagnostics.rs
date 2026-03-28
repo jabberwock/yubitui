@@ -148,6 +148,13 @@ impl Widget for DiagnosticsScreen {
                 show: true,
             },
             KeyBinding {
+                key: KeyCode::Char('q'),
+                modifiers: KeyModifiers::NONE,
+                action: "back",
+                description: "",
+                show: false,
+            },
+            KeyBinding {
                 key: KeyCode::Char('r'),
                 modifiers: KeyModifiers::NONE,
                 action: "run_diagnostics",

@@ -66,6 +66,13 @@ impl Widget for HelpScreen {
                 show: true,
             },
             KeyBinding {
+                key: KeyCode::Char('q'),
+                modifiers: KeyModifiers::NONE,
+                action: "back",
+                description: "",
+                show: false,
+            },
+            KeyBinding {
                 key: KeyCode::Char('?'),
                 modifiers: KeyModifiers::NONE,
                 action: "back",

@@ -52,6 +52,13 @@ static FIDO2_BINDINGS: &[KeyBinding] = &[
         show: true,
     },
     KeyBinding {
+        key: KeyCode::Char('q'),
+        modifiers: KeyModifiers::NONE,
+        action: "back",
+        description: "",
+        show: false,
+    },
+    KeyBinding {
         key: KeyCode::Up,
         modifiers: KeyModifiers::NONE,
         action: "up",

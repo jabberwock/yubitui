@@ -39,7 +39,7 @@ pub enum DashboardAction {
 /// - No hardcoded Color:: values
 ///
 /// Ctrl+T theme cycling is handled globally by the textual-rs App runner.
-/// 'q' / Esc quit is handled globally by the textual-rs App runner.
+/// 'q' quits via ctx.quit(); Esc has no dashboard-level binding (no screen to pop).
 pub struct DashboardScreen {
     app_state: AppState,
     diagnostics: Diagnostics,
@@ -152,6 +152,13 @@ static DASHBOARD_BINDINGS: &[KeyBinding] = &[
         action: "open_menu",
         description: "",
         show: false,
+    },
+    KeyBinding {
+        key: KeyCode::Char('q'),
+        modifiers: KeyModifiers::NONE,
+        action: "quit",
+        description: "Q Quit",
+        show: true,
     },
 ];
 
@@ -340,6 +347,7 @@ impl Widget for DashboardScreen {
                 // Push Help as context menu placeholder — full context menu in 08-06.
                 ctx.push_screen_deferred(Box::new(crate::tui::help::HelpScreen::new()));
             }
+            "quit" => ctx.quit(),
             _ => {}
         }
     }

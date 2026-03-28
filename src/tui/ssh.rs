@@ -286,6 +286,13 @@ impl Widget for SshWizardScreen {
                 show: true,
             },
             KeyBinding {
+                key: KeyCode::Char('q'),
+                modifiers: KeyModifiers::NONE,
+                action: "back",
+                description: "",
+                show: false,
+            },
+            KeyBinding {
                 key: KeyCode::Char('a'),
                 modifiers: KeyModifiers::NONE,
                 action: "add_to_agent",
