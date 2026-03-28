@@ -438,6 +438,7 @@ impl Widget for KeysScreen {
         // Action labels (keybindings in KEYS_BINDINGS drive navigation)
         children.push(Box::new(Label::new("  g  Generate Key on Card")));
         children.push(Box::new(Label::new("  i  Import Existing Key")));
+        children.push(Box::new(Label::new("  d  Delete Key Slot")));
         children.push(Box::new(Label::new("  v  View Full Key Details")));
         children.push(Box::new(Label::new("  e  Export SSH Public Key")));
         children.push(Box::new(Label::new("  k  Key Attributes")));
