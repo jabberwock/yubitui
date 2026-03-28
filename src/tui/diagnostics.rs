@@ -37,6 +37,7 @@ pub struct DiagnosticsTuiState {
 /// - No hardcoded Color:: values — theme variables used via Label content
 pub struct DiagnosticsScreen {
     pub diagnostics: Diagnostics,
+    #[allow(dead_code)]
     pub state: Reactive<DiagnosticsTuiState>,
 }
 

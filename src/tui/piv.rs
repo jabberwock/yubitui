@@ -42,6 +42,7 @@ pub struct PivTuiState {
 /// to represent slot status and let the framework handle the two-column arrangement.
 pub struct PivScreen {
     pub yubikey_state: Option<YubiKeyState>,
+    #[allow(dead_code)]
     pub state: Reactive<PivTuiState>,
 }
 

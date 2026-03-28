@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Touch policy wired to TUI in a future phase
 use anyhow::Result;
 use sha2::{Digest, Sha256};
 use std::fmt;

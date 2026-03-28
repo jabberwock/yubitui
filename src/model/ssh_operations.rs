@@ -1,3 +1,4 @@
+#![allow(dead_code)] // SSH operations wired to TUI in a future phase
 use anyhow::Result;
 use std::fs;
 use std::io::Write;

@@ -84,12 +84,9 @@ impl Widget for PopupScreen {
     }
 
     fn on_action(&self, action: &str, ctx: &AppContext) {
-        match action {
-            "close" => {
-                self.closed.set(true);
-                ctx.pop_screen_deferred();
-            }
-            _ => {}
+        if action == "close" {
+            self.closed.set(true);
+            ctx.pop_screen_deferred();
         }
     }
 

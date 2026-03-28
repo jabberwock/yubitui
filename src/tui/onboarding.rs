@@ -23,6 +23,7 @@ pub struct OnboardingScreen {
 
 impl OnboardingScreen {
     /// Standard constructor — dismiss pops this screen.
+    #[allow(dead_code)]
     pub fn new(yk: YubiKeyState) -> Self {
         Self { yk, startup: None }
     }

@@ -1,3 +1,4 @@
+#![allow(dead_code)] // PIN operations — factory_reset_openpgp and apdu_sw reserved for future phases
 use anyhow::Result;
 use std::process::Command;
 

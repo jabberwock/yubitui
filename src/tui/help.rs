@@ -83,9 +83,8 @@ impl Widget for HelpScreen {
     }
 
     fn on_action(&self, action: &str, ctx: &AppContext) {
-        match action {
-            "back" => ctx.pop_screen_deferred(),
-            _ => {}
+        if action == "back" {
+            ctx.pop_screen_deferred();
         }
     }
 

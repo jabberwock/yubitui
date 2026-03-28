@@ -26,6 +26,7 @@ Change both PINs from defaults immediately after setting up your key.";
 
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum PinScreen {
     Main,
     ChangeUserPin,
@@ -45,12 +46,14 @@ pub enum PinScreen {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum UnblockPath {
     ResetCode,
     AdminPin,
     FactoryReset,
 }
 
+#[allow(dead_code)]
 pub struct PinState {
     pub screen: PinScreen,
     pub message: Option<String>,
@@ -425,14 +428,17 @@ impl Widget for UnblockWizardScreen {
 // ---------------------------------------------------------------------------
 
 /// Factory Reset confirmation screen — shown when all recovery paths are exhausted.
+#[allow(dead_code)]
 pub struct FactoryResetScreen;
 
 impl FactoryResetScreen {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self
     }
 }
 
+#[allow(dead_code)]
 static FACTORY_RESET_BINDINGS: &[KeyBinding] = &[
     KeyBinding {
         key: KeyCode::Esc,
@@ -518,6 +524,7 @@ impl Widget for FactoryResetScreen {
 // ---------------------------------------------------------------------------
 
 /// Push an operation result popup (success or failure message).
+#[allow(dead_code)]
 pub fn push_result_popup(ctx: &AppContext, title: &str, message: String) {
     ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(PopupScreen::new(
         title, message,

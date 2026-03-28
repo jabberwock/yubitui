@@ -1,3 +1,4 @@
+#![allow(dead_code)] // PIN health methods wired to TUI in a future phase
 use anyhow::Result;
 
 #[derive(Debug, Clone, serde::Serialize)]

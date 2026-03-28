@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Key operations wired to TUI in a future phase
 use anyhow::Result;
 use std::io::Write;
 use std::process::Command;

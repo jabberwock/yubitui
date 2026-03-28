@@ -51,6 +51,7 @@ pub enum KeyAction {
 
 /// Steps in the key generation wizard.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum KeyGenStep {
     Algorithm,
     Expiry,
@@ -97,6 +98,7 @@ impl KeyGenWizard {
 
 /// Sub-screen enum (retained for compatibility — D-04).
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum KeyScreen {
     Main,
     ViewStatus,
@@ -116,6 +118,7 @@ pub enum KeyScreen {
 
 /// Key management screen state (D-04: preserved).
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct KeyState {
     pub screen: KeyScreen,
     pub message: Option<String>,
@@ -154,6 +157,7 @@ impl Default for KeyState {
 
 // ── Helper functions (public — used by app.rs for model operations) ───────────
 
+#[allow(dead_code)]
 pub fn touch_slot_name(index: usize) -> &'static str {
     match index {
         0 => "sig",
@@ -164,6 +168,7 @@ pub fn touch_slot_name(index: usize) -> &'static str {
     }
 }
 
+#[allow(dead_code)]
 pub fn touch_slot_display(index: usize) -> &'static str {
     match index {
         0 => "Signature",
@@ -174,6 +179,7 @@ pub fn touch_slot_display(index: usize) -> &'static str {
     }
 }
 
+#[allow(dead_code)]
 pub fn touch_policy_from_index(index: usize) -> crate::model::touch_policy::TouchPolicy {
     use crate::model::touch_policy::TouchPolicy;
     match index {
@@ -186,6 +192,7 @@ pub fn touch_policy_from_index(index: usize) -> crate::model::touch_policy::Touc
     }
 }
 
+#[allow(dead_code)]
 pub fn keygen_params_from_state(
     state: &KeyState,
 ) -> Option<crate::model::key_operations::KeyGenParams> {
@@ -983,15 +990,16 @@ impl Widget for ImportKeyScreen {
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
-        let mut children: Vec<Box<dyn Widget>> = Vec::new();
-        children.push(Box::new(Header::new("Import Key to YubiKey")));
-        children.push(Box::new(Label::new(
-            "This will import a GPG key from your keyring to the YubiKey.",
-        )));
-        children.push(Box::new(Label::new("Prerequisites:")));
-        children.push(Box::new(Label::new("  - You must have a GPG key already generated")));
-        children.push(Box::new(Label::new("  - The key must be in your GPG keyring")));
-        children.push(Box::new(Label::new("")));
+        let mut children: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new("Import Key to YubiKey")),
+            Box::new(Label::new(
+                "This will import a GPG key from your keyring to the YubiKey.",
+            )),
+            Box::new(Label::new("Prerequisites:")),
+            Box::new(Label::new("  - You must have a GPG key already generated")),
+            Box::new(Label::new("  - The key must be in your GPG keyring")),
+            Box::new(Label::new("")),
+        ];
 
         if self.available_keys.is_empty() {
             children.push(Box::new(Label::new(
@@ -1242,6 +1250,7 @@ impl Widget for TouchPolicyScreen {
 ///
 /// Ported from `src/tui/widgets/progress.rs` — uses textual-rs Label
 /// rather than direct ratatui frame rendering.
+#[allow(dead_code)]
 pub struct ProgressLabel {
     title: String,
     status: String,
@@ -1249,6 +1258,7 @@ pub struct ProgressLabel {
 }
 
 impl ProgressLabel {
+    #[allow(dead_code)]
     pub fn new(title: impl Into<String>, status: impl Into<String>, tick: usize) -> Self {
         Self {
             title: title.into(),
@@ -1258,6 +1268,7 @@ impl ProgressLabel {
     }
 }
 
+#[allow(dead_code)]
 const SPINNER: [char; 4] = ['|', '/', '-', '\\'];
 
 impl Widget for ProgressLabel {

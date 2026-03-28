@@ -1,3 +1,4 @@
+#![allow(dead_code)] // THEME_NAMES and next_theme_name wired in future theme-picker UI
 use textual_rs::css::theme::{theme_by_name, default_dark_theme, Theme};
 
 /// Available theme names matching textual-rs built-ins (D-11).

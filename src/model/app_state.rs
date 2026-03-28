@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Screen enum variants reserved for future navigation use
 use serde::Serialize;
 
 /// Screen navigation -- pure enum, no TUI types.

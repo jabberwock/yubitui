@@ -232,12 +232,9 @@ impl Widget for PinInputWidget {
     }
 
     fn on_action(&self, action: &str, ctx: &AppContext) {
-        match action {
-            "cancel" => {
-                *self.cancelled.borrow_mut() = true;
-                ctx.pop_screen_deferred();
-            }
-            _ => {}
+        if action == "cancel" {
+            *self.cancelled.borrow_mut() = true;
+            ctx.pop_screen_deferred();
         }
     }
 
@@ -278,10 +275,7 @@ fn centered_area_legacy(area: ratatui::layout::Rect, width_pct: u16, height: u16
 /// Render the PIN input form as a centered popup over `area` (legacy ratatui function).
 /// Used by keys.rs until it is migrated in plan 08-05.
 pub fn render_pin_input(frame: &mut ratatui::Frame, area: ratatui::layout::Rect, state: &PinInputState) {
-    use ratatui::{
-        prelude::*,
-        widgets::{Block, Borders, Clear, Paragraph, Wrap},
-    };
+    use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
     let field_count = state.fields.len() as u16;
     let height = 2 + field_count * 2 + 2 + if state.error_message.is_some() { 1 } else { 0 };

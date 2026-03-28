@@ -1,3 +1,4 @@
+#![allow(dead_code)] // OATH APDU helpers — partially wired; standalone get_oath_state reserved for future direct use
 use anyhow::{anyhow, Result};
 use pcsc::{Context, Protocols, Scope, ShareMode};
 use std::fmt;
@@ -204,7 +205,7 @@ fn parse_list_response(data: &[u8]) -> Vec<OathCredential> {
 }
 
 /// Parse CALCULATE ALL response and update credential codes
-fn parse_calculate_all_response(data: &[u8], credentials: &mut Vec<OathCredential>) {
+fn parse_calculate_all_response(data: &[u8], credentials: &mut [OathCredential]) {
     let tlvs = parse_tlv(data);
     let mut current_name: Option<String> = None;
 
@@ -433,7 +434,7 @@ pub fn get_oath_state() -> Result<OathState> {
 }
 
 /// Calculate all TOTP codes (refresh)
-pub fn calculate_all(credentials: &mut Vec<OathCredential>) -> Result<()> {
+pub fn calculate_all(credentials: &mut [OathCredential]) -> Result<()> {
     super::card::kill_scdaemon();
     std::thread::sleep(std::time::Duration::from_millis(50));
 

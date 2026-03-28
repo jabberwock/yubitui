@@ -866,6 +866,7 @@ impl Widget for PinAuthScreen {
 /// Follows the OathScreen DeleteConfirmScreen pattern exactly.
 pub struct DeleteCredentialScreen {
     rp_id: String,
+    #[allow(dead_code)]
     user_name: String,
     credential_id: Vec<u8>,
     cached_pin: Option<String>,

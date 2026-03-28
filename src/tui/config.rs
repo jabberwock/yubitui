@@ -1,3 +1,4 @@
+#![allow(dead_code)] // save_theme_name wired in future theme-settings UI
 use std::path::PathBuf;
 
 pub fn config_path() -> Option<PathBuf> {
