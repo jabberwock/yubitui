@@ -463,6 +463,9 @@ impl AddAccountScreen {
                     }
                     Err(e) => {
                         self.state.borrow_mut().error_message = Some(e.to_string());
+                        if let Some(id) = self.own_id.get() {
+                            ctx.request_recompose(id);
+                        }
                     }
                 }
             }

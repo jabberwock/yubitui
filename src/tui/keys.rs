@@ -839,11 +839,14 @@ impl Widget for KeyGenWizardScreen {
                     }
                 }
                 KeyGenStep::Confirm => {
-                    // Proceed to PIN entry — push PinInputWidget
+                    // Close wizard and inform user — full PIN+keygen flow is a TODO
                     drop(w);
-                    use crate::tui::widgets::pin_input::PinInputWidget;
+                    ctx.pop_screen_deferred();
                     ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                        PinInputWidget::new("Key Generation — Admin PIN", &["Admin PIN"]),
+                        PopupScreen::new(
+                            "Key Generation",
+                            "Key generation requires Admin PIN entry. Full implementation coming soon — press Esc to dismiss.",
+                        ),
                     ))));
                     return;
                 }
