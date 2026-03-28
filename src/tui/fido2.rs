@@ -14,6 +14,20 @@ use ratatui::layout::Rect;
 use crate::model::fido2::{Fido2State, Fido2Credential};
 use crate::tui::widgets::popup::{ConfirmScreen, PopupScreen};
 
+const FIDO2_HELP_TEXT: &str = "\
+FIDO2 / Security Key\n\
+\n\
+FIDO2 is the modern passwordless authentication standard. Your YubiKey\n\
+stores passkeys that prove your identity to websites without passwords.\n\
+\n\
+This screen shows:\n\
+- Firmware version and supported algorithms\n\
+- PIN status and retry count\n\
+- Stored resident credentials (passkeys)\n\
+\n\
+You can set/change the FIDO2 PIN, delete individual passkeys, or reset\n\
+the entire FIDO2 applet (which destroys all passkeys on this key).";
+
 // ============================================================================
 // TUI State
 // ============================================================================
@@ -91,6 +105,13 @@ static FIDO2_BINDINGS: &[KeyBinding] = &[
         modifiers: KeyModifiers::NONE,
         action: "authenticate_pin",
         description: "P Unlock",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Char('?'),
+        modifiers: KeyModifiers::NONE,
+        action: "help",
+        description: "? Help",
         show: true,
     },
 ];
@@ -311,6 +332,13 @@ impl Widget for Fido2Screen {
                 ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
                     ResetConfirmScreen::new(),
                 ))));
+            }
+            "help" => {
+                ctx.push_screen_deferred(Box::new(
+                    ModalScreen::new(Box::new(
+                        PopupScreen::new("FIDO2 Help", FIDO2_HELP_TEXT)
+                    ))
+                ));
             }
             _ => {}
         }

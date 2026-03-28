@@ -12,6 +12,18 @@ use crate::model::YubiKeyState;
 use crate::tui::widgets::pin_input::PinInputWidget;
 use crate::tui::widgets::popup::{ConfirmScreen, PopupScreen};
 
+const PIN_HELP_TEXT: &str = "\
+PIN Management\n\
+\n\
+Your YubiKey's OpenPGP applet uses two PINs:\n\
+- User PIN (default: 123456) — required for signing and decryption\n\
+- Admin PIN (default: 12345678) — required for key management operations\n\
+\n\
+After 3 wrong User PIN attempts, the PIN is blocked. Use the Admin PIN\n\
+to unblock it, or set a Reset Code as a backup unblock method.\n\
+\n\
+Change both PINs from defaults immediately after setting up your key.";
+
 #[derive(Clone, Debug)]
 pub enum PinAction {
     None,
@@ -127,6 +139,13 @@ static PIN_MAIN_BINDINGS: &[KeyBinding] = &[
         modifiers: KeyModifiers::NONE,
         action: "back",
         description: "Back",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Char('?'),
+        modifiers: KeyModifiers::NONE,
+        action: "help",
+        description: "? Help",
         show: true,
     },
 ];
@@ -249,6 +268,13 @@ impl Widget for PinManagementScreen {
             }
             "back" => {
                 ctx.pop_screen_deferred();
+            }
+            "help" => {
+                ctx.push_screen_deferred(Box::new(
+                    ModalScreen::new(Box::new(
+                        PopupScreen::new("PIN Management Help", PIN_HELP_TEXT)
+                    ))
+                ));
             }
             _ => {}
         }

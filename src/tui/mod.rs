@@ -4,6 +4,7 @@ pub mod diagnostics;
 pub mod help;
 pub mod keys;
 pub mod fido2;
+pub mod glossary;
 pub mod oath;
 pub mod otp;
 pub mod pin;

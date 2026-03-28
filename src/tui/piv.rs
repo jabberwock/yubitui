@@ -7,6 +7,21 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
 use crate::model::YubiKeyState;
+use crate::tui::widgets::popup::{ModalScreen, PopupScreen};
+
+const PIV_HELP_TEXT: &str = "\
+PIV Certificates\n\
+\n\
+PIV (Personal Identity Verification) is a smart card standard for\n\
+storing X.509 certificates and private keys.\n\
+\n\
+Your YubiKey has 4 standard PIV slots:\n\
+- 9a: Authentication (login, VPN)\n\
+- 9c: Digital Signature (code signing, documents)\n\
+- 9d: Key Management (encryption, key exchange)\n\
+- 9e: Card Authentication (physical access, no PIN required)\n\
+\n\
+This screen shows which slots are occupied.";
 
 #[derive(Default, Clone, PartialEq)]
 pub struct PivTuiState {
@@ -137,12 +152,26 @@ impl Widget for PivScreen {
                 description: "Q Back",
                 show: false,
             },
+            KeyBinding {
+                key: KeyCode::Char('?'),
+                modifiers: KeyModifiers::NONE,
+                action: "help",
+                description: "? Help",
+                show: true,
+            },
         ]
     }
 
     fn on_action(&self, action: &str, ctx: &AppContext) {
         match action {
             "back" => ctx.pop_screen_deferred(),
+            "help" => {
+                ctx.push_screen_deferred(Box::new(
+                    ModalScreen::new(Box::new(
+                        PopupScreen::new("PIV Help", PIV_HELP_TEXT)
+                    ))
+                ));
+            }
             "view_slot" => {
                 // View slot detail — full implementation in subsequent plans when
                 // the slot detail sub-screen is built. For now, no-op.

@@ -7,6 +7,20 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
 use crate::diagnostics::Diagnostics;
+use crate::tui::widgets::popup::{ModalScreen, PopupScreen};
+
+const DIAGNOSTICS_HELP_TEXT: &str = "\
+Diagnostics\n\
+\n\
+System checks for YubiKey connectivity and tool availability.\n\
+\n\
+Verifies:\n\
+- PC/SC smart card service is running\n\
+- Card readers are detected\n\
+- GPG is installed and accessible\n\
+- gpg-agent is running\n\
+\n\
+Run diagnostics if your YubiKey is not detected or operations fail.";
 
 #[derive(Default, Clone, PartialEq)]
 pub struct DiagnosticsTuiState {
@@ -152,12 +166,26 @@ impl Widget for DiagnosticsScreen {
                 description: "Q Back",
                 show: false,
             },
+            KeyBinding {
+                key: KeyCode::Char('?'),
+                modifiers: KeyModifiers::NONE,
+                action: "help",
+                description: "? Help",
+                show: true,
+            },
         ]
     }
 
     fn on_action(&self, action: &str, ctx: &AppContext) {
         match action {
             "back" => ctx.pop_screen_deferred(),
+            "help" => {
+                ctx.push_screen_deferred(Box::new(
+                    ModalScreen::new(Box::new(
+                        PopupScreen::new("Diagnostics Help", DIAGNOSTICS_HELP_TEXT)
+                    ))
+                ));
+            }
             "run_diagnostics" => {
                 // Re-run diagnostics is handled by the parent runner (app.rs)
                 // For now, pop back so user can re-enter (triggers fresh diagnostics).

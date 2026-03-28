@@ -5,6 +5,21 @@ use textual_rs::reactive::Reactive;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use crate::tui::widgets::popup::{ModalScreen, PopupScreen};
+
+const SSH_HELP_TEXT: &str = "\
+SSH Setup Wizard\n\
+\n\
+Configure your YubiKey for SSH authentication. Your OpenPGP\n\
+authentication subkey can serve as an SSH key via gpg-agent.\n\
+\n\
+The wizard walks through:\n\
+1. Checking gpg-agent configuration\n\
+2. Exporting your SSH public key\n\
+3. Testing the SSH connection\n\
+\n\
+This replaces traditional SSH key files with hardware-bound keys\n\
+that cannot be copied or extracted.";
 
 #[derive(Clone, Debug)]
 pub enum SshAction {
@@ -333,6 +348,13 @@ impl Widget for SshWizardScreen {
                 description: "5 Test Connection",
                 show: false,
             },
+            KeyBinding {
+                key: KeyCode::Char('?'),
+                modifiers: KeyModifiers::NONE,
+                action: "help",
+                description: "? Help",
+                show: true,
+            },
         ]
     }
 
@@ -382,6 +404,13 @@ impl Widget for SshWizardScreen {
             "refresh" => {
                 // Refresh SSH status — wired in subsequent plans.
                 ctx.pop_screen_deferred();
+            }
+            "help" => {
+                ctx.push_screen_deferred(Box::new(
+                    ModalScreen::new(Box::new(
+                        PopupScreen::new("SSH Wizard Help", SSH_HELP_TEXT)
+                    ))
+                ));
             }
             _ => {}
         }
