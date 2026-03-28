@@ -2,6 +2,26 @@ use anyhow::Result;
 use ctap_hid_fido2::{FidoKeyHidFactory, LibCfg};
 
 // ============================================================================
+// CTAP HID Constants for raw reset frame
+// ============================================================================
+
+/// CTAPHID command for channel allocation (CTAPHID_INIT)
+const CTAPHID_INIT: u8 = 0x06;
+/// CTAPHID command for CTAP2 CBOR tunneling (CTAPHID_CBOR)
+const CTAPHID_CBOR: u8 = 0x10;
+/// Broadcast channel ID — used before a real channel is allocated
+const BROADCAST_CID: [u8; 4] = [0xFF, 0xFF, 0xFF, 0xFF];
+/// FIDO HID usage page (0xF1D0 per CTAP HID spec)
+const FIDO_USAGE_PAGE: u16 = 0xF1D0;
+/// FIDO HID usage (0x01 per CTAP HID spec)
+const FIDO_USAGE: u16 = 0x01;
+
+/// CTAP2 status: success
+const CTAP2_OK: u8 = 0x00;
+/// CTAP2 error: not allowed (device was not freshly plugged in — 10s window expired)
+const CTAP2_ERR_NOT_ALLOWED: u8 = 0x2E;
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -178,4 +198,130 @@ pub fn change_pin(current_pin: &str, new_pin: &str) -> Result<()> {
     let device = get_fido2_device()?;
     device.change_pin(current_pin, new_pin)?;
     Ok(())
+}
+
+// ============================================================================
+// FIDO2 Reset — raw HID authenticatorReset (command 0x07)
+// ============================================================================
+
+/// Find the HID path of the first FIDO2 device (usage_page=0xF1D0, usage=0x01).
+///
+/// Returns the device path as a CString-safe string for use with hidapi::open_path().
+pub fn find_fido_hid_device_path() -> Result<std::ffi::CString> {
+    let api = hidapi::HidApi::new()
+        .map_err(|e| anyhow::anyhow!("Failed to open HID API: {}", e))?;
+    for device_info in api.device_list() {
+        if device_info.usage_page() == FIDO_USAGE_PAGE && device_info.usage() == FIDO_USAGE {
+            let path = device_info.path().to_owned();
+            return Ok(path);
+        }
+    }
+    Err(anyhow::anyhow!("No FIDO HID device found"))
+}
+
+/// Returns true if a FIDO2 HID device is currently present (plugged in).
+pub fn is_fido_device_present() -> bool {
+    find_fido_hid_device_path().is_ok()
+}
+
+/// Send authenticatorReset (CTAP2 command 0x07) via raw CTAPHID frames.
+///
+/// The FIDO2 spec requires the reset command to arrive within 10 seconds
+/// of the device being powered on (USB insertion). This function:
+/// 1. Sends CTAPHID_INIT on broadcast channel to get a channel ID
+/// 2. Sends CTAPHID_CBOR with payload 0x07 (authenticatorReset) on that channel
+/// 3. Parses the response status byte
+///
+/// Returns:
+/// - Ok(()) on success (status 0x00)
+/// - Err with "Reset not allowed" message if outside the 10-second window (status 0x2E)
+/// - Err with status code for any other error
+pub fn reset_fido2() -> Result<()> {
+    let path = find_fido_hid_device_path()?;
+    let api = hidapi::HidApi::new()
+        .map_err(|e| anyhow::anyhow!("Failed to open HID API: {}", e))?;
+    let device = api
+        .open_path(&path)
+        .map_err(|e| anyhow::anyhow!("Failed to open FIDO HID device: {}", e))?;
+
+    // --- Step 1: CTAPHID_INIT on broadcast channel ---
+    // Packet: [broadcast_cid(4), 0x80|CTAPHID_INIT(1), bcnt_hi(1), bcnt_lo(1), nonce(8), pad]
+    // Total: 64 bytes (standard CTAPHID report size)
+    // nonce is 8 bytes — not security-critical; use fixed value
+    let nonce: [u8; 8] = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08];
+    let mut init_packet = [0u8; 65]; // 65 bytes: first byte is report ID (0x00 for HID)
+    init_packet[0] = 0x00; // HID report ID
+    init_packet[1] = BROADCAST_CID[0];
+    init_packet[2] = BROADCAST_CID[1];
+    init_packet[3] = BROADCAST_CID[2];
+    init_packet[4] = BROADCAST_CID[3];
+    init_packet[5] = 0x80 | CTAPHID_INIT;
+    init_packet[6] = 0x00; // bcnt_hi
+    init_packet[7] = 0x08; // bcnt_lo = 8 (nonce length)
+    init_packet[8..16].copy_from_slice(&nonce);
+    // rest is zero padding
+
+    device
+        .write(&init_packet)
+        .map_err(|e| anyhow::anyhow!("CTAPHID_INIT write failed: {}", e))?;
+
+    let mut response = [0u8; 64];
+    let n = device
+        .read_timeout(&mut response, 1000)
+        .map_err(|e| anyhow::anyhow!("CTAPHID_INIT read failed: {}", e))?;
+    if n < 17 {
+        return Err(anyhow::anyhow!(
+            "CTAPHID_INIT response too short: {} bytes",
+            n
+        ));
+    }
+
+    // Response layout: [cid(4), cmd(1), bcnt_hi(1), bcnt_lo(1), nonce_echo(8), new_cid(4), ...]
+    // new_cid is at bytes [15..19] of the 64-byte response
+    let channel_id: [u8; 4] = [response[15], response[16], response[17], response[18]];
+
+    // --- Step 2: CTAPHID_CBOR with authenticatorReset (0x07) ---
+    // Packet: [channel_id(4), 0x80|CTAPHID_CBOR(1), 0x00, 0x01, 0x07, pad to 64]
+    // bcnt = 1 (one byte payload), payload = 0x07 = authenticatorReset command
+    let mut cbor_packet = [0u8; 65];
+    cbor_packet[0] = 0x00; // HID report ID
+    cbor_packet[1] = channel_id[0];
+    cbor_packet[2] = channel_id[1];
+    cbor_packet[3] = channel_id[2];
+    cbor_packet[4] = channel_id[3];
+    cbor_packet[5] = 0x80 | CTAPHID_CBOR;
+    cbor_packet[6] = 0x00; // bcnt_hi
+    cbor_packet[7] = 0x01; // bcnt_lo = 1 (single CTAP2 command byte)
+    cbor_packet[8] = 0x07; // authenticatorReset = command 0x07
+    // rest is zero padding
+
+    device
+        .write(&cbor_packet)
+        .map_err(|e| anyhow::anyhow!("CTAPHID_CBOR reset write failed: {}", e))?;
+
+    // Read response — timeout 30s to allow user presence check on some devices
+    let mut cbor_response = [0u8; 64];
+    let m = device
+        .read_timeout(&mut cbor_response, 30_000)
+        .map_err(|e| anyhow::anyhow!("CTAPHID_CBOR reset read failed: {}", e))?;
+    if m < 8 {
+        return Err(anyhow::anyhow!(
+            "CTAPHID_CBOR response too short: {} bytes",
+            m
+        ));
+    }
+
+    // Response layout: [cid(4), cmd(1), bcnt_hi(1), bcnt_lo(1), status(1), ...]
+    // Status byte is at index 7 of the 64-byte response buffer
+    let status = cbor_response[7];
+    match status {
+        CTAP2_OK => Ok(()),
+        CTAP2_ERR_NOT_ALLOWED => Err(anyhow::anyhow!(
+            "Reset not allowed — device must be freshly plugged in (within 10 seconds of USB insertion)"
+        )),
+        other => Err(anyhow::anyhow!(
+            "Authenticator reset failed with CTAP2 error: 0x{:02X}",
+            other
+        )),
+    }
 }

@@ -24,6 +24,7 @@ textual-rs = { path = "../textual-rs/crates/textual-rs" }
 # YubiKey Communication
 pcsc = "2.8"
 ctap-hid-fido2 = "3.5.9"
+hidapi = "2"
 
 # Async Runtime
 tokio = { version = "1.40", features = ["full"] }
