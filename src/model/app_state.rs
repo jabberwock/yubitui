@@ -5,6 +5,7 @@ use serde::Serialize;
 pub enum Screen {
     Dashboard,
     Diagnostics,
+    Fido2,
     Help,
     Keys,
     Oath,

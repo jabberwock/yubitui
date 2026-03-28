@@ -173,6 +173,7 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
             openpgp,
             oath: None, // OATH detection is expensive — only fetched on-demand
             piv,
+            fido2: None, // FIDO2 detection is expensive — only fetched on-demand
             pin_status,
             touch_policies,
         });

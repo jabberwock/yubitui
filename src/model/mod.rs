@@ -2,6 +2,7 @@ pub mod app_state;
 pub mod card;
 pub mod gpg_status;
 pub mod detection;
+pub mod fido2;
 pub mod mock;
 pub mod key_operations;
 pub mod oath;
@@ -157,6 +158,7 @@ pub struct YubiKeyState {
     pub oath: Option<oath::OathState>,
     #[allow(dead_code)]
     pub piv: Option<piv::PivState>,
+    pub fido2: Option<fido2::Fido2State>,
     pub pin_status: pin::PinStatus,
     pub touch_policies: Option<touch_policy::TouchPolicies>,
 }
