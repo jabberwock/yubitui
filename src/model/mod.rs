@@ -8,6 +8,7 @@ pub mod key_operations;
 pub mod oath;
 pub mod onboarding;
 pub mod openpgp;
+pub mod openpgp_delete;
 pub mod otp;
 pub mod pin;
 pub mod pin_operations;

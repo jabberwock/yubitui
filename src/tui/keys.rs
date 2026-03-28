@@ -9,7 +9,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
 use crate::model::YubiKeyState;
-use crate::tui::widgets::popup::{PopupScreen, ConfirmScreen};
+use crate::tui::widgets::popup::PopupScreen;
 
 const KEYS_HELP_TEXT: &str = "\
 OpenPGP Keys\n\
@@ -466,14 +466,38 @@ impl Widget for KeysScreen {
                 )));
             }
             "delete_key" => {
-                // Delete confirmation via ConfirmScreen (D-14: destructive = Error styled)
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    ConfirmScreen::new(
-                        "Delete Slot",
-                        "Delete Slot -- This will erase the key and certificate in this slot.",
-                        true, // destructive
-                    ),
-                ))));
+                use crate::model::openpgp_delete::OpenPgpKeySlot;
+
+                // Map selected_key_index to the appropriate slot (0=Sig, 1=Enc, 2=Aut).
+                let selected_index = self.state.borrow().selected_key_index;
+                let slot = match selected_index {
+                    0 => OpenPgpKeySlot::Sig,
+                    1 => OpenPgpKeySlot::Enc,
+                    _ => OpenPgpKeySlot::Aut,
+                };
+
+                // Only allow delete when the slot is occupied.
+                let key_present = self.yubikey_state.as_ref()
+                    .and_then(|yk| yk.openpgp.as_ref())
+                    .map(|pgp| match slot {
+                        OpenPgpKeySlot::Sig => pgp.signature_key.is_some(),
+                        OpenPgpKeySlot::Enc => pgp.encryption_key.is_some(),
+                        OpenPgpKeySlot::Aut => pgp.authentication_key.is_some(),
+                    })
+                    .unwrap_or(false);
+
+                if !key_present {
+                    ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                        PopupScreen::new(
+                            "No Key",
+                            format!("No key in the {} slot to delete.", slot.display_name()),
+                        ),
+                    ))));
+                } else {
+                    ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                        PinThenDeleteScreen::new(slot),
+                    ))));
+                }
             }
             "view_status" => {
                 ctx.push_screen_deferred(Box::new(KeyDetailScreen::new(
@@ -1282,6 +1306,209 @@ impl Widget for ProgressLabel {
             Box::new(Header::new(&self.title)),
             Box::new(Label::new(format!("{} {}", spinner_char, self.status))),
         ]
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ── DeleteKeyScreen ───────────────────────────────────────────────────────────
+
+/// Confirmation screen wrapping ConfirmScreen to delete a single OpenPGP key slot.
+///
+/// Follows the DeleteCredentialScreen pattern from fido2.rs exactly.
+/// Receives the slot and admin_pin from PinThenDeleteScreen.
+pub struct DeleteKeyScreen {
+    slot: crate::model::openpgp_delete::OpenPgpKeySlot,
+    admin_pin: String,
+    inner: crate::tui::widgets::popup::ConfirmScreen,
+}
+
+impl DeleteKeyScreen {
+    pub fn new(slot: crate::model::openpgp_delete::OpenPgpKeySlot, admin_pin: String) -> Self {
+        let body = format!(
+            "Permanently delete the {} key?\n\nThis destroys the key material and cannot be undone.",
+            slot.display_name()
+        );
+        Self {
+            slot,
+            admin_pin,
+            inner: crate::tui::widgets::popup::ConfirmScreen::new("Delete Key Slot", body, true),
+        }
+    }
+}
+
+impl Widget for DeleteKeyScreen {
+    fn widget_type_name(&self) -> &'static str {
+        "DeleteKeyScreen"
+    }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        self.inner.compose()
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        self.inner.key_bindings()
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "confirm" => {
+                match crate::model::openpgp_delete::delete_openpgp_key(self.slot, &self.admin_pin) {
+                    Ok(()) => {
+                        ctx.pop_screen_deferred();
+                        ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                            crate::tui::widgets::popup::PopupScreen::new(
+                                "Success",
+                                format!("{} key deleted.", self.slot.display_name()),
+                            ),
+                        ))));
+                    }
+                    Err(e) => {
+                        ctx.pop_screen_deferred();
+                        ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                            crate::tui::widgets::popup::PopupScreen::new(
+                                "Error",
+                                format!("Delete failed: {}", e),
+                            ),
+                        ))));
+                    }
+                }
+            }
+            "cancel" => ctx.pop_screen_deferred(),
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ── PinThenDeleteScreen ───────────────────────────────────────────────────────
+
+/// Admin PIN collection screen for OpenPGP slot deletion.
+///
+/// Follows the PinAuthScreen pattern from fido2.rs: on_event captures character
+/// input into a RefCell<String>, Enter submits, Esc cancels.
+/// On submit: pops self, pushes ModalScreen(DeleteKeyScreen).
+pub struct PinThenDeleteScreen {
+    slot: crate::model::openpgp_delete::OpenPgpKeySlot,
+    pin_input: RefCell<String>,
+    error_message: RefCell<Option<String>>,
+}
+
+impl PinThenDeleteScreen {
+    pub fn new(slot: crate::model::openpgp_delete::OpenPgpKeySlot) -> Self {
+        Self {
+            slot,
+            pin_input: RefCell::new(String::new()),
+            error_message: RefCell::new(None),
+        }
+    }
+}
+
+static PIN_THEN_DELETE_BINDINGS: &[KeyBinding] = &[
+    KeyBinding {
+        key: KeyCode::Esc,
+        modifiers: KeyModifiers::NONE,
+        action: "cancel",
+        description: "Esc Cancel",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Enter,
+        modifiers: KeyModifiers::NONE,
+        action: "submit",
+        description: "Enter Continue",
+        show: true,
+    },
+];
+
+impl Widget for PinThenDeleteScreen {
+    fn widget_type_name(&self) -> &'static str {
+        "PinThenDeleteScreen"
+    }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let error = self.error_message.borrow().clone();
+        let masked = "*".repeat(self.pin_input.borrow().len());
+
+        let mut widgets: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new(
+                format!("Delete {} Key — Enter Admin PIN", self.slot.display_name()).as_str()
+            )),
+            Box::new(Label::new("")),
+            Box::new(Label::new(format!(
+                "Enter Admin PIN to delete the {} key:",
+                self.slot.display_name()
+            ))),
+            Box::new(Label::new(format!("> {}_", masked))),
+        ];
+
+        if let Some(ref err) = error {
+            widgets.push(Box::new(Label::new("")));
+            widgets.push(Box::new(Label::new(format!("Error: {}", err))));
+        }
+
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Footer));
+        widgets
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        PIN_THEN_DELETE_BINDINGS
+    }
+
+    fn on_event(
+        &self,
+        event: &dyn std::any::Any,
+        ctx: &AppContext,
+    ) -> textual_rs::widget::EventPropagation {
+        use crossterm::event::KeyEvent;
+        use textual_rs::widget::EventPropagation;
+
+        if let Some(key) = event.downcast_ref::<KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => {
+                    ctx.pop_screen_deferred();
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Backspace => {
+                    self.pin_input.borrow_mut().pop();
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Enter => {
+                    self.on_action("submit", ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Char(c) => {
+                    self.pin_input.borrow_mut().push(c);
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        textual_rs::widget::EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "cancel" => ctx.pop_screen_deferred(),
+            "submit" => {
+                let pin = self.pin_input.borrow().clone();
+                if pin.is_empty() {
+                    *self.error_message.borrow_mut() = Some("Admin PIN cannot be empty".to_string());
+                    return;
+                }
+                ctx.pop_screen_deferred();
+                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                    DeleteKeyScreen::new(self.slot, pin),
+                ))));
+            }
+            _ => {}
+        }
     }
 
     fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
