@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: Completed 08-06-PLAN.md (Pilot tests + insta snapshots for all 7 textual-rs screens)
-last_updated: "2026-03-27T14:20:00.000Z"
+stopped_at: Completed 09-04-PLAN.md (OATH dashboard nav wiring, Pilot snapshot tests, human verification)
+last_updated: "2026-03-28T01:55:25.822Z"
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 17
+  completed_plans: 16
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Zero-friction YubiKey management — detect problems automatically, guide users through fixes
-**Current focus:** Phase 08 — textual-rs-migration
+**Current focus:** Phase 09 — oath-totp-screen
 
 ## Current Position
 
-Phase: 08 (textual-rs-migration) — COMPLETE
-Plan: 6 of 6 (all plans executed)
+Phase: 09 (oath-totp-screen) — EXECUTING
+Plan: 4 of 4
 
 ## Performance Metrics
 
@@ -68,6 +68,12 @@ Plan: 6 of 6 (all plans executed)
 - [Phase 08]: KeyState.pin_input removed — pushed PinInputWidget screen replaces inline state in textual-rs model
 - [Phase 08-06]: Snapshot dimensions 80x24 over 120x40 — standard terminal width produces realistic snapshots
 - [Phase 08-06]: Pilot navigation tests: pilot.press() + settle() + snapshot captures full screen-push rendering
+- [Phase 09-oath-totp-screen]: OathScreen countdown bar computed from chrono::Utc::now() on each compose() call — no timer thread needed since textual-rs re-renders on key events
+- [Phase 09-02]: OathScreen countdown computed per-render from chrono::Utc::now() — no background timer thread; textual-rs re-renders on key events
+- [Phase 09-02]: HOTP with no code shows '[press Enter]' placeholder — full HOTP generation (card APDU) wired in Plan 03
+- [Phase 09-03]: Used on_event() with downcast_ref KeyEvent for character-level input in AddAccountScreen wizard
+- [Phase 09-03]: DeleteConfirmScreen delegates compose/key_bindings to inner ConfirmScreen; overrides on_action to call delete_credential()
+- [Phase 09-oath-totp-screen]: nav_7 follows nav_1..nav_6 pattern; '[7] OATH / Authenticator' button label matches Yubico Authenticator branding
 
 ### Roadmap Evolution
 
@@ -83,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T14:20:00.000Z
-Stopped at: Completed 08-06-PLAN.md (Pilot tests + insta snapshots for all 7 textual-rs screens)
+Last session: 2026-03-28T01:55:25.807Z
+Stopped at: Completed 09-04-PLAN.md (OATH dashboard nav wiring, Pilot snapshot tests, human verification)
 Resume file: None

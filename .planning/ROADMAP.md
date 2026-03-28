@@ -27,7 +27,7 @@ See full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [ ] **Phase 6: Tech Debt + Infrastructure** - Pay v1.0 debt, Model/View split, mock mode, CI lint enforcement
 - [ ] **Phase 7: Mouse Support + E2E Test Harness** - Working click navigation, ClickRegionMap, tmux E2E tests, snapshot tests
 - [ ] **Phase 8: textual-rs Migration** - Replace raw ratatui composition with textual-rs component model across all 7 screens; retire tmux harness for Pilot tests
-- [ ] **Phase 9: OATH/TOTP Screen** - Full OATH credential management with live TOTP codes and countdown timer, built in textual-rs
+- [x] **Phase 9: OATH/TOTP Screen** - Full OATH credential management with live TOTP codes and countdown timer, built in textual-rs
 - [ ] **Phase 10: FIDO2 Screen** - FIDO2 info, PIN management, resident credential list/delete, reset
 - [ ] **Phase 11: OTP Slots + Education + Onboarding** - OTP slot view, per-screen help panels, protocol glossary, new user onboarding flow
 
@@ -100,10 +100,10 @@ Plans:
   5. When the YubiKey OATH applet is password-protected, the user is prompted for the OATH password before any credential operation proceeds
 **Plans**: 4 plans
 Plans:
-- [ ] 09-01-PLAN.md — OATH model types, APDU protocol, and mock fixture data
-- [ ] 09-02-PLAN.md — OathScreen Widget with credential list and countdown timer
-- [ ] 09-03-PLAN.md — Add Account wizard and Delete Account confirmation flow
-- [ ] 09-04-PLAN.md — Dashboard navigation wiring, Pilot snapshot tests, human verification
+- [x] 09-01-PLAN.md — OATH model types, APDU protocol, and mock fixture data
+- [x] 09-02-PLAN.md — OathScreen Widget with credential list and countdown timer
+- [x] 09-03-PLAN.md — Add Account wizard and Delete Account confirmation flow
+- [x] 09-04-PLAN.md — Dashboard navigation wiring, Pilot snapshot tests, human verification
 **UI hint**: yes
 
 ### Phase 10: FIDO2 Screen
@@ -146,7 +146,7 @@ Plans:
 | 6. Tech Debt + Infrastructure | v1.1 | 1/3 | In Progress|  |
 | 7. Mouse Support + E2E Test Harness | v1.1 | 3/4 | In Progress|  |
 | 8. textual-rs Migration | v1.1 | 6/6 | Complete |  |
-| 9. OATH/TOTP Screen | v1.1 | 0/4 | Not started | - |
+| 9. OATH/TOTP Screen | v1.1 | 4/4 | Complete | 2026-03-27 |
 | 10. FIDO2 Screen | v1.1 | 0/TBD | Not started | - |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
 
@@ -167,7 +167,7 @@ Plans:
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 11
-**Plans:** 5/6 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 12 to break down)
