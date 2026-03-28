@@ -5,6 +5,7 @@ pub mod detection;
 pub mod mock;
 pub mod key_operations;
 pub mod openpgp;
+pub mod otp;
 pub mod pin;
 pub mod pin_operations;
 pub mod piv;
@@ -155,6 +156,7 @@ pub struct YubiKeyState {
     pub openpgp: Option<openpgp::OpenPgpState>,
     #[allow(dead_code)]
     pub piv: Option<piv::PivState>,
+    pub otp: Option<otp::OtpState>,
     pub pin_status: pin::PinStatus,
     pub touch_policies: Option<touch_policy::TouchPolicies>,
 }

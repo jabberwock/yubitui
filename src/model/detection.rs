@@ -168,10 +168,14 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         // Get PIV state (best-effort, no error on failure)
         let piv = super::piv::get_piv_state().ok();
 
+        // Get OTP slot status (best-effort, no error on failure)
+        let otp = super::otp::get_otp_slot_status().ok();
+
         states.push(YubiKeyState {
             info,
             openpgp,
             piv,
+            otp,
             pin_status,
             touch_policies,
         });
