@@ -1,38 +1,34 @@
 {
   "version": "1.0",
-  "timestamp": "2026-03-27T21:42:06.849Z",
-  "phase": "09",
-  "phase_name": "OATH/TOTP Screen",
-  "phase_dir": ".planning/phases/09-oath-totp-screen",
+  "timestamp": "2026-03-28T03:33:05.763Z",
+  "phase": "10",
+  "phase_name": "FIDO2 Screen",
+  "phase_dir": ".planning/phases/10-fido2-screen",
   "plan": 0,
   "task": 0,
   "total_tasks": 7,
   "status": "paused",
-  "completed_tasks": [],
+  "completed_tasks": [
+    {"id": "research", "name": "Phase 10 research (ctap-hid-fido2 spike)", "status": "done", "commit": "3e691cb"},
+    {"id": "planning", "name": "Phase 10 planning (4 plans, 4 waves)", "status": "done", "commit": "96495f0"}
+  ],
   "remaining_tasks": [
-    {"id": 1, "plan": "09-01", "name": "OATH model types + APDU protocol + Cargo.toml deps (hmac, sha1)", "status": "not_started"},
-    {"id": 2, "plan": "09-01", "name": "Wire mock OATH data into mock.rs + app_state.rs", "status": "not_started"},
-    {"id": 3, "plan": "09-02", "name": "OathScreen Widget with credential list + countdown timer", "status": "not_started"},
-    {"id": 4, "plan": "09-03", "name": "Add account wizard + delete confirmation + password prompt", "status": "not_started"},
-    {"id": 5, "plan": "09-04", "name": "Dashboard nav wiring to OathScreen", "status": "not_started"},
-    {"id": 6, "plan": "09-04", "name": "Pilot snapshot tests", "status": "not_started"},
-    {"id": 7, "plan": "09-04", "name": "Human verify checkpoint", "status": "not_started"}
+    {"id": 1, "name": "10-01: FIDO2 model types + ctap-hid-fido2 dep + mock fixture", "status": "not_started"},
+    {"id": 2, "name": "10-02: Fido2Screen widget + 4 sub-screens", "status": "not_started"},
+    {"id": 3, "name": "10-03: Raw HID authenticatorReset + ResetGuidanceScreen", "status": "not_started"},
+    {"id": 4, "name": "10-04: Dashboard nav wiring + Pilot snapshot tests + human verify", "status": "not_started"}
   ],
   "blockers": [],
-  "human_actions_pending": [],
+  "human_actions_pending": [
+    {"action": "Manual verification of FIDO2 screen with real YubiKey", "context": "Plan 10-04 has autonomous: false — requires human testing", "blocking": false}
+  ],
   "decisions": [
-    {"decision": "Live refresh: local clock tick every second, no card I/O between 30s window boundaries", "rationale": "Avoids unnecessary card I/O; countdown is purely cosmetic", "phase": "09"},
-    {"decision": "Add account UX: sequential wizard via push_screen_deferred", "rationale": "Matches established PinManagementScreen pattern", "phase": "09"},
-    {"decision": "Credential row density: name + code + type badge + countdown bar", "rationale": "Full information density without clutter", "phase": "09"},
-    {"decision": "HOTP: require explicit Enter to consume counter", "rationale": "Safer default, prevents accidental counter advancement", "phase": "09"},
-    {"decision": "discuss-phase skipped, gray areas resolved by planner from NOTES.md", "rationale": "User skipped ceremony to move fast", "phase": "09"}
+    {"decision": "ctap-hid-fido2 v3.5.9 for CTAP2 operations", "rationale": "Verified API coverage for all needed ops", "phase": "10"},
+    {"decision": "Hand-rolled authenticatorReset via raw CTAPHID_CBOR 0x07", "rationale": "crate does not expose reset — confirmed by source inspection", "phase": "10"},
+    {"decision": "Single Fido2Screen widget, no push_screen for sub-views", "rationale": "Per CONTEXT.md D-06 design decision", "phase": "10"},
+    {"decision": "firmware_version as Option<String> pre-formatted at parse time", "rationale": "Keeps TUI layer simple", "phase": "10"}
   ],
-  "uncommitted_files": [
-    ".planning/phases/09-oath-totp-screen/09-01-PLAN.md",
-    ".planning/phases/09-oath-totp-screen/09-02-PLAN.md",
-    ".planning/phases/09-oath-totp-screen/09-03-PLAN.md",
-    ".planning/phases/09-oath-totp-screen/09-04-PLAN.md"
-  ],
-  "next_action": "Delete leftover src/tui/widgets/nav_button.rs, commit the 4 plan files, then run /gsd:execute-phase 9",
-  "context_notes": "Planning complete and verified. Wave structure is fully sequential: 01→02→03→04. Checker caught a parallel-write conflict (09-02 and 09-03 both modifying oath.rs in same wave) and fixed it. No research, no discuss-phase — user skipped ceremony. Plans ready to execute."
+  "uncommitted_files": [".gitignore", ".planning/REQUIREMENTS.md", "CLAUDE.md", "Cargo.lock"],
+  "next_action": "Run /gsd:execute-phase 10 (after /clear for fresh context)",
+  "context_notes": "Phase 10 planning complete. Research resolved the MEDIUM-confidence flag on CTAP2 credential enumeration — now HIGH confidence. Only novel piece is authenticatorReset which needs raw HID. @textual-rs is running phase 10 platform verification in parallel — check for run_worker_with_progress API changes before Plan 10-03."
 }
