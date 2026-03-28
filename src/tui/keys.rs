@@ -759,12 +759,16 @@ impl Widget for KeyGenWizardScreen {
                 )));
             }
             KeyGenStep::Result => {
-                children.push(Box::new(Header::new("Key Generation Complete")));
+                children.push(Box::new(Header::new("Generate Key")));
                 children.push(Box::new(Label::new("")));
                 children.push(Box::new(Label::new(
-                    "Key generation completed. Press Enter or Esc to return.",
+                    "Key generation requires Admin PIN entry.",
                 )));
-                children.push(Box::new(Button::new("Done")));
+                children.push(Box::new(Label::new(
+                    "Full implementation coming soon.",
+                )));
+                children.push(Box::new(Label::new("")));
+                children.push(Box::new(Label::new("Press Enter or Esc to close.")));
             }
         }
 
@@ -839,15 +843,11 @@ impl Widget for KeyGenWizardScreen {
                     }
                 }
                 KeyGenStep::Confirm => {
-                    // Close wizard and inform user — full PIN+keygen flow is a TODO
+                    // Transition to Result step (no modal — avoids Esc double-pop).
+                    // Full PIN+keygen flow is a TODO.
+                    w.step = KeyGenStep::Result;
                     drop(w);
-                    ctx.pop_screen_deferred();
-                    ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                        PopupScreen::new(
-                            "Key Generation",
-                            "Key generation requires Admin PIN entry. Full implementation coming soon — press Esc to dismiss.",
-                        ),
-                    ))));
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return;
                 }
                 KeyGenStep::Result | KeyGenStep::Running => {
