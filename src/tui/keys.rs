@@ -11,6 +11,20 @@ use ratatui::layout::Rect;
 use crate::model::YubiKeyState;
 use crate::tui::widgets::popup::{PopupScreen, ConfirmScreen};
 
+const KEYS_HELP_TEXT: &str = "\
+OpenPGP Keys\n\
+\n\
+OpenPGP lets your YubiKey store private keys for encryption, signing,\n\
+and authentication. Keys never leave the hardware.\n\
+\n\
+Three key slots:\n\
+- Signature: git commit signing, email signing\n\
+- Encryption: decrypt files and emails\n\
+- Authentication: SSH login via gpg-agent\n\
+\n\
+You can view key info, import existing keys, generate new ones on-card,\n\
+or export the SSH public key derived from the authentication subkey.";
+
 // ── Action and state types (D-04: preserved for Tauri serialization) ─────────
 
 #[derive(Clone, Debug)]
@@ -278,6 +292,13 @@ static KEYS_BINDINGS: &[KeyBinding] = &[
         description: "Esc Back",
         show: true,
     },
+    KeyBinding {
+        key: KeyCode::Char('?'),
+        modifiers: KeyModifiers::NONE,
+        action: "help",
+        description: "? Help",
+        show: true,
+    },
 ];
 
 /// Keys screen — shows OpenPGP key slots and allows key operations.
@@ -527,6 +548,13 @@ impl Widget for KeysScreen {
             }
             "back" => {
                 ctx.pop_screen_deferred();
+            }
+            "help" => {
+                ctx.push_screen_deferred(Box::new(
+                    ModalScreen::new(Box::new(
+                        PopupScreen::new("OpenPGP Keys Help", KEYS_HELP_TEXT)
+                    ))
+                ));
             }
             _ => {}
         }

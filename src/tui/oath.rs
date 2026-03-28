@@ -13,6 +13,18 @@ use ratatui::layout::Rect;
 use crate::model::oath::{OathState, OathType, OathAlgorithm};
 use crate::tui::widgets::popup::{ConfirmScreen, PopupScreen};
 
+const OATH_HELP_TEXT: &str = "\
+OATH / Authenticator\n\
+\n\
+OATH manages TOTP and HOTP one-time password credentials on your YubiKey.\n\
+These are the same 6-digit codes you would see in Google Authenticator or\n\
+Authy, but stored securely on hardware instead of a phone.\n\
+\n\
+TOTP codes change every 30 seconds. HOTP codes advance on each use.\n\
+\n\
+You can add new accounts, delete existing ones, and see live codes.\n\
+Touch-required credentials need a physical key touch to reveal the code.";
+
 // ============================================================================
 // TUI State
 // ============================================================================
@@ -89,6 +101,13 @@ static OATH_BINDINGS: &[KeyBinding] = &[
         modifiers: KeyModifiers::NONE,
         action: "refresh",
         description: "R Refresh",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Char('?'),
+        modifiers: KeyModifiers::NONE,
+        action: "help",
+        description: "? Help",
         show: true,
     },
 ];
@@ -298,6 +317,13 @@ impl Widget for OathScreen {
             "refresh" => {
                 // Re-CALCULATE ALL from card; no-op in mock mode.
                 let _ = ctx;
+            }
+            "help" => {
+                ctx.push_screen_deferred(Box::new(
+                    ModalScreen::new(Box::new(
+                        PopupScreen::new("OATH Help", OATH_HELP_TEXT)
+                    ))
+                ));
             }
             _ => {}
         }
