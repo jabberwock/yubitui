@@ -27,22 +27,22 @@
 
 ### OATH / TOTP
 
-- [ ] **OATH-01**: User can view a list of all OATH credentials stored on the YubiKey with their current TOTP/HOTP codes
-- [ ] **OATH-02**: User can see a countdown timer showing seconds remaining in the current 30s TOTP window
-- [ ] **OATH-03**: User can add a new OATH account by manually entering an issuer, account name, and secret (Base32)
-- [ ] **OATH-04**: User can delete an OATH account with an irreversibility confirmation dialog
-- [ ] **OATH-05**: User is prompted for an OATH password when the key returns SW 0x6982 (password-protected OATH applet) before any credential operation
-- [ ] **OATH-06**: TOTP codes are generated using the current system time as the epoch challenge — the YubiKey's on-card CALCULATE APDU receives the correct 8-byte big-endian timestep
+- [x] **OATH-01**: User can view a list of all OATH credentials stored on the YubiKey with their current TOTP/HOTP codes
+- [x] **OATH-02**: User can see a countdown timer showing seconds remaining in the current 30s TOTP window
+- [x] **OATH-03**: User can add a new OATH account by manually entering an issuer, account name, and secret (Base32)
+- [x] **OATH-04**: User can delete an OATH account with an irreversibility confirmation dialog
+- [x] **OATH-05**: User is prompted for an OATH password when the key returns SW 0x6982 (password-protected OATH applet) before any credential operation
+- [x] **OATH-06**: TOTP codes are generated using the current system time as the epoch challenge — the YubiKey's on-card CALCULATE APDU receives the correct 8-byte big-endian timestep
 
 ### FIDO2
 
-- [ ] **FIDO-01**: User can view a FIDO2 info screen showing: firmware version, supported algorithms, PIN status (set/not set), PIN retry count
-- [ ] **FIDO-02**: User can set a FIDO2 PIN when none is configured
-- [ ] **FIDO-03**: User can change an existing FIDO2 PIN
-- [ ] **FIDO-04**: User can view a list of resident FIDO2 credentials (passkeys) stored on the YubiKey
-- [ ] **FIDO-05**: User can delete a specific resident FIDO2 credential with a confirmation dialog
+- [x] **FIDO-01**: User can view a FIDO2 info screen showing: firmware version, supported algorithms, PIN status (set/not set), PIN retry count
+- [x] **FIDO-02**: User can set a FIDO2 PIN when none is configured
+- [x] **FIDO-03**: User can change an existing FIDO2 PIN
+- [x] **FIDO-04**: User can view a list of resident FIDO2 credentials (passkeys) stored on the YubiKey
+- [x] **FIDO-05**: User can delete a specific resident FIDO2 credential with a confirmation dialog
 - [ ] **FIDO-06**: User can reset the FIDO2 applet (with prominent warning about credential loss and 10s timing window requirement)
-- [ ] **FIDO-07**: On Windows, user sees a clear message when FIDO2 operations require administrator privileges
+- [x] **FIDO-07**: On Windows, user sees a clear message when FIDO2 operations require administrator privileges
 
 ### OTP Slots
 
@@ -113,19 +113,19 @@
 | TEST-02 | Phase 7 | Complete |
 | TEST-03 | Phase 7 | Complete |
 | TEST-04 | Phase 7 | Complete |
-| OATH-01 | Phase 8 | Pending |
-| OATH-02 | Phase 8 | Pending |
-| OATH-03 | Phase 8 | Pending |
-| OATH-04 | Phase 8 | Pending |
-| OATH-05 | Phase 8 | Pending |
-| OATH-06 | Phase 8 | Pending |
-| FIDO-01 | Phase 9 | Pending |
-| FIDO-02 | Phase 9 | Pending |
-| FIDO-03 | Phase 9 | Pending |
-| FIDO-04 | Phase 9 | Pending |
-| FIDO-05 | Phase 9 | Pending |
+| OATH-01 | Phase 8 | Complete |
+| OATH-02 | Phase 8 | Complete |
+| OATH-03 | Phase 8 | Complete |
+| OATH-04 | Phase 8 | Complete |
+| OATH-05 | Phase 8 | Complete |
+| OATH-06 | Phase 8 | Complete |
+| FIDO-01 | Phase 9 | Complete |
+| FIDO-02 | Phase 9 | Complete |
+| FIDO-03 | Phase 9 | Complete |
+| FIDO-04 | Phase 9 | Complete |
+| FIDO-05 | Phase 9 | Complete |
 | FIDO-06 | Phase 9 | Pending |
-| FIDO-07 | Phase 9 | Pending |
+| FIDO-07 | Phase 9 | Complete |
 | OTP-01 | Phase 10 | Pending |
 | EDU-01 | Phase 10 | Pending |
 | EDU-02 | Phase 10 | Pending |

@@ -119,7 +119,7 @@ Plans:
   6. On Windows, when FIDO2 operations require administrator privileges, the user sees a clear message explaining why and what to do
 **Plans**: 4 plans
 Plans:
-- [ ] 10-01-PLAN.md — FIDO2 model types, ctap-hid-fido2 dependency, mock fixture, Screen enum
+- [x] 10-01-PLAN.md — FIDO2 model types, ctap-hid-fido2 dependency, mock fixture, Screen enum
 - [ ] 10-02-PLAN.md — Fido2Screen widget with info display, credential list, PIN flows, delete confirmation
 - [ ] 10-03-PLAN.md — FIDO2 reset workflow (raw HID authenticatorReset + countdown guidance screen)
 - [ ] 10-04-PLAN.md — Dashboard navigation wiring, Pilot snapshot tests, human verification
@@ -151,7 +151,7 @@ Plans:
 | 7. Mouse Support + E2E Test Harness | v1.1 | 3/4 | In Progress|  |
 | 8. textual-rs Migration | v1.1 | 6/6 | Complete |  |
 | 9. OATH/TOTP Screen | v1.1 | 4/4 | Complete | 2026-03-27 |
-| 10. FIDO2 Screen | v1.1 | 0/4 | Not started | - |
+| 10. FIDO2 Screen | v1.1 | 1/4 | In Progress|  |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
 
 ## Backlog
@@ -171,7 +171,7 @@ Plans:
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 11
-**Plans:** 3/4 plans executed
+**Plans:** 1/4 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 12 to break down)

@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
-status: Ready to plan
-stopped_at: Completed 09-04-PLAN.md (OATH dashboard nav wiring, Pilot snapshot tests, human verification)
-last_updated: "2026-03-28T02:01:29.559Z"
+status: Ready to execute
+stopped_at: "Completed 10-01-PLAN.md (FIDO2 model layer — types, CTAP2 ops, mock fixture, Screen::Fido2)"
+last_updated: "2026-03-28T04:04:50.170Z"
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 17
-  completed_plans: 17
+  total_plans: 21
+  completed_plans: 18
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Zero-friction YubiKey management — detect problems automatically, guide users through fixes
-**Current focus:** Phase 09 — oath-totp-screen
+**Current focus:** Phase 10 — fido2-screen
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
+Phase: 10 (fido2-screen) — EXECUTING
+Plan: 2 of 4
 
 ## Performance Metrics
 
@@ -74,6 +74,8 @@ Plan: Not started
 - [Phase 09-03]: Used on_event() with downcast_ref KeyEvent for character-level input in AddAccountScreen wizard
 - [Phase 09-03]: DeleteConfirmScreen delegates compose/key_bindings to inner ConfirmScreen; overrides on_action to call delete_credential()
 - [Phase 09-oath-totp-screen]: nav_7 follows nav_1..nav_6 pattern; '[7] OATH / Authenticator' button label matches Yubico Authenticator branding
+- [Phase 10-fido2-screen]: Fido2State.firmware_version stored as Option<String> (formatted) — model layer converts from packed u32 so TUI just displays the string
+- [Phase 10-fido2-screen]: Fido2State.credentials: None=locked, Some([])=no creds, Some(creds)=populated — three-state distinction drives TUI rendering
 
 ### Roadmap Evolution
 
@@ -89,6 +91,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-28T01:55:25.807Z
-Stopped at: Completed 09-04-PLAN.md (OATH dashboard nav wiring, Pilot snapshot tests, human verification)
+Last session: 2026-03-28T04:04:50.154Z
+Stopped at: Completed 10-01-PLAN.md (FIDO2 model layer — types, CTAP2 ops, mock fixture, Screen::Fido2)
 Resume file: None
