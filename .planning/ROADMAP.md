@@ -177,6 +177,17 @@ Plans:
 
 ## Backlog
 
+### Phase 999.1: Provisioning wizards — outcome-oriented multi-step flows (BACKLOG)
+
+**Goal:** Outcome-oriented provisioning flows that span applets (e.g. "Set up SSH key with touch policy", "Initial YubiKey setup"). User thinks in terms of goals, not slots. Build from existing keygen wizard pattern. Include: touch policy surfaced upfront, nav affordance hint (1-9 keys), onboarding flow for fresh YubiKey.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+*Consensus feedback from @macos-live-tester, @win, @kali — 2026-03-28*
+
 - PIV certificate view (X.509 decode via x509-parser — deferred to v2)
 - PIV Management Key change (deferred to v2)
 - OATH application password set/change (deferred to v2)
