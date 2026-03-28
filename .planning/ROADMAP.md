@@ -137,8 +137,8 @@ Plans:
   5. Onboarding correctly detects factory-default state: no FIDO2 PIN set, zero OATH credentials, PIV management key at default value
 **Plans**: 3 plans
 Plans:
-- [ ] 11-01-PLAN.md — OTP model types, APDU reader, OTP screen widget, dashboard nav_9 wiring
-- [ ] 11-02-PLAN.md — GlossaryScreen + per-screen ? help panels on all 8 screens
+- [x] 11-01-PLAN.md — OTP model types, APDU reader, OTP screen widget, dashboard nav_9 wiring
+- [x] 11-02-PLAN.md — GlossaryScreen + per-screen ? help panels on all 8 screens
 - [ ] 11-03-PLAN.md — Factory-default detection, OnboardingScreen, OTP help keybinding, human verification
 **UI hint**: yes
 
@@ -156,7 +156,7 @@ Plans:
 | 8. textual-rs Migration | v1.1 | 6/6 | Complete |  |
 | 9. OATH/TOTP Screen | v1.1 | 4/4 | Complete | 2026-03-27 |
 | 10. FIDO2 Screen | v1.1 | 4/4 | Complete    | 2026-03-28 |
-| 11. OTP Slots + Education + Onboarding | v1.1 | 0/3 | Planned    |  |
+| 11. OTP Slots + Education + Onboarding | v1.1 | 2/3 | In Progress|  |
 
 ## Backlog
 
@@ -175,7 +175,7 @@ Plans:
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 11
-**Plans:** 0/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 12 to break down)

@@ -50,8 +50,8 @@
 
 ### Education & Onboarding
 
-- [ ] **EDU-01**: User can press `?` on any screen to open a help panel explaining what the current screen does and what the protocol/feature is (PIV, FIDO2, OATH, OTP, OpenPGP, SSH — each screen has its own content)
-- [ ] **EDU-02**: User can access a protocol glossary (accessible from the main menu or `?` from dashboard) explaining: PIV, FIDO, FIDO2, OpenPGP/PGP, SSH, TOTP, HOTP, OTP/Yubico OTP
+- [x] **EDU-01**: User can press `?` on any screen to open a help panel explaining what the current screen does and what the protocol/feature is (PIV, FIDO2, OATH, OTP, OpenPGP, SSH — each screen has its own content)
+- [x] **EDU-02**: User can access a protocol glossary (accessible from the main menu or `?` from dashboard) explaining: PIV, FIDO, FIDO2, OpenPGP/PGP, SSH, TOTP, HOTP, OTP/Yubico OTP
 - [ ] **EDU-03**: On first launch (or when device is in factory-default state), user sees an onboarding checklist that guides them through initial setup steps (FIDO2 PIN, OATH accounts, PIV/SSH if needed)
 - [ ] **EDU-04**: Onboarding detects factory-default state heuristically: FIDO2 has no PIN set, OATH applet has 0 credentials, PIV uses default management key
 
@@ -127,8 +127,8 @@
 | FIDO-06 | Phase 9 | Complete |
 | FIDO-07 | Phase 9 | Complete |
 | OTP-01 | Phase 10 | Complete |
-| EDU-01 | Phase 10 | Pending |
-| EDU-02 | Phase 10 | Pending |
+| EDU-01 | Phase 10 | Complete |
+| EDU-02 | Phase 10 | Complete |
 | EDU-03 | Phase 10 | Pending |
 | EDU-04 | Phase 10 | Pending |
 

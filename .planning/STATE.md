@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: Completed 11-01-PLAN.md (OTP slot status model + screen)
-last_updated: "2026-03-28T06:28:37.524Z"
+stopped_at: Completed 11-02-PLAN.md (per-screen help panels + protocol glossary)
+last_updated: "2026-03-28T06:48:10.662Z"
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 24
-  completed_plans: 21
+  completed_plans: 23
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 ## Current Position
 
 Phase: 11 (yubikey-slot-delete-workflow) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -82,6 +82,8 @@ Plan: 2 of 3
 - [Phase 10-fido2-screen]: Dashboard nav_8 reads yk.fido2.clone() via yubikey_state().and_then() — same pattern as nav_7 oath
 - [Phase 11]: OTP slot status is Occupied/Empty only — credential type is write-only on hardware; screen includes hardware limitation note
 - [Phase 11]: nav_7 used for OTP Slots in current worktree state — phases 9/10 (oath/fido2) not yet executed; OTP becomes nav_7
+- [Phase 11-02]: GlossaryScreen uses same Widget pattern as HelpScreen — no new widget types needed
+- [Phase 11-02]: Help popups use existing ModalScreen+PopupScreen pattern — each screen gets a contextual SCREEN_HELP_TEXT const
 
 ### Roadmap Evolution
 
@@ -97,6 +99,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-28T06:28:37.498Z
-Stopped at: Completed 11-01-PLAN.md (OTP slot status model + screen)
+Last session: 2026-03-28T06:48:10.647Z
+Stopped at: Completed 11-02-PLAN.md (per-screen help panels + protocol glossary)
 Resume file: None
