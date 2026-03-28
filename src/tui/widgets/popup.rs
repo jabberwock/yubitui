@@ -49,12 +49,15 @@ impl Widget for PopupScreen {
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
-        vec![
-            Box::new(textual_rs::Header::new(&self.title)),
-            Box::new(Label::new(&self.body)),
-            Box::new(Button::new("Close")),
-            Box::new(Footer),
-        ]
+        let mut children: Vec<Box<dyn Widget>> = Vec::new();
+        children.push(Box::new(textual_rs::Header::new(&self.title)));
+        for line in self.body.split('\n') {
+            children.push(Box::new(Label::new(line)));
+        }
+        children.push(Box::new(Label::new("")));
+        children.push(Box::new(Label::new("  Esc / Enter  Close")));
+        children.push(Box::new(Footer));
+        children
     }
 
     fn key_bindings(&self) -> &[KeyBinding] {

@@ -160,10 +160,6 @@ impl Widget for Fido2Screen {
         "Fido2Screen"
     }
 
-    fn can_focus(&self) -> bool {
-        true
-    }
-
     fn on_mount(&self, id: WidgetId) {
         self.own_id.set(Some(id));
     }

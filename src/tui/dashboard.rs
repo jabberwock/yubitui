@@ -1,5 +1,4 @@
 use textual_rs::{Widget, Header, Label, Footer};
-use textual_rs::widget::button::{Button, messages as btn_messages};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
@@ -244,16 +243,17 @@ impl Widget for DashboardScreen {
 
         children.push(Box::new(Label::new("")));
 
-        // Navigation buttons (D-06: all navigable elements are Buttons)
-        children.push(Box::new(Button::new("[1] Open Keys")));
-        children.push(Box::new(Button::new("[2] Diagnostics")));
-        children.push(Box::new(Button::new("[3] PIN Management")));
-        children.push(Box::new(Button::new("[4] SSH Setup")));
-        children.push(Box::new(Button::new("[5] PIV Certificates")));
-        children.push(Box::new(Button::new("[6] Help")));
-        children.push(Box::new(Button::new("[7] OATH / Authenticator")));
-        children.push(Box::new(Button::new("[8] FIDO2 / Security Key")));
-        children.push(Box::new(Button::new("[9] OTP Slots")));
+        // Navigation items — Labels to keep layout compact at 80x24.
+        // Number key bindings handle all navigation; mouse click not required.
+        children.push(Box::new(Label::new("  [1] Open Keys")));
+        children.push(Box::new(Label::new("  [2] Diagnostics")));
+        children.push(Box::new(Label::new("  [3] PIN Management")));
+        children.push(Box::new(Label::new("  [4] SSH Setup")));
+        children.push(Box::new(Label::new("  [5] PIV Certificates")));
+        children.push(Box::new(Label::new("  [6] Help")));
+        children.push(Box::new(Label::new("  [7] OATH / Authenticator")));
+        children.push(Box::new(Label::new("  [8] FIDO2 / Security Key")));
+        children.push(Box::new(Label::new("  [9] OTP Slots")));
 
         children.push(Box::new(Footer));
         children
@@ -264,22 +264,6 @@ impl Widget for DashboardScreen {
     }
 
     fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
-        if let Some(pressed) = event.downcast_ref::<btn_messages::Pressed>() {
-            let action = match pressed.label.as_str() {
-                "[1] Open Keys"        => "nav_1",
-                "[2] Diagnostics"      => "nav_2",
-                "[3] PIN Management"   => "nav_3",
-                "[4] SSH Setup"        => "nav_4",
-                "[5] PIV Certificates"    => "nav_5",
-                "[6] Help"                => "nav_6",
-                "[7] OATH / Authenticator" => "nav_7",
-                "[8] FIDO2 / Security Key" => "nav_8",
-                "[9] OTP Slots"           => "nav_9",
-                _ => return EventPropagation::Continue,
-            };
-            self.on_action(action, ctx);
-            return EventPropagation::Stop;
-        }
         if let Some(key) = event.downcast_ref::<KeyEvent>() {
             for binding in self.key_bindings() {
                 if binding.matches(key.code, key.modifiers) {
