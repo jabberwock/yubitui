@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: Phase 12 plans created — ready for execution
-last_updated: "2026-03-28T08:00:00.000Z"
+stopped_at: Phase 12 plans verified — ready for execution (3 plans, wave 1 parallel: 12-01 OpenPGP delete + 12-02 PIV delete, wave 2: 12-03 tests + human verify)
+last_updated: "2026-03-28T21:00:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 5
