@@ -1,6 +1,6 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Header, Label, Button, Footer};
+use textual_rs::{Widget, WidgetId, Header, Label, Button, Footer};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use textual_rs::widget::screen::ModalScreen;
@@ -624,12 +624,14 @@ static KEYGEN_BINDINGS: &[KeyBinding] = &[
 /// Step transitions update state in on_action(); compose() renders the active step.
 pub struct KeyGenWizardScreen {
     wizard: RefCell<KeyGenWizard>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl KeyGenWizardScreen {
     pub fn new(wizard: KeyGenWizard) -> Self {
         Self {
             wizard: RefCell::new(wizard),
+            own_id: Cell::new(None),
         }
     }
 }
@@ -637,6 +639,14 @@ impl KeyGenWizardScreen {
 impl Widget for KeyGenWizardScreen {
     fn widget_type_name(&self) -> &'static str {
         "KeyGenWizardScreen"
+    }
+
+    fn on_mount(&self, id: WidgetId) {
+        self.own_id.set(Some(id));
+    }
+
+    fn on_unmount(&self, _id: WidgetId) {
+        self.own_id.set(None);
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
@@ -863,6 +873,57 @@ impl Widget for KeyGenWizardScreen {
             }
             _ => {}
         }
+        // Request recompose for all state-mutating paths (early returns handle pop/push cases).
+        drop(w);
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+    }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> textual_rs::widget::EventPropagation {
+        use textual_rs::widget::EventPropagation;
+        use crossterm::event::KeyEvent;
+        if let Some(key) = event.downcast_ref::<KeyEvent>() {
+            let mut w = self.wizard.borrow_mut();
+            match key.code {
+                KeyCode::Backspace => {
+                    match w.step {
+                        KeyGenStep::Identity => {
+                            if w.active_field == 0 { w.name.pop(); }
+                            else { w.email.pop(); }
+                        }
+                        KeyGenStep::Expiry if w.editing_custom_expiry => { w.custom_expiry.pop(); }
+                        KeyGenStep::Backup if w.editing_path => { w.backup_path.pop(); }
+                        _ => return EventPropagation::Continue,
+                    }
+                    drop(w);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Char(c) => {
+                    match w.step {
+                        KeyGenStep::Identity => {
+                            if w.active_field == 0 { w.name.push(c); }
+                            else { w.email.push(c); }
+                        }
+                        KeyGenStep::Expiry if w.editing_custom_expiry => { w.custom_expiry.push(c); }
+                        KeyGenStep::Backup if w.editing_path => { w.backup_path.push(c); }
+                        _ => return EventPropagation::Continue,
+                    }
+                    drop(w);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Tab => {
+                    if w.step == KeyGenStep::Identity {
+                        w.active_field = if w.active_field == 0 { 1 } else { 0 };
+                        drop(w);
+                        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                        return EventPropagation::Stop;
+                    }
+                }
+                _ => {}
+            }
+        }
+        textual_rs::widget::EventPropagation::Continue
     }
 
     fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}

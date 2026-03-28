@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 use textual_rs::{Widget, Footer, Header, Label};
 use textual_rs::widget::context::AppContext;
@@ -384,6 +384,7 @@ impl Default for AddAccountState {
 pub struct AddAccountScreen {
     state: RefCell<AddAccountState>,
     input_buffer: RefCell<String>,
+    own_id: Cell<Option<textual_rs::WidgetId>>,
 }
 
 impl AddAccountScreen {
@@ -391,6 +392,7 @@ impl AddAccountScreen {
         Self {
             state: RefCell::new(AddAccountState::default()),
             input_buffer: RefCell::new(String::new()),
+            own_id: Cell::new(None),
         }
     }
 
@@ -490,6 +492,14 @@ impl Widget for AddAccountScreen {
         "AddAccountScreen"
     }
 
+    fn on_mount(&self, id: textual_rs::WidgetId) {
+        self.own_id.set(Some(id));
+    }
+
+    fn on_unmount(&self, _id: textual_rs::WidgetId) {
+        self.own_id.set(None);
+    }
+
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let state = self.state.borrow();
         let input = self.input_buffer.borrow();
@@ -582,6 +592,7 @@ impl Widget for AddAccountScreen {
                 }
                 KeyCode::Backspace => {
                     self.input_buffer.borrow_mut().pop();
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 KeyCode::Enter => {
@@ -598,6 +609,7 @@ impl Widget for AddAccountScreen {
                         }
                         _ => {}
                     }
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 KeyCode::Char(c)
@@ -606,6 +618,7 @@ impl Widget for AddAccountScreen {
                         || step == AddAccountStep::Secret =>
                 {
                     self.input_buffer.borrow_mut().push(c);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 _ => {}
@@ -617,7 +630,10 @@ impl Widget for AddAccountScreen {
     fn on_action(&self, action: &str, ctx: &AppContext) {
         match action {
             "cancel" => ctx.pop_screen_deferred(),
-            "next_step" => self.advance_step(ctx),
+            "next_step" => {
+                self.advance_step(ctx);
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+            }
             _ => {}
         }
     }

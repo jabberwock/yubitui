@@ -238,33 +238,33 @@ impl Widget for PinManagementScreen {
     fn on_action(&self, action: &str, ctx: &AppContext) {
         match action {
             "change_user_pin" => {
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                ctx.push_screen_deferred(Box::new(
                     PinInputWidget::new(
                         "Change User PIN",
                         &["Current PIN", "New PIN", "Confirm New PIN"],
                     ),
-                ))));
+                ));
             }
             "change_admin_pin" => {
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                ctx.push_screen_deferred(Box::new(
                     PinInputWidget::new(
                         "Change Admin PIN",
                         &["Current Admin PIN", "New Admin PIN", "Confirm New Admin PIN"],
                     ),
-                ))));
+                ));
             }
             "set_reset_code" => {
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                ctx.push_screen_deferred(Box::new(
                     PinInputWidget::new(
                         "Set Reset Code",
                         &["Admin PIN", "New Reset Code", "Confirm Reset Code"],
                     ),
-                ))));
+                ));
             }
             "unblock_pin" => {
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                ctx.push_screen_deferred(Box::new(
                     UnblockWizardScreen::new(self.yubikey_state.clone()),
-                ))));
+                ));
             }
             "back" => {
                 ctx.pop_screen_deferred();
