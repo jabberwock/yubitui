@@ -32,6 +32,21 @@ pub fn run(mock: bool) -> Result<()> {
         .filter(|yk| crate::model::onboarding::is_factory_default(yk))
         .cloned();
 
+    // textual-rs 0.3.8 renders all screens bottom-to-top for modal layering.
+    // Screens without an explicit background let the Dashboard bleed through.
+    // This CSS rule gives every pushed screen a solid background.
+    const SCREEN_CSS: &str = "
+DashboardScreen, OnboardingScreen,
+KeysScreen, KeyGenWizardScreen, ImportKeyScreen, KeyDetailScreen, TouchPolicyScreen,
+DiagnosticsScreen, PinManagementScreen, UnblockWizardScreen, FactoryResetScreen,
+SshWizardScreen, PivScreen, HelpScreen, GlossaryScreen,
+OathScreen, AddAccountScreen, DeleteConfirmScreen,
+Fido2Screen, PinSetScreen, PinChangeScreen, PinAuthScreen,
+DeleteCredentialScreen, ResetGuidanceScreen, ResetConfirmScreen,
+OtpScreen, PopupScreen, ConfirmScreen
+{ background: $background; }
+";
+
     let mut app = App::new(move || {
         if let Some(ref yk) = onboarding_yk {
             // Factory-default key: show onboarding first; dismiss pushes DashboardScreen.
@@ -45,7 +60,7 @@ pub fn run(mock: bool) -> Result<()> {
             app_state.clone(),
             diagnostics.clone(),
         ))
-    });
+    }).with_css(SCREEN_CSS);
     app.set_theme(theme);
     app.run()?;
 
