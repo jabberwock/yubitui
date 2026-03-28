@@ -81,6 +81,27 @@ pub fn mock_yubikey_states() -> Vec<YubiKeyState> {
                 },
             ],
         }),
+        fido2: Some(fido2::Fido2State {
+            firmware_version: Some("5.4.3".to_string()),
+            algorithms: vec!["ES256".to_string(), "EdDSA".to_string()],
+            pin_is_set: true,
+            pin_retry_count: 8,
+            credentials: Some(vec![
+                fido2::Fido2Credential {
+                    rp_id: "github.com".to_string(),
+                    rp_name: Some("GitHub".to_string()),
+                    user_name: "user@example.com".to_string(),
+                    credential_id: vec![0x01, 0x02, 0x03, 0x04],
+                },
+                fido2::Fido2Credential {
+                    rp_id: "google.com".to_string(),
+                    rp_name: Some("Google".to_string()),
+                    user_name: "user@gmail.com".to_string(),
+                    credential_id: vec![0x05, 0x06, 0x07, 0x08],
+                },
+            ]),
+            supports_cred_mgmt: true,
+        }),
         pin_status: pin::PinStatus {
             user_pin_retries: 3,
             admin_pin_retries: 3,
