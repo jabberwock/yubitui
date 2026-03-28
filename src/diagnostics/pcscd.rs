@@ -18,7 +18,7 @@ pub fn check_pcscd() -> Result<PcscdStatus> {
 
     #[cfg(target_os = "linux")]
     let running = Command::new("systemctl")
-        .args(&["is-active", "pcscd"])
+        .args(["is-active", "pcscd"])
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);
