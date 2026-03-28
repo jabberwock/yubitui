@@ -3,6 +3,7 @@ pub mod dashboard;
 pub mod diagnostics;
 pub mod help;
 pub mod keys;
+pub mod otp;
 pub mod pin;
 pub mod piv;
 pub mod ssh;
