@@ -748,7 +748,7 @@ impl Widget for KeyGenWizardScreen {
                     if w.backup { format!("Yes ({})", w.backup_path) } else { "No".to_string() }
                 ))));
                 children.push(Box::new(Label::new("")));
-                children.push(Box::new(Button::new("Generate Key — Enter Admin PIN")));
+                children.push(Box::new(Label::new("  Press Enter to continue.")));
             }
             KeyGenStep::Running => {
                 children.push(Box::new(Header::new("Generating Key...")));
