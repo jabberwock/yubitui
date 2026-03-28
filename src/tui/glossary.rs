@@ -99,7 +99,7 @@ mod tests {
 
     #[tokio::test]
     async fn glossary_screen() {
-        let mut app = TestApp::new(80, 24, || Box::new(GlossaryScreen::new()));
+        let mut app = TestApp::new_styled(80, 24, "", || Box::new(GlossaryScreen::new()));
         app.pilot().settle().await;
         insta::assert_display_snapshot!(app.backend());
     }

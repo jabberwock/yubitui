@@ -698,6 +698,25 @@ mod tests {
     use textual_rs::TestApp;
     use crate::model::oath::{OathCredential, OathAlgorithm};
 
+    /// Strip the time-varying TOTP countdown line from a snapshot string so that
+    /// snapshot tests are not flaky across 30-second TOTP windows.
+    fn stable_snapshot(s: &impl std::fmt::Display) -> String {
+        s.to_string()
+            .lines()
+            .map(|l| {
+                // Each line in app.backend() Display output is wrapped in quotes: "  TOTP refreshes..."
+                // Strip leading quote + spaces when checking content
+                if l.trim_start_matches('"').trim_start().starts_with("TOTP refreshes in") {
+                    "\"  TOTP refreshes in <countdown>  [<bar>]                                 \""
+                        .to_string()
+                } else {
+                    l.to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     fn mock_oath_state() -> OathState {
         OathState {
             credentials: vec![
@@ -729,16 +748,16 @@ mod tests {
     #[tokio::test]
     async fn oath_screen_with_credentials() {
         let oath = Some(mock_oath_state());
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(OathScreen::new(oath.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(stable_snapshot(&app.backend()));
     }
 
     #[tokio::test]
     async fn oath_screen_no_yubikey() {
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(OathScreen::new(None))
         });
         app.pilot().settle().await;
@@ -751,7 +770,7 @@ mod tests {
             credentials: vec![],
             password_required: false,
         });
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(OathScreen::new(oath.clone()))
         });
         app.pilot().settle().await;
@@ -764,7 +783,7 @@ mod tests {
             credentials: vec![],
             password_required: true,
         });
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(OathScreen::new(oath.clone()))
         });
         app.pilot().settle().await;
@@ -773,7 +792,7 @@ mod tests {
 
     #[tokio::test]
     async fn add_account_screen_initial() {
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(AddAccountScreen::new())
         });
         app.pilot().settle().await;
@@ -783,7 +802,7 @@ mod tests {
     #[tokio::test]
     async fn add_account_screen_step_navigation() {
         use crossterm::event::KeyCode;
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(AddAccountScreen::new())
         });
         let mut pilot = app.pilot();
@@ -806,11 +825,11 @@ mod tests {
     async fn oath_default_state() {
         let states = crate::model::mock::mock_yubikey_states();
         let oath_state = states.first().and_then(|yk| yk.oath.clone());
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(OathScreen::new(oath_state.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(stable_snapshot(&app.backend()));
     }
 
     #[tokio::test]
@@ -819,7 +838,7 @@ mod tests {
             credentials: vec![],
             password_required: false,
         });
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(OathScreen::new(oath_state.clone()))
         });
         app.pilot().settle().await;
@@ -832,7 +851,7 @@ mod tests {
             credentials: vec![],
             password_required: true,
         });
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(OathScreen::new(oath_state.clone()))
         });
         app.pilot().settle().await;
@@ -844,7 +863,7 @@ mod tests {
         use crossterm::event::KeyCode;
         let states = crate::model::mock::mock_yubikey_states();
         let oath_state = states.first().and_then(|yk| yk.oath.clone());
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(OathScreen::new(oath_state.clone()))
         });
         let mut pilot = app.pilot();
@@ -852,6 +871,6 @@ mod tests {
         pilot.press(KeyCode::Down).await;
         pilot.settle().await;
         drop(pilot);
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(stable_snapshot(&app.backend()));
     }
 }

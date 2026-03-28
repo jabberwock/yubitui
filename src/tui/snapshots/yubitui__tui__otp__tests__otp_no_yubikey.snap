@@ -2,10 +2,10 @@
 source: src/tui/otp.rs
 expression: app.backend()
 ---
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
+"                                   OTP Slots                                    "
+"No YubiKey Detected                                                             "
+"Insert your YubiKey and press R to refresh.                                     "
+"  Tab  Focus   Ctrl+P  Palette   q  Quit                                        "
 "                                                                                "
 "                                                                                "
 "                                                                                "

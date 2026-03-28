@@ -2,15 +2,15 @@
 source: src/tui/otp.rs
 expression: app.backend()
 ---
+"                                   OTP Slots                                    "
+"OTP Slot Configuration                                                          "
 "                                                                                "
+"  Slot 1 (short touch): Configured                                              "
+"  Slot 2 (long touch): Empty                                                    "
 "                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
+"Note: Credential type (Yubico OTP, HMAC-SHA1, static password)                  "
+"cannot be read back from hardware — only occupied/empty is detectable.          "
+"  Tab  Focus   Ctrl+P  Palette   q  Quit                                        "
 "                                                                                "
 "                                                                                "
 "                                                                                "

@@ -135,7 +135,7 @@ mod tests {
             slot1_touch: false,
             slot2_touch: false,
         });
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(OtpScreen::new(otp_state.clone()))
         });
         app.pilot().settle().await;
@@ -144,7 +144,7 @@ mod tests {
 
     #[tokio::test]
     async fn otp_no_yubikey() {
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(OtpScreen::new(None))
         });
         app.pilot().settle().await;

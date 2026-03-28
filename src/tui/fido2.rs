@@ -1283,7 +1283,7 @@ mod tests {
     #[tokio::test]
     async fn fido2_default_state() {
         let state = Some(mock_fido2_state());
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(Fido2Screen::new(state.clone()))
         });
         app.pilot().settle().await;
@@ -1292,7 +1292,7 @@ mod tests {
 
     #[tokio::test]
     async fn fido2_no_yubikey() {
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(Fido2Screen::new(None))
         });
         app.pilot().settle().await;
@@ -1305,7 +1305,7 @@ mod tests {
         state.pin_is_set = false;
         state.credentials = Some(vec![]);
         let state = Some(state);
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(Fido2Screen::new(state.clone()))
         });
         app.pilot().settle().await;
@@ -1317,7 +1317,7 @@ mod tests {
         let mut state = mock_fido2_state();
         state.credentials = None; // locked
         let state = Some(state);
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(Fido2Screen::new(state.clone()))
         });
         app.pilot().settle().await;
@@ -1327,7 +1327,7 @@ mod tests {
     #[tokio::test]
     async fn fido2_navigate_down() {
         let state = Some(mock_fido2_state());
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(Fido2Screen::new(state.clone()))
         });
         let mut pilot = app.pilot();
@@ -1340,7 +1340,7 @@ mod tests {
 
     #[tokio::test]
     async fn fido2_reset_confirm_screen() {
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(ResetConfirmScreen::new())
         });
         app.pilot().settle().await;
@@ -1349,7 +1349,7 @@ mod tests {
 
     #[tokio::test]
     async fn fido2_reset_guidance_waiting() {
-        let mut app = TestApp::new(80, 24, || {
+        let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(ResetGuidanceScreen::new())
         });
         app.pilot().settle().await;
@@ -1360,7 +1360,7 @@ mod tests {
     async fn fido2_from_mock() {
         let states = crate::model::mock::mock_yubikey_states();
         let fido2_state = states.first().and_then(|yk| yk.fido2.clone());
-        let mut app = TestApp::new(80, 24, move || {
+        let mut app = TestApp::new_styled(80, 24, "", move || {
             Box::new(Fido2Screen::new(fido2_state.clone()))
         });
         app.pilot().settle().await;
