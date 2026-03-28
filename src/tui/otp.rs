@@ -119,13 +119,6 @@ impl Widget for OtpScreen {
                 description: "? Help",
                 show: true,
             },
-            KeyBinding {
-                key: KeyCode::Char('q'),
-                modifiers: KeyModifiers::NONE,
-                action: "back",
-                description: "Q Back",
-                show: false,
-            },
         ]
     }
 

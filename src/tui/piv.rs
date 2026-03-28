@@ -141,13 +141,6 @@ impl Widget for PivScreen {
                 show: true,
             },
             KeyBinding {
-                key: KeyCode::Char('q'),
-                modifiers: KeyModifiers::NONE,
-                action: "back",
-                description: "Q Back",
-                show: false,
-            },
-            KeyBinding {
                 key: KeyCode::Char('?'),
                 modifiers: KeyModifiers::NONE,
                 action: "help",
