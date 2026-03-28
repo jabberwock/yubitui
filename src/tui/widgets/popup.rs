@@ -60,6 +60,10 @@ impl Widget for PopupScreen {
         children
     }
 
+    fn can_focus(&self) -> bool {
+        true
+    }
+
     fn key_bindings(&self) -> &[KeyBinding] {
         &[
             KeyBinding {

@@ -1314,4 +1314,27 @@ mod tests {
         let content: String = buf.content().iter().map(|c| c.symbol()).collect();
         assert!(content.contains("Generate"), "wizard should render header with 'Generate'");
     }
+
+    #[tokio::test]
+    async fn keys_help_popup_opens_and_closes() {
+        let yubikey_states = crate::model::mock::mock_yubikey_states();
+        let yk = yubikey_states.into_iter().next();
+        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeysScreen::new(yk)));
+        // Open help popup
+        {
+            let mut pilot = app.pilot();
+            pilot.press(KeyCode::Char('?')).await;
+            pilot.settle().await;
+        }
+        let content: String = app.buffer().content().iter().map(|c| c.symbol()).collect();
+        assert!(content.contains("OpenPGP Keys Help"), "help popup should be visible");
+        // Dismiss with Esc
+        {
+            let mut pilot = app.pilot();
+            pilot.press(KeyCode::Esc).await;
+            pilot.settle().await;
+        }
+        let content: String = app.buffer().content().iter().map(|c| c.symbol()).collect();
+        assert!(!content.contains("OpenPGP Keys Help"), "help popup should be dismissed after Esc");
+    }
 }
