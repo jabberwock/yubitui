@@ -114,6 +114,7 @@ static FIDO2_BINDINGS: &[KeyBinding] = &[
 pub struct Fido2Screen {
     fido2_state: Option<Fido2State>,
     state: Reactive<Fido2TuiState>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl Fido2Screen {
@@ -121,6 +122,7 @@ impl Fido2Screen {
         Self {
             fido2_state,
             state: Reactive::new(Fido2TuiState::default()),
+            own_id: Cell::new(None),
         }
     }
 }
@@ -128,6 +130,18 @@ impl Fido2Screen {
 impl Widget for Fido2Screen {
     fn widget_type_name(&self) -> &'static str {
         "Fido2Screen"
+    }
+
+    fn can_focus(&self) -> bool {
+        true
+    }
+
+    fn on_mount(&self, id: WidgetId) {
+        self.own_id.set(Some(id));
+    }
+
+    fn on_unmount(&self, _id: WidgetId) {
+        self.own_id.set(None);
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
@@ -143,7 +157,7 @@ impl Widget for Fido2Screen {
                 )));
             }
             Some(state) => {
-                let selected_index = self.state.get().selected_index;
+                let selected_index = self.state.get_untracked().selected_index;
 
                 // --- Info section (always visible, no PIN required per D-03) ---
                 widgets.push(Box::new(Label::new("")));
@@ -216,9 +230,8 @@ impl Widget for Fido2Screen {
 
     fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
         if let Some(key) = event.downcast_ref::<KeyEvent>() {
-            // Match key against our bindings to dispatch on_action
             for binding in FIDO2_BINDINGS {
-                if binding.key == key.code && binding.modifiers == key.modifiers {
+                if binding.matches(key.code, key.modifiers) {
                     self.on_action(binding.action, ctx);
                     return EventPropagation::Stop;
                 }
@@ -231,9 +244,10 @@ impl Widget for Fido2Screen {
         match action {
             "back" => ctx.pop_screen_deferred(),
             "up" => {
-                let current = self.state.get().selected_index;
+                let current = self.state.get_untracked().selected_index;
                 if current > 0 {
                     self.state.update(|s| s.selected_index = current - 1);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                 }
             }
             "down" => {
@@ -244,9 +258,10 @@ impl Widget for Fido2Screen {
                     .map(|c| c.len())
                     .unwrap_or(0);
                 if cred_count > 0 {
-                    let current = self.state.get().selected_index;
+                    let current = self.state.get_untracked().selected_index;
                     if current + 1 < cred_count {
                         self.state.update(|s| s.selected_index = current + 1);
+                        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     }
                 }
             }
@@ -267,8 +282,8 @@ impl Widget for Fido2Screen {
                 }
             }
             "delete_credential" => {
-                let selected_idx = self.state.get().selected_index;
-                let cached_pin = self.state.get().cached_pin.clone();
+                let selected_idx = self.state.get_untracked().selected_index;
+                let cached_pin = self.state.get_untracked().cached_pin.clone();
                 let cred_opt = self
                     .fido2_state
                     .as_ref()
