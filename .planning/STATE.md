@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: Phase 12 plans verified — ready for execution (3 plans, wave 1 parallel: 12-01 OpenPGP delete + 12-02 PIV delete, wave 2: 12-03 tests + human verify)
-last_updated: "2026-03-28T21:00:00.000Z"
+stopped_at: Completed 12-01-PLAN.md — OpenPGP slot delete model + DeleteKeyScreen
+last_updated: "2026-03-28T23:41:14.607Z"
 progress:
-  total_phases: 7
-  completed_phases: 5
+  total_phases: 8
+  completed_phases: 6
   total_plans: 27
-  completed_plans: 23
+  completed_plans: 25
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 
 ## Current Position
 
-Phase: 12 (yubikey-slot-delete-workflow) — PLANNED
-Plan: 0 of 3
+Phase: 12 (yubikey-slot-delete-workflow) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -87,6 +87,9 @@ Plan: 0 of 3
 - [Phase 12]: OpenPGP slot delete uses PUT DATA attribute-change trick (RSA4096 then RSA2048) — no DELETE KEY APDU exists; requires Admin PIN auth
 - [Phase 12]: PIV cert delete is PUT DATA with empty 0x53 value; PIV key delete is MOVE KEY INS=0xF6 P1=0xFF (firmware 5.7+ ONLY)
 - [Phase 12]: PIV management key auth is 3DES challenge-response via `des` crate TdesEde3; new dependency added to Cargo.toml
+- [Phase 12-01]: OpenPGP slot delete uses PUT DATA attribute-change trick: RSA4096 then RSA2048 — no DELETE KEY APDU exists on OpenPGP card spec
+- [Phase 12-01]: Admin PIN VERIFY SW 0x63Cx: retry count from low nibble; 0x6983 = blocked — clear user messages returned from delete_openpgp_key()
+- [Phase 12-01]: Two-step delete TUI flow: PinThenDeleteScreen -> DeleteKeyScreen (mirrors fido2 PinAuthScreen -> DeleteCredentialScreen pattern)
 
 ### Roadmap Evolution
 
@@ -102,6 +105,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-28T08:00:00.000Z
-Stopped at: Phase 12 plans created — ready for execution
+Last session: 2026-03-28T23:41:14.605Z
+Stopped at: Completed 12-01-PLAN.md — OpenPGP slot delete model + DeleteKeyScreen
 Resume file: None
