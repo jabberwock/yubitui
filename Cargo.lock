@@ -2652,9 +2652,9 @@ dependencies = [
 
 [[package]]
 name = "textual-rs"
-version = "0.3.7"
+version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7a2906cfbbf4f21ca07b836a19b07efd4c4109519933ee6d488262aca1f3252"
+checksum = "b486721db7f1c0cabd84b369e550283a7755a632159281b79ef1358b3598bde4"
 dependencies = [
  "any_spawner",
  "anyhow",
