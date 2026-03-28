@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-03-28T23:44:49.083Z"
+stopped_at: "12-03 checkpoint:human-verify — awaiting user verification of live delete flows"
+last_updated: "2026-03-28T23:49:43.198Z"
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 27
-  completed_plans: 26
+  completed_plans: 27
 ---
 
 # Project State
@@ -92,6 +92,7 @@ Plan: 3 of 3
 - [Phase 12-01]: Two-step delete TUI flow: PinThenDeleteScreen -> DeleteKeyScreen (mirrors fido2 PinAuthScreen -> DeleteCredentialScreen pattern)
 - [Phase 12]: des 0.9.0-rc.3 with cipher 0.5 required — cipher 0.4 incompatible with des pre-release
 - [Phase 12]: DeletePivConfirmScreen pushes PivScreen(None) after delete — full YubiKeyState not available in modal context; user refreshes with R
+- [Phase 12]: KeysScreen compose() must include 'd Delete Key Slot' label to match KEYS_BINDINGS show=true declaration
 
 ### Roadmap Evolution
 
@@ -107,6 +108,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-28T23:44:49.080Z
-Stopped at: Completed 12-02-PLAN.md
+Last session: 2026-03-28T23:49:40.612Z
+Stopped at: 12-03 checkpoint:human-verify — awaiting user verification of live delete flows
 Resume file: None
