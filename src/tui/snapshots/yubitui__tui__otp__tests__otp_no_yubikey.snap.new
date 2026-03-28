@@ -1,17 +1,18 @@
 ---
-source: src/tui/piv.rs
+source: src/tui/otp.rs
+assertion_line: 171
 expression: app.backend()
 ---
-"                                PIV Certificates                                "
-"PIV Slot Status                                                                 "
-"                                                                                "
-"  [OK] Authentication (9a) -- Occupied                                          "
-"  [  ] Digital Signature (9c) -- Empty                                          "
-"  [  ] Key Management (9d) -- Empty                                             "
-"  [  ] Card Authentication (9e) -- Empty                                        "
-"                                                                                "
-"Press V to view slot detail or R to refresh.                                    "
+"                                   OTP Slots                                    "
+"No YubiKey Detected                                                             "
+"Insert your YubiKey and press R to refresh.                                     "
 "  Tab  Focus   Ctrl+P  Palette                                                  "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "

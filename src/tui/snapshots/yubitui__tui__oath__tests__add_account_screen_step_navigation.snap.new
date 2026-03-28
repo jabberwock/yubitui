@@ -1,17 +1,18 @@
 ---
-source: src/tui/piv.rs
+source: src/tui/oath.rs
+assertion_line: 817
 expression: app.backend()
 ---
-"                                PIV Certificates                                "
-"PIV Slot Status                                                                 "
+"                                Add OATH Account                                "
+"Step 1/5: Issuer                                                                "
 "                                                                                "
-"  [OK] Authentication (9a) -- Occupied                                          "
-"  [  ] Digital Signature (9c) -- Empty                                          "
-"  [  ] Key Management (9d) -- Empty                                             "
-"  [  ] Card Authentication (9e) -- Empty                                        "
+"Enter issuer name (e.g., GitHub, Google):                                       "
+"> _                                                                             "
 "                                                                                "
-"Press V to view slot detail or R to refresh.                                    "
 "  Tab  Focus   Ctrl+P  Palette                                                  "
+"                                                                                "
+"                                                                                "
+"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "

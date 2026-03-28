@@ -1,5 +1,6 @@
 ---
 source: src/tui/piv.rs
+assertion_line: 193
 expression: app.backend()
 ---
 "                                PIV Certificates                                "

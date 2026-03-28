@@ -8,7 +8,7 @@ expression: app.backend()
 "Enter issuer name (e.g., GitHub, Google):                                       "
 "> _                                                                             "
 "                                                                                "
-"  Tab  Focus   Ctrl+P  Palette   q  Quit                                        "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
 "                                                                                "
 "                                                                                "
 "                                                                                "

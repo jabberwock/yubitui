@@ -10,7 +10,7 @@ expression: app.backend()
 "                                                                                "
 "Note: Credential type (Yubico OTP, HMAC-SHA1, static password)                  "
 "cannot be read back from hardware — only occupied/empty is detectable.          "
-"  Tab  Focus   Ctrl+P  Palette   q  Quit                                        "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
 "                                                                                "
 "                                                                                "
 "                                                                                "

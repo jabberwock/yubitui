@@ -1,18 +1,19 @@
 ---
-source: src/tui/piv.rs
+source: src/tui/pin.rs
+assertion_line: 543
 expression: app.backend()
 ---
-"                                PIV Certificates                                "
-"PIV Slot Status                                                                 "
+"                               PIN Unblock Wizard                               "
+"Current PIN status:                                                             "
+"  User PIN retries:   3/3                                                       "
+"  Admin PIN retries:  3/3                                                       "
+"  Reset Code retries: 0/3                                                       "
 "                                                                                "
-"  [OK] Authentication (9a) -- Occupied                                          "
-"  [  ] Digital Signature (9c) -- Empty                                          "
-"  [  ] Key Management (9d) -- Empty                                             "
-"  [  ] Card Authentication (9e) -- Empty                                        "
-"                                                                                "
-"Press V to view slot detail or R to refresh.                                    "
+"Recovery options:                                                               "
+"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+"┃                          [2] Unblock with Admin PIN                          ┃"
+"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 "  Tab  Focus   Ctrl+P  Palette                                                  "
-"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "

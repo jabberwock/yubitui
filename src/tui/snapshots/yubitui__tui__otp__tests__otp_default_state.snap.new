@@ -1,17 +1,18 @@
 ---
-source: src/tui/piv.rs
+source: src/tui/otp.rs
+assertion_line: 162
 expression: app.backend()
 ---
-"                                PIV Certificates                                "
-"PIV Slot Status                                                                 "
+"                                   OTP Slots                                    "
+"OTP Slot Configuration                                                          "
 "                                                                                "
-"  [OK] Authentication (9a) -- Occupied                                          "
-"  [  ] Digital Signature (9c) -- Empty                                          "
-"  [  ] Key Management (9d) -- Empty                                             "
-"  [  ] Card Authentication (9e) -- Empty                                        "
+"  Slot 1 (short touch): Configured                                              "
+"  Slot 2 (long touch): Empty                                                    "
 "                                                                                "
-"Press V to view slot detail or R to refresh.                                    "
+"Note: Credential type (Yubico OTP, HMAC-SHA1, static password)                  "
+"cannot be read back from hardware — only occupied/empty is detectable.          "
 "  Tab  Focus   Ctrl+P  Palette                                                  "
+"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "

@@ -12,7 +12,7 @@ expression: stable_snapshot(&app.backend())
 "                                                                                "
 "  TOTP refreshes in <countdown>  [<bar>]                                 "
 "                                                                                "
-"  Tab  Focus   Ctrl+P  Palette   q  Quit                                        "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
 "                                                                                "
 "                                                                                "
 "                                                                                "

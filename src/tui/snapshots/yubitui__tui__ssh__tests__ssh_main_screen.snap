@@ -15,7 +15,7 @@ expression: app.backend()
 "[3] Restart GPG agent                                                           "
 "[4] Export SSH public key                                                       "
 "[5] Test SSH connection                                                         "
-"  Tab  Focus   Ctrl+P  Palette   q  Quit                                        "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
 "                                                                                "
 "                                                                                "
 "                                                                                "

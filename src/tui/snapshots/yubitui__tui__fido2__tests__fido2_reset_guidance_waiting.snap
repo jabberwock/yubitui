@@ -13,7 +13,7 @@ expression: app.backend()
 "                                                                                "
 "Press Enter when your YubiKey is unplugged, or Esc to cancel.                   "
 "                                                                                "
-"  Tab  Focus   Ctrl+P  Palette   q  Quit                                        "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
 "                                                                                "
 "                                                                                "
 "                                                                                "

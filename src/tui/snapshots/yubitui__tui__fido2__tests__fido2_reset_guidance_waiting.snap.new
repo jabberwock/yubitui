@@ -1,19 +1,20 @@
 ---
-source: src/tui/piv.rs
+source: src/tui/fido2.rs
+assertion_line: 1356
 expression: app.backend()
 ---
-"                                PIV Certificates                                "
-"PIV Slot Status                                                                 "
+"                                  FIDO2 Reset                                   "
 "                                                                                "
-"  [OK] Authentication (9a) -- Occupied                                          "
-"  [  ] Digital Signature (9c) -- Empty                                          "
-"  [  ] Key Management (9d) -- Empty                                             "
-"  [  ] Card Authentication (9e) -- Empty                                        "
+"FIDO2 protocol requires the device to receive the reset command                 "
+"within 10 seconds of being plugged in.                                          "
 "                                                                                "
-"Press V to view slot detail or R to refresh.                                    "
+"Step 1: Unplug your YubiKey now.                                                "
+"Step 2: Wait for the countdown to start.                                        "
+"Step 3: Replug your YubiKey when prompted.                                      "
+"                                                                                "
+"Press Enter when your YubiKey is unplugged, or Esc to cancel.                   "
+"                                                                                "
 "  Tab  Focus   Ctrl+P  Palette                                                  "
-"                                                                                "
-"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "

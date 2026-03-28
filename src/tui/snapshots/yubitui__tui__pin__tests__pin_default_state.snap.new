@@ -1,5 +1,6 @@
 ---
 source: src/tui/pin.rs
+assertion_line: 520
 expression: app.backend()
 ---
 "                                 PIN Management                                 "

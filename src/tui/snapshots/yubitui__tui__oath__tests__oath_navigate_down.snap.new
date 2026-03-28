@@ -1,18 +1,19 @@
 ---
-source: src/tui/piv.rs
-expression: app.backend()
+source: src/tui/oath.rs
+assertion_line: 874
+expression: stable_snapshot(&app.backend())
 ---
-"                                PIV Certificates                                "
-"PIV Slot Status                                                                 "
+"                                OATH Credentials                                "
 "                                                                                "
-"  [OK] Authentication (9a) -- Occupied                                          "
-"  [  ] Digital Signature (9c) -- Empty                                          "
-"  [  ] Key Management (9d) -- Empty                                             "
-"  [  ] Card Authentication (9e) -- Empty                                        "
+"  Name                              Code      Type                              "
+"  ──────────────────────────────  ────────  ──────                              "
+"  > GitHub                            123456  [TOTP]                            "
+"    Google                            789012  [TOTP]                            "
+"    AWS                             [press Enter]  [HOTP]                       "
 "                                                                                "
-"Press V to view slot detail or R to refresh.                                    "
+"  TOTP refreshes in <countdown>  [<bar>]                                 "
+"                                                                                "
 "  Tab  Focus   Ctrl+P  Palette                                                  "
-"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "

@@ -10,7 +10,7 @@ expression: app.backend()
 "                                                                                "
 "No GPG keys found in keyring.                                                   "
 "Generate a key first, or import one with: gpg --import <file>                   "
-"  Tab  Focus   Ctrl+P  Palette   q  Quit                                        "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
 "                                                                                "
 "                                                                                "
 "                                                                                "

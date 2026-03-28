@@ -1,5 +1,6 @@
 ---
 source: src/tui/ssh.rs
+assertion_line: 429
 expression: app.backend()
 ---
 "                                SSH Setup Wizard                                "

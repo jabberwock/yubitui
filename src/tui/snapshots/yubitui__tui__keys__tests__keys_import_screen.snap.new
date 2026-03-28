@@ -1,17 +1,18 @@
 ---
-source: src/tui/piv.rs
+source: src/tui/keys.rs
+assertion_line: 1205
 expression: app.backend()
 ---
-"                                PIV Certificates                                "
-"PIV Slot Status                                                                 "
+"                             Import Key to YubiKey                              "
+"This will import a GPG key from your keyring to the YubiKey.                    "
+"Prerequisites:                                                                  "
+"  - You must have a GPG key already generated                                   "
+"  - The key must be in your GPG keyring                                         "
 "                                                                                "
-"  [OK] Authentication (9a) -- Occupied                                          "
-"  [  ] Digital Signature (9c) -- Empty                                          "
-"  [  ] Key Management (9d) -- Empty                                             "
-"  [  ] Card Authentication (9e) -- Empty                                        "
-"                                                                                "
-"Press V to view slot detail or R to refresh.                                    "
+"No GPG keys found in keyring.                                                   "
+"Generate a key first, or import one with: gpg --import <file>                   "
 "  Tab  Focus   Ctrl+P  Palette                                                  "
+"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "

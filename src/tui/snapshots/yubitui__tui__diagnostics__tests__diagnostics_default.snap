@@ -12,7 +12,7 @@ expression: app.backend()
 "[OK] Scdaemon: Configured                                                       "
 "                                                                                "
 "[OK] SSH Agent Integration: Configured for GPG                                  "
-"  Tab  Focus   Ctrl+P  Palette   q  Quit                                        "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
 "                                                                                "
 "                                                                                "
 "                                                                                "

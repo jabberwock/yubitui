@@ -1,18 +1,19 @@
 ---
-source: src/tui/piv.rs
+source: src/tui/diagnostics.rs
+assertion_line: 204
 expression: app.backend()
 ---
-"                                PIV Certificates                                "
-"PIV Slot Status                                                                 "
+"                               System Diagnostics                               "
+"[OK] PC/SC Daemon (pcscd): Running                                              "
+"   Version: mock                                                                "
 "                                                                                "
-"  [OK] Authentication (9a) -- Occupied                                          "
-"  [  ] Digital Signature (9c) -- Empty                                          "
-"  [  ] Key Management (9d) -- Empty                                             "
-"  [  ] Card Authentication (9e) -- Empty                                        "
+"[OK] GPG Agent: Running                                                         "
+"   Version: mock                                                                "
 "                                                                                "
-"Press V to view slot detail or R to refresh.                                    "
+"[OK] Scdaemon: Configured                                                       "
+"                                                                                "
+"[OK] SSH Agent Integration: Configured for GPG                                  "
 "  Tab  Focus   Ctrl+P  Palette                                                  "
-"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "
