@@ -28,7 +28,7 @@ See full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [ ] **Phase 7: Mouse Support + E2E Test Harness** - Working click navigation, ClickRegionMap, tmux E2E tests, snapshot tests
 - [ ] **Phase 8: textual-rs Migration** - Replace raw ratatui composition with textual-rs component model across all 7 screens; retire tmux harness for Pilot tests
 - [x] **Phase 9: OATH/TOTP Screen** - Full OATH credential management with live TOTP codes and countdown timer, built in textual-rs
-- [ ] **Phase 10: FIDO2 Screen** - FIDO2 info, PIN management, resident credential list/delete, reset
+- [x] **Phase 10: FIDO2 Screen** - FIDO2 info, PIN management, resident credential list/delete, reset (completed 2026-03-28)
 - [ ] **Phase 11: OTP Slots + Education + Onboarding** - OTP slot view, per-screen help panels, protocol glossary, new user onboarding flow
 
 ## Phase Details
@@ -122,7 +122,7 @@ Plans:
 - [x] 10-01-PLAN.md — FIDO2 model types, ctap-hid-fido2 dependency, mock fixture, Screen enum
 - [x] 10-02-PLAN.md — Fido2Screen widget with info display, credential list, PIN flows, delete confirmation
 - [x] 10-03-PLAN.md — FIDO2 reset workflow (raw HID authenticatorReset + countdown guidance screen)
-- [ ] 10-04-PLAN.md — Dashboard navigation wiring, Pilot snapshot tests, human verification
+- [x] 10-04-PLAN.md — Dashboard navigation wiring, Pilot snapshot tests, human verification
 **UI hint**: yes
 
 ### Phase 11: OTP Slots + Education + Onboarding
@@ -151,7 +151,7 @@ Plans:
 | 7. Mouse Support + E2E Test Harness | v1.1 | 3/4 | In Progress|  |
 | 8. textual-rs Migration | v1.1 | 6/6 | Complete |  |
 | 9. OATH/TOTP Screen | v1.1 | 4/4 | Complete | 2026-03-27 |
-| 10. FIDO2 Screen | v1.1 | 3/4 | In Progress|  |
+| 10. FIDO2 Screen | v1.1 | 4/4 | Complete   | 2026-03-28 |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
 
 ## Backlog
@@ -171,7 +171,7 @@ Plans:
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 11
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 12 to break down)

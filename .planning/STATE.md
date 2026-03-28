@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
-status: Ready to execute
-stopped_at: Completed 10-03-PLAN.md (FIDO2 reset workflow — raw HID authenticatorReset, ResetConfirmScreen, ResetGuidanceScreen with countdown timer)
-last_updated: "2026-03-28T04:23:33.567Z"
+status: Phase complete — ready for verification
+stopped_at: "Checkpoint: 10-04 Task 2 human-verify — run cargo run -- --mock to verify FIDO2 screen"
+last_updated: "2026-03-28T04:31:15.281Z"
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 21
-  completed_plans: 20
+  completed_plans: 21
 ---
 
 # Project State
@@ -79,6 +79,7 @@ Plan: 4 of 4
 - [Phase 10-fido2-screen]: PinAuthScreen pops parent Fido2Screen on success and pushes new Fido2Screen with credentials — cleanest way to propagate credential list without cross-screen state mutation
 - [Phase 10-fido2-screen]: reset_fido2() uses raw CTAPHID frames via hidapi — ctap-hid-fido2 does not expose authenticatorReset (0x07)
 - [Phase 10-fido2-screen]: ResetGuidanceScreen stores own_id via on_mount() Cell<Option<WidgetId>> for matching worker source_id in on_event()
+- [Phase 10-fido2-screen]: Dashboard nav_8 reads yk.fido2.clone() via yubikey_state().and_then() — same pattern as nav_7 oath
 
 ### Roadmap Evolution
 
@@ -94,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-28T04:23:33.544Z
-Stopped at: Completed 10-03-PLAN.md (FIDO2 reset workflow — raw HID authenticatorReset, ResetConfirmScreen, ResetGuidanceScreen with countdown timer)
+Last session: 2026-03-28T04:31:15.268Z
+Stopped at: Checkpoint: 10-04 Task 2 human-verify — run cargo run -- --mock to verify FIDO2 screen
 Resume file: None
