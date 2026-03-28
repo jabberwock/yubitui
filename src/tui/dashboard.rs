@@ -124,6 +124,13 @@ static DASHBOARD_BINDINGS: &[KeyBinding] = &[
         show: false,
     },
     KeyBinding {
+        key: KeyCode::Char('?'),
+        modifiers: KeyModifiers::NONE,
+        action: "glossary",
+        description: "? Glossary",
+        show: true,
+    },
+    KeyBinding {
         key: KeyCode::Char('r'),
         modifiers: KeyModifiers::NONE,
         action: "refresh",
@@ -308,6 +315,9 @@ impl Widget for DashboardScreen {
             }
             "nav_6" => {
                 ctx.push_screen_deferred(Box::new(crate::tui::help::HelpScreen::new()));
+            }
+            "glossary" => {
+                ctx.push_screen_deferred(Box::new(crate::tui::glossary::GlossaryScreen::new()));
             }
             "nav_7" => {
                 let oath_state = self.app_state.yubikey_state()
