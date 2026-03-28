@@ -428,14 +428,14 @@ impl Widget for KeysScreen {
 
         children.push(Box::new(Label::new("")));
 
-        // Action buttons (D-06: all navigable elements are Buttons)
-        children.push(Box::new(Button::new("Generate Key on Card")));
-        children.push(Box::new(Button::new("Import Existing Key")));
-        children.push(Box::new(Button::new("View Full Key Details")));
-        children.push(Box::new(Button::new("Export SSH Public Key")));
-        children.push(Box::new(Button::new("Key Attributes")));
-        children.push(Box::new(Button::new("Touch Policy")));
-        children.push(Box::new(Button::new("Attestation")));
+        // Action labels (keybindings in KEYS_BINDINGS drive navigation)
+        children.push(Box::new(Label::new("  g  Generate Key on Card")));
+        children.push(Box::new(Label::new("  i  Import Existing Key")));
+        children.push(Box::new(Label::new("  v  View Full Key Details")));
+        children.push(Box::new(Label::new("  e  Export SSH Public Key")));
+        children.push(Box::new(Label::new("  k  Key Attributes")));
+        children.push(Box::new(Label::new("  t  Touch Policy")));
+        children.push(Box::new(Label::new("  a  Attestation")));
 
         children.push(Box::new(Footer));
         children
