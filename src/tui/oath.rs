@@ -195,7 +195,7 @@ impl Widget for OathScreen {
                 )));
             }
             Some(state) => {
-                let selected = self.state.get().selected_index;
+                let selected = self.state.get_untracked().selected_index;
 
                 widgets.push(Box::new(Label::new("")));
                 widgets.push(Box::new(Label::new(
@@ -280,7 +280,7 @@ impl Widget for OathScreen {
         match action {
             "back" => ctx.pop_screen_deferred(),
             "up" => {
-                let current = self.state.get().selected_index;
+                let current = self.state.get_untracked().selected_index;
                 if current > 0 {
                     self.state.update(|s| s.selected_index = current - 1);
                     if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
@@ -293,7 +293,7 @@ impl Widget for OathScreen {
                     .map(|s| s.credentials.len())
                     .unwrap_or(0);
                 if cred_count > 0 {
-                    let current = self.state.get().selected_index;
+                    let current = self.state.get_untracked().selected_index;
                     if current + 1 < cred_count {
                         self.state.update(|s| s.selected_index = current + 1);
                         if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
@@ -305,7 +305,7 @@ impl Widget for OathScreen {
                 let is_hotp = self
                     .oath_state
                     .as_ref()
-                    .and_then(|s| s.credentials.get(self.state.get().selected_index))
+                    .and_then(|s| s.credentials.get(self.state.get_untracked().selected_index))
                     .map(|c| matches!(c.oath_type, OathType::Hotp))
                     .unwrap_or(false);
 
@@ -318,7 +318,7 @@ impl Widget for OathScreen {
                 ctx.push_screen_deferred(Box::new(AddAccountScreen::new()));
             }
             "delete_account" => {
-                let selected_idx = self.state.get().selected_index;
+                let selected_idx = self.state.get_untracked().selected_index;
                 let cred_opt = self
                     .oath_state
                     .as_ref()
