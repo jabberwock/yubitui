@@ -121,7 +121,7 @@ Plans:
 Plans:
 - [x] 10-01-PLAN.md — FIDO2 model types, ctap-hid-fido2 dependency, mock fixture, Screen enum
 - [x] 10-02-PLAN.md — Fido2Screen widget with info display, credential list, PIN flows, delete confirmation
-- [ ] 10-03-PLAN.md — FIDO2 reset workflow (raw HID authenticatorReset + countdown guidance screen)
+- [x] 10-03-PLAN.md — FIDO2 reset workflow (raw HID authenticatorReset + countdown guidance screen)
 - [ ] 10-04-PLAN.md — Dashboard navigation wiring, Pilot snapshot tests, human verification
 **UI hint**: yes
 
@@ -151,7 +151,7 @@ Plans:
 | 7. Mouse Support + E2E Test Harness | v1.1 | 3/4 | In Progress|  |
 | 8. textual-rs Migration | v1.1 | 6/6 | Complete |  |
 | 9. OATH/TOTP Screen | v1.1 | 4/4 | Complete | 2026-03-27 |
-| 10. FIDO2 Screen | v1.1 | 2/4 | In Progress|  |
+| 10. FIDO2 Screen | v1.1 | 3/4 | In Progress|  |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
 
 ## Backlog
@@ -171,7 +171,7 @@ Plans:
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 11
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 12 to break down)

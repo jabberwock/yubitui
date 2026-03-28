@@ -41,7 +41,7 @@
 - [x] **FIDO-03**: User can change an existing FIDO2 PIN
 - [x] **FIDO-04**: User can view a list of resident FIDO2 credentials (passkeys) stored on the YubiKey
 - [x] **FIDO-05**: User can delete a specific resident FIDO2 credential with a confirmation dialog
-- [ ] **FIDO-06**: User can reset the FIDO2 applet (with prominent warning about credential loss and 10s timing window requirement)
+- [x] **FIDO-06**: User can reset the FIDO2 applet (with prominent warning about credential loss and 10s timing window requirement)
 - [x] **FIDO-07**: On Windows, user sees a clear message when FIDO2 operations require administrator privileges
 
 ### OTP Slots
@@ -124,7 +124,7 @@
 | FIDO-03 | Phase 9 | Complete |
 | FIDO-04 | Phase 9 | Complete |
 | FIDO-05 | Phase 9 | Complete |
-| FIDO-06 | Phase 9 | Pending |
+| FIDO-06 | Phase 9 | Complete |
 | FIDO-07 | Phase 9 | Complete |
 | OTP-01 | Phase 10 | Pending |
 | EDU-01 | Phase 10 | Pending |
