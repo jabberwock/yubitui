@@ -682,6 +682,7 @@ fn run_keytocard_session(
     dbg_log!("=== session done success={} ===", success);
 
     drop(stdin);
+    #[allow(unused_variables)]
     let exit_status = child.wait()?;
 
     // If gpg was killed by a signal (e.g. user kill -9 or external kill), do not
