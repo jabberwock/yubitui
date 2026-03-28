@@ -151,7 +151,7 @@ Plans:
 | 7. Mouse Support + E2E Test Harness | v1.1 | 3/4 | In Progress|  |
 | 8. textual-rs Migration | v1.1 | 6/6 | Complete |  |
 | 9. OATH/TOTP Screen | v1.1 | 4/4 | Complete | 2026-03-27 |
-| 10. FIDO2 Screen | v1.1 | 4/4 | Complete   | 2026-03-28 |
+| 10. FIDO2 Screen | v1.1 | 4/4 | Complete    | 2026-03-28 |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
 
 ## Backlog
