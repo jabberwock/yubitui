@@ -2,7 +2,7 @@ use std::cell::{Cell, RefCell};
 
 use textual_rs::{Widget, Footer, Header, Label};
 use textual_rs::widget::context::AppContext;
-use textual_rs::widget::EventPropagation;
+use textual_rs::widget::{EventPropagation, WidgetId};
 use textual_rs::event::keybinding::KeyBinding;
 use textual_rs::reactive::Reactive;
 use textual_rs::widget::screen::ModalScreen;
@@ -138,6 +138,7 @@ static OATH_BINDINGS: &[KeyBinding] = &[
 pub struct OathScreen {
     oath_state: Option<OathState>,
     state: Reactive<OathTuiState>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl OathScreen {
@@ -145,6 +146,7 @@ impl OathScreen {
         Self {
             oath_state,
             state: Reactive::new(OathTuiState::default()),
+            own_id: Cell::new(None),
         }
     }
 }
@@ -152,6 +154,14 @@ impl OathScreen {
 impl Widget for OathScreen {
     fn widget_type_name(&self) -> &'static str {
         "OathScreen"
+    }
+
+    fn on_mount(&self, id: WidgetId) {
+        self.own_id.set(Some(id));
+    }
+
+    fn on_unmount(&self, _id: WidgetId) {
+        self.own_id.set(None);
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
@@ -273,6 +283,7 @@ impl Widget for OathScreen {
                 let current = self.state.get().selected_index;
                 if current > 0 {
                     self.state.update(|s| s.selected_index = current - 1);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                 }
             }
             "down" => {
@@ -285,6 +296,7 @@ impl Widget for OathScreen {
                     let current = self.state.get().selected_index;
                     if current + 1 < cred_count {
                         self.state.update(|s| s.selected_index = current + 1);
+                        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     }
                 }
             }
