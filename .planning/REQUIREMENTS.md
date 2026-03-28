@@ -55,6 +55,13 @@
 - [ ] **EDU-03**: On first launch (or when device is in factory-default state), user sees an onboarding checklist that guides them through initial setup steps (FIDO2 PIN, OATH accounts, PIV/SSH if needed)
 - [ ] **EDU-04**: Onboarding detects factory-default state heuristically: FIDO2 has no PIN set, OATH applet has 0 credentials, PIV uses default management key
 
+### Slot Delete
+
+- [ ] **SLOTDEL-01**: User can delete a single OpenPGP key slot (SIG, ENC, or AUT) after Admin PIN authentication and confirmation — key material is destroyed, other slots remain intact
+- [ ] **SLOTDEL-02**: User can delete a PIV certificate from any standard slot (9a, 9c, 9d, 9e) after management key authentication
+- [ ] **SLOTDEL-03**: User can delete a PIV private key on firmware >= 5.7.0; on older firmware the delete-key option is visibly disabled with an explanation
+- [ ] **SLOTDEL-04**: All delete operations show clear success/error feedback and the affected screen refreshes to reflect the change
+
 ## v2 Requirements (Deferred)
 
 ### PIV Improvements
@@ -131,12 +138,16 @@
 | EDU-02 | Phase 10 | Complete |
 | EDU-03 | Phase 10 | Pending |
 | EDU-04 | Phase 10 | Pending |
+| SLOTDEL-01 | Phase 12 | Pending |
+| SLOTDEL-02 | Phase 12 | Pending |
+| SLOTDEL-03 | Phase 12 | Pending |
+| SLOTDEL-04 | Phase 12 | Pending |
 
 **Coverage:**
-- v1.1 requirements: 34 total
-- Mapped to phases: 34
-- Unmapped: 0 ✓
+- v1.1 requirements: 38 total
+- Mapped to phases: 38
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 — traceability populated by roadmapper*
+*Last updated: 2026-03-28 — SLOTDEL requirements added for Phase 12*

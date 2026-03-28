@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Ready to execute
-stopped_at: Completed 11-02-PLAN.md (per-screen help panels + protocol glossary)
-last_updated: "2026-03-28T06:48:10.662Z"
+stopped_at: Phase 12 plans created — ready for execution
+last_updated: "2026-03-28T08:00:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 24
+  total_plans: 27
   completed_plans: 23
 ---
 
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Zero-friction YubiKey management — detect problems automatically, guide users through fixes
-**Current focus:** Phase 11 — yubikey-slot-delete-workflow
+**Current focus:** Phase 12 — yubikey-slot-delete-workflow
 
 ## Current Position
 
-Phase: 11 (yubikey-slot-delete-workflow) — EXECUTING
-Plan: 3 of 3
+Phase: 12 (yubikey-slot-delete-workflow) — PLANNED
+Plan: 0 of 3
 
 ## Performance Metrics
 
@@ -84,10 +84,13 @@ Plan: 3 of 3
 - [Phase 11]: nav_7 used for OTP Slots in current worktree state — phases 9/10 (oath/fido2) not yet executed; OTP becomes nav_7
 - [Phase 11-02]: GlossaryScreen uses same Widget pattern as HelpScreen — no new widget types needed
 - [Phase 11-02]: Help popups use existing ModalScreen+PopupScreen pattern — each screen gets a contextual SCREEN_HELP_TEXT const
+- [Phase 12]: OpenPGP slot delete uses PUT DATA attribute-change trick (RSA4096 then RSA2048) — no DELETE KEY APDU exists; requires Admin PIN auth
+- [Phase 12]: PIV cert delete is PUT DATA with empty 0x53 value; PIV key delete is MOVE KEY INS=0xF6 P1=0xFF (firmware 5.7+ ONLY)
+- [Phase 12]: PIV management key auth is 3DES challenge-response via `des` crate TdesEde3; new dependency added to Cargo.toml
 
 ### Roadmap Evolution
 
-- Phase 11 added: yubikey slot delete workflow — no delete workflow exists for OpenPGP/PIV slots without factory reset
+- Phase 12 added: yubikey slot delete workflow — individual OpenPGP/PIV slot deletion without factory reset
 
 ### Pending Todos
 
@@ -99,6 +102,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-28T06:48:10.647Z
-Stopped at: Completed 11-02-PLAN.md (per-screen help panels + protocol glossary)
+Last session: 2026-03-28T08:00:00.000Z
+Stopped at: Phase 12 plans created — ready for execution
 Resume file: None

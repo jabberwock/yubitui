@@ -29,7 +29,7 @@ See full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [ ] **Phase 8: textual-rs Migration** - Replace raw ratatui composition with textual-rs component model across all 7 screens; retire tmux harness for Pilot tests
 - [x] **Phase 9: OATH/TOTP Screen** - Full OATH credential management with live TOTP codes and countdown timer, built in textual-rs
 - [x] **Phase 10: FIDO2 Screen** - FIDO2 info, PIN management, resident credential list/delete, reset (completed 2026-03-28)
-- [ ] **Phase 11: OTP Slots + Education + Onboarding** - OTP slot view, per-screen help panels, protocol glossary, new user onboarding flow
+- [x] **Phase 11: OTP Slots + Education + Onboarding** - OTP slot view, per-screen help panels, protocol glossary, new user onboarding flow (completed 2026-03-28)
 
 ## Phase Details
 
@@ -139,7 +139,23 @@ Plans:
 Plans:
 - [x] 11-01-PLAN.md — OTP model types, APDU reader, OTP screen widget, dashboard nav_9 wiring
 - [x] 11-02-PLAN.md — GlossaryScreen + per-screen ? help panels on all 8 screens
-- [ ] 11-03-PLAN.md — Factory-default detection, OnboardingScreen, OTP help keybinding, human verification
+- [x] 11-03-PLAN.md — Factory-default detection, OnboardingScreen, OTP help keybinding, human verification
+**UI hint**: yes
+
+### Phase 12: YubiKey Slot Delete Workflow
+**Goal**: Users can delete individual OpenPGP key slots and PIV certificate/key slots from the TUI without factory reset — targeted slot clearing with proper authentication (Admin PIN for OpenPGP, management key 3DES for PIV) and firmware-gated PIV key deletion (5.7+ only)
+**Depends on**: Phase 11
+**Requirements**: SLOTDEL-01, SLOTDEL-02, SLOTDEL-03, SLOTDEL-04
+**Success Criteria** (what must be TRUE):
+  1. User can delete a single OpenPGP key slot (SIG, ENC, or AUT) after entering Admin PIN and confirming — key material is destroyed, other slots remain intact
+  2. User can delete a PIV certificate from any standard slot (9a, 9c, 9d, 9e) after management key authentication
+  3. User can delete a PIV private key on firmware >= 5.7.0; on older firmware the option is clearly disabled with explanation
+  4. All delete operations show clear success/error feedback and the affected screen refreshes to reflect the change
+**Plans**: 3 plans
+Plans:
+- [ ] 12-01-PLAN.md — OpenPGP individual key slot deletion (model APDUs + TUI Admin PIN + confirm flow)
+- [ ] 12-02-PLAN.md — PIV certificate/key deletion (des crate, 3DES mgmt key auth, firmware gate, TUI flow)
+- [ ] 12-03-PLAN.md — Snapshot tests, cargo test 100%, human verification of both delete flows
 **UI hint**: yes
 
 ## Progress
@@ -156,7 +172,8 @@ Plans:
 | 8. textual-rs Migration | v1.1 | 6/6 | Complete |  |
 | 9. OATH/TOTP Screen | v1.1 | 4/4 | Complete | 2026-03-27 |
 | 10. FIDO2 Screen | v1.1 | 4/4 | Complete    | 2026-03-28 |
-| 11. OTP Slots + Education + Onboarding | v1.1 | 2/3 | In Progress|  |
+| 11. OTP Slots + Education + Onboarding | v1.1 | 3/3 | Complete | 2026-03-28 |
+| 12. YubiKey Slot Delete Workflow | v1.1 | 0/3 | Planned | |
 
 ## Backlog
 
@@ -169,13 +186,3 @@ Plans:
 - Application enable/disable toggle (enterprise niche — deferred to v2)
 - Backup/restore workflows (deferred to v2)
 - Reactive ratatui rendering engine (app.rs componentization — future milestone)
-
-### Phase 12: yubikey slot delete workflow
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 11
-**Plans:** 2/3 plans executed
-
-Plans:
-- [ ] TBD (run /gsd:plan-phase 12 to break down)
