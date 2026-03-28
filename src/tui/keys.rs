@@ -1316,6 +1316,29 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn keygen_wizard_step5_enter_transitions_to_result() {
+        let mut wizard = KeyGenWizard::new("2026-01-01");
+        wizard.step = KeyGenStep::Confirm;
+        wizard.name = "Test User".to_string();
+        wizard.email = "test@example.com".to_string();
+        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeyGenWizardScreen::new(wizard)));
+        {
+            let mut pilot = app.pilot();
+            pilot.settle().await;
+        }
+        let content: String = app.buffer().content().iter().map(|c| c.symbol()).collect();
+        assert!(content.contains("Step 5/5"), "should be on Confirm step");
+        {
+            let mut pilot = app.pilot();
+            pilot.press(KeyCode::Enter).await;
+            pilot.settle().await;
+        }
+        let content: String = app.buffer().content().iter().map(|c| c.symbol()).collect();
+        assert!(content.contains("Generating Key") || content.contains("Generate Key"), "Enter should advance past Confirm to Result");
+        assert!(!content.contains("Step 5/5"), "should no longer be on Confirm step after Enter");
+    }
+
+    #[tokio::test]
     async fn keys_help_popup_opens_and_closes() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
