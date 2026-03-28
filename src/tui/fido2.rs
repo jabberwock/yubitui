@@ -1312,4 +1312,15 @@ mod tests {
         app.pilot().settle().await;
         insta::assert_display_snapshot!(app.backend());
     }
+
+    #[tokio::test]
+    async fn fido2_from_mock() {
+        let states = crate::model::mock::mock_yubikey_states();
+        let fido2_state = states.first().and_then(|yk| yk.fido2.clone());
+        let mut app = TestApp::new(80, 24, move || {
+            Box::new(Fido2Screen::new(fido2_state.clone()))
+        });
+        app.pilot().settle().await;
+        insta::assert_display_snapshot!(app.backend());
+    }
 }
