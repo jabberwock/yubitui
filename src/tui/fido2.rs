@@ -1,11 +1,12 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label};
+use textual_rs::{Widget, Footer, Header, Label, WidgetId};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
 use textual_rs::reactive::Reactive;
 use textual_rs::widget::screen::ModalScreen;
+use textual_rs::worker::{WorkerProgress, WorkerResult};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -292,8 +293,9 @@ impl Widget for Fido2Screen {
                 ))));
             }
             "reset" => {
-                // No-op in this plan — wired in Plan 03
-                let _ = ctx;
+                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                    ResetConfirmScreen::new(),
+                ))));
             }
             _ => {}
         }
@@ -891,6 +893,317 @@ impl Widget for DeleteCredentialScreen {
 }
 
 // ============================================================================
+// ResetConfirmScreen — Irreversibility warning before reset proceeds (D-10)
+// ============================================================================
+
+/// Confirmation dialog warning the user that FIDO2 reset permanently destroys
+/// all passkeys and the PIN. Pops self and pushes ResetGuidanceScreen on confirm.
+pub struct ResetConfirmScreen {
+    inner: ConfirmScreen,
+}
+
+impl ResetConfirmScreen {
+    pub fn new() -> Self {
+        let body = "WARNING: This will permanently delete ALL passkeys and the FIDO2 PIN.\n\n\
+            All FIDO2 credentials stored on this YubiKey will be destroyed.\n\
+            This action cannot be undone.\n\n\
+            Are you sure you want to proceed?";
+        Self {
+            inner: ConfirmScreen::new("Reset FIDO2 Applet", body, true),
+        }
+    }
+}
+
+impl Widget for ResetConfirmScreen {
+    fn widget_type_name(&self) -> &'static str {
+        "ResetConfirmScreen"
+    }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        self.inner.compose()
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        self.inner.key_bindings()
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "confirm" => {
+                ctx.pop_screen_deferred();
+                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                    ResetGuidanceScreen::new(),
+                ))));
+            }
+            "cancel" => ctx.pop_screen_deferred(),
+            _ => {}
+        }
+    }
+
+    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+}
+
+// ============================================================================
+// ResetGuidanceScreen — Countdown timer + replug detection + outcome (D-10, D-11)
+// ============================================================================
+
+/// Tracks the phase of the FIDO2 reset guided workflow.
+#[derive(Clone, PartialEq)]
+pub enum ResetPhase {
+    /// Step 1: instruct user to unplug the device first
+    WaitingForUnplug,
+    /// Step 2: countdown with seconds_remaining; poll for device reconnect
+    WaitingForReplug(u8),
+    /// Device detected — sending reset command now
+    Resetting,
+    /// Reset completed successfully
+    Success,
+    /// 10-second window expired — device was not replugged in time
+    Expired,
+    /// Reset command failed with an error message
+    Error(String),
+}
+
+/// Result type delivered from the countdown worker task.
+#[derive(Clone)]
+pub enum ResetWorkerResult {
+    /// Device reconnected within the window — caller should now call reset_fido2()
+    DeviceFound,
+    /// 10-second window elapsed without device reconnection
+    Expired,
+}
+
+/// Guided reset screen: instructs user to unplug/replug with a 10-second countdown
+/// and device polling. Explains the 10-second timing requirement (D-11).
+pub struct ResetGuidanceScreen {
+    phase: Reactive<ResetPhase>,
+    own_id: Cell<Option<WidgetId>>,
+}
+
+impl ResetGuidanceScreen {
+    pub fn new() -> Self {
+        Self {
+            phase: Reactive::new(ResetPhase::WaitingForUnplug),
+            own_id: Cell::new(None),
+        }
+    }
+}
+
+static RESET_GUIDANCE_BINDINGS: &[KeyBinding] = &[
+    KeyBinding {
+        key: KeyCode::Esc,
+        modifiers: KeyModifiers::NONE,
+        action: "cancel",
+        description: "Esc Cancel",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Enter,
+        modifiers: KeyModifiers::NONE,
+        action: "next",
+        description: "Enter",
+        show: true,
+    },
+];
+
+impl Widget for ResetGuidanceScreen {
+    fn widget_type_name(&self) -> &'static str {
+        "ResetGuidanceScreen"
+    }
+
+    fn on_mount(&self, id: WidgetId) {
+        self.own_id.set(Some(id));
+    }
+
+    fn on_unmount(&self, _id: WidgetId) {
+        self.own_id.set(None);
+    }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let phase = self.phase.get();
+        let mut widgets: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new("FIDO2 Reset")),
+            Box::new(Label::new("")),
+        ];
+
+        match &phase {
+            ResetPhase::WaitingForUnplug => {
+                widgets.push(Box::new(Label::new(
+                    "FIDO2 protocol requires the device to receive the reset command",
+                )));
+                widgets.push(Box::new(Label::new(
+                    "within 10 seconds of being plugged in.",
+                )));
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Label::new("Step 1: Unplug your YubiKey now.")));
+                widgets.push(Box::new(Label::new("Step 2: Wait for the countdown to start.")));
+                widgets.push(Box::new(Label::new("Step 3: Replug your YubiKey when prompted.")));
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Label::new(
+                    "Press Enter when your YubiKey is unplugged, or Esc to cancel.",
+                )));
+            }
+            ResetPhase::WaitingForReplug(secs) => {
+                widgets.push(Box::new(Label::new(
+                    "FIDO2 protocol requires reset within 10s of power-on (USB insertion).",
+                )));
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Label::new(">> Plug in your YubiKey NOW <<")));
+                widgets.push(Box::new(Label::new("")));
+                // Countdown bar: 20 chars wide, filled proportional to time remaining
+                let filled = ((*secs as f32 / 10.0) * 20.0).round() as usize;
+                let empty = 20usize.saturating_sub(filled);
+                let bar = format!(
+                    "Time remaining: {}s  [{}{}]",
+                    secs,
+                    "#".repeat(filled),
+                    " ".repeat(empty)
+                );
+                widgets.push(Box::new(Label::new(bar)));
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Label::new("Waiting for device...")));
+            }
+            ResetPhase::Resetting => {
+                widgets.push(Box::new(Label::new(
+                    "Device detected! Sending reset command...",
+                )));
+            }
+            ResetPhase::Success => {
+                widgets.push(Box::new(Label::new(
+                    "FIDO2 applet has been reset to factory defaults.",
+                )));
+                widgets.push(Box::new(Label::new(
+                    "All passkeys and the FIDO2 PIN have been removed.",
+                )));
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Label::new("Press Enter or Esc to return.")));
+            }
+            ResetPhase::Expired => {
+                widgets.push(Box::new(Label::new(
+                    "Window expired -- the 10-second timing window has passed.",
+                )));
+                widgets.push(Box::new(Label::new(
+                    "The device was not replugged in time.",
+                )));
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Label::new(
+                    "Press Enter to try again, or Esc to cancel.",
+                )));
+            }
+            ResetPhase::Error(msg) => {
+                widgets.push(Box::new(Label::new(format!("Reset failed: {}", msg))));
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Label::new("Press Esc to return.")));
+            }
+        }
+
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Footer));
+        widgets
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        RESET_GUIDANCE_BINDINGS
+    }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
+        // Handle WorkerProgress<u8> — countdown tick
+        if let Some(progress) = event.downcast_ref::<WorkerProgress<u8>>() {
+            if progress.source_id == self.own_id.get().unwrap_or(progress.source_id) {
+                self.phase.update(|p| *p = ResetPhase::WaitingForReplug(progress.progress));
+                return EventPropagation::Stop;
+            }
+        }
+
+        // Handle WorkerResult<ResetWorkerResult> — countdown finished
+        if let Some(result) = event.downcast_ref::<WorkerResult<ResetWorkerResult>>() {
+            if result.source_id == self.own_id.get().unwrap_or(result.source_id) {
+                match &result.value {
+                    ResetWorkerResult::DeviceFound => {
+                        self.phase.update(|p| *p = ResetPhase::Resetting);
+                        // Device is present — send reset command synchronously (single HID frame)
+                        match crate::model::fido2::reset_fido2() {
+                            Ok(()) => {
+                                self.phase.update(|p| *p = ResetPhase::Success);
+                            }
+                            Err(e) => {
+                                let msg = e.to_string();
+                                self.phase.update(|p| *p = ResetPhase::Error(msg));
+                            }
+                        }
+                    }
+                    ResetWorkerResult::Expired => {
+                        self.phase.update(|p| *p = ResetPhase::Expired);
+                    }
+                }
+                return EventPropagation::Stop;
+            }
+        }
+
+        // Handle keyboard events
+        if let Some(key) = event.downcast_ref::<KeyEvent>() {
+            for binding in RESET_GUIDANCE_BINDINGS {
+                if binding.key == key.code && binding.modifiers == key.modifiers {
+                    self.on_action(binding.action, ctx);
+                    return EventPropagation::Stop;
+                }
+            }
+        }
+
+        EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        let phase = self.phase.get();
+        match action {
+            "cancel" => ctx.pop_screen_deferred(),
+            "next" => {
+                match &phase {
+                    ResetPhase::WaitingForUnplug => {
+                        // Start the countdown worker
+                        if let Some(own_id) = self.own_id.get() {
+                            self.phase.update(|p| *p = ResetPhase::WaitingForReplug(10));
+                            ctx.run_worker_with_progress(own_id, |progress_tx| {
+                                Box::pin(async move {
+                                    for secs_remaining in (0u8..=10u8).rev() {
+                                        let _ = progress_tx.send(secs_remaining);
+                                        // Check if device is present
+                                        if secs_remaining > 0
+                                            && crate::model::fido2::is_fido_device_present()
+                                        {
+                                            return ResetWorkerResult::DeviceFound;
+                                        }
+                                        if secs_remaining == 0 {
+                                            break;
+                                        }
+                                        tokio::time::sleep(
+                                            std::time::Duration::from_secs(1),
+                                        )
+                                        .await;
+                                    }
+                                    ResetWorkerResult::Expired
+                                })
+                            });
+                        }
+                    }
+                    ResetPhase::Success => {
+                        ctx.pop_screen_deferred();
+                    }
+                    ResetPhase::Expired => {
+                        // Retry: go back to WaitingForUnplug
+                        self.phase.update(|p| *p = ResetPhase::WaitingForUnplug);
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -979,6 +1292,24 @@ mod tests {
         pilot.press(KeyCode::Down).await;
         pilot.settle().await;
         drop(pilot);
+        insta::assert_display_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn fido2_reset_confirm_screen() {
+        let mut app = TestApp::new(80, 24, || {
+            Box::new(ResetConfirmScreen::new())
+        });
+        app.pilot().settle().await;
+        insta::assert_display_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn fido2_reset_guidance_waiting() {
+        let mut app = TestApp::new(80, 24, || {
+            Box::new(ResetGuidanceScreen::new())
+        });
+        app.pilot().settle().await;
         insta::assert_display_snapshot!(app.backend());
     }
 }
