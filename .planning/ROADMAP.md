@@ -135,7 +135,11 @@ Plans:
   3. User can access a protocol glossary from the main menu or `?` from the dashboard that explains PIV, FIDO, FIDO2, OpenPGP/PGP, SSH, TOTP, HOTP, and Yubico OTP in plain language
   4. On first launch with a factory-default device, the user sees an onboarding checklist guiding them through FIDO2 PIN setup, OATH account creation, and PIV/SSH configuration
   5. Onboarding correctly detects factory-default state: no FIDO2 PIN set, zero OATH credentials, PIV management key at default value
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 11-01-PLAN.md — OTP model types, APDU reader, OTP screen widget, dashboard nav_9 wiring
+- [ ] 11-02-PLAN.md — GlossaryScreen + per-screen ? help panels on all 8 screens
+- [ ] 11-03-PLAN.md — Factory-default detection, OnboardingScreen, OTP help keybinding, human verification
 **UI hint**: yes
 
 ## Progress
@@ -152,7 +156,7 @@ Plans:
 | 8. textual-rs Migration | v1.1 | 6/6 | Complete |  |
 | 9. OATH/TOTP Screen | v1.1 | 4/4 | Complete | 2026-03-27 |
 | 10. FIDO2 Screen | v1.1 | 4/4 | Complete    | 2026-03-28 |
-| 11. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
+| 11. OTP Slots + Education + Onboarding | v1.1 | 0/3 | Not started | - |
 
 ## Backlog
 
