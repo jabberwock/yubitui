@@ -929,7 +929,9 @@ impl Widget for KeyGenWizardScreen {
         textual_rs::widget::EventPropagation::Continue
     }
 
-    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
 }
 
 // ── ImportKeyScreen ──────────────────────────────────────────────────────────
@@ -1033,7 +1035,9 @@ impl Widget for ImportKeyScreen {
         }
     }
 
-    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
 }
 
 // ── KeyDetailScreen (generic operation info screen) ───────────────────────────
@@ -1107,7 +1111,9 @@ impl Widget for KeyDetailScreen {
         }
     }
 
-    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
 }
 
 // ── TouchPolicyScreen ─────────────────────────────────────────────────────────
@@ -1225,7 +1231,9 @@ impl Widget for TouchPolicyScreen {
         }
     }
 
-    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
 }
 
 // ── ProgressWidget (textual-rs port of old progress.rs) ───────────────────────
@@ -1265,7 +1273,9 @@ impl Widget for ProgressLabel {
         ]
     }
 
-    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

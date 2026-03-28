@@ -93,7 +93,9 @@ impl Widget for PopupScreen {
         }
     }
 
-    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
 }
 
 /// A confirmation dialog with Cancel (default) and Confirm buttons.
@@ -201,7 +203,9 @@ impl Widget for ConfirmScreen {
         }
     }
 
-    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
 }
 
 // ---------------------------------------------------------------------------

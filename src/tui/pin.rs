@@ -415,7 +415,9 @@ impl Widget for UnblockWizardScreen {
         }
     }
 
-    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -506,7 +508,9 @@ impl Widget for FactoryResetScreen {
         }
     }
 
-    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {}
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
 }
 
 // ---------------------------------------------------------------------------

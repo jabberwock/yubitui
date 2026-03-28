@@ -2,13 +2,13 @@
 source: src/tui/dashboard.rs
 expression: app.backend()
 ---
-" Global Keybindings      yubitui -- YubiKey Management                          "
+" Global Keybindings                                                             "
 "  1-9          Switch screen (Keys / Diagnostics / PIN / SSH / PIV / Help / OATH"
 "  r            Refresh YubiKey status and diagnostics                           "
 "  ?            Toggle this help screen                                          "
 "  q / Esc      Quit (from Dashboard) or go back                                 "
 "  m / Enter    Open navigation menu (Dashboard)                                 "
-"  [1] Open Keys                                                                 "
+"                                                                                "
 " Key Management (Screen 1)                                                      "
 "  v            View full card status                                            "
 "  i            Import existing key to card                                      "
@@ -16,8 +16,8 @@ expression: app.backend()
 "  e            Export SSH public key                                            "
 "  Up/Down      Select key (in import view)                                      "
 "  Enter        Execute selected operation                                       "
-"  [9] OTP Slots                                                                 "
-" PIN Management (Screen 3)ette                                                  "
+"                                                                                "
+" PIN Management (Screen 3)                                                      "
 "  c            Change user PIN                                                  "
 "  a            Change admin PIN                                                 "
 "  r            Set reset code                                                   "

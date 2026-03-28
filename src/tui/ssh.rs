@@ -416,8 +416,8 @@ impl Widget for SshWizardScreen {
         }
     }
 
-    fn render(&self, _ctx: &AppContext, _area: Rect, _buf: &mut Buffer) {
-        // Rendering handled by compose() — leaf rendering not needed for container screens.
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
     }
 }
 
