@@ -6,6 +6,7 @@ pub mod keys;
 pub mod fido2;
 pub mod glossary;
 pub mod oath;
+pub mod onboarding;
 pub mod otp;
 pub mod pin;
 pub mod piv;

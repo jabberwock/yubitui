@@ -6,6 +6,7 @@ pub mod fido2;
 pub mod mock;
 pub mod key_operations;
 pub mod oath;
+pub mod onboarding;
 pub mod openpgp;
 pub mod otp;
 pub mod pin;

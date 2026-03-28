@@ -7,6 +7,19 @@ use ratatui::layout::Rect;
 
 use crate::model::otp::{OtpSlotStatus, OtpState};
 
+const OTP_HELP_TEXT: &str = "\
+OTP Slots\n\
+\n\
+Your YubiKey has two OTP (One-Time Password) slots:\n\
+- Slot 1 activates on short touch (2-3 seconds)\n\
+- Slot 2 activates on long touch (3-5 seconds)\n\
+\n\
+Each slot can hold one of: Yubico OTP (cloud-validated 44-char string),\n\
+HMAC-SHA1 (challenge-response), static password, or HOTP.\n\
+\n\
+Note: The configured credential type cannot be read back from hardware.\n\
+Only occupied/empty status is detectable via the OTP status APDU.";
+
 /// OTP Slots screen — shows slot 1 and slot 2 occupancy status.
 ///
 /// NOTE: The credential type (Yubico OTP, HMAC-SHA1, static password, HOTP)
@@ -100,6 +113,13 @@ impl Widget for OtpScreen {
                 show: true,
             },
             KeyBinding {
+                key: KeyCode::Char('?'),
+                modifiers: KeyModifiers::NONE,
+                action: "help",
+                description: "? Help",
+                show: true,
+            },
+            KeyBinding {
                 key: KeyCode::Char('q'),
                 modifiers: KeyModifiers::NONE,
                 action: "back",
@@ -112,6 +132,13 @@ impl Widget for OtpScreen {
     fn on_action(&self, action: &str, ctx: &AppContext) {
         match action {
             "back" | "refresh" => ctx.pop_screen_deferred(),
+            "help" => {
+                ctx.push_screen_deferred(Box::new(
+                    crate::tui::widgets::popup::ModalScreen::new(Box::new(
+                        crate::tui::widgets::popup::PopupScreen::new("OTP Slots Help", OTP_HELP_TEXT),
+                    )),
+                ));
+            }
             _ => {}
         }
     }

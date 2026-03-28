@@ -26,8 +26,25 @@ pub fn run(mock: bool) -> Result<()> {
 
     let theme = load_theme_from_config();
 
+    // Detect factory-default before moving app_state into the closure.
+    let onboarding_yk = app_state
+        .yubikey_state()
+        .filter(|yk| crate::model::onboarding::is_factory_default(yk))
+        .cloned();
+
     let mut app = App::new(move || {
-        Box::new(crate::tui::dashboard::DashboardScreen::new(app_state.clone(), diagnostics.clone()))
+        if let Some(ref yk) = onboarding_yk {
+            // Factory-default key: show onboarding first; dismiss pushes DashboardScreen.
+            return Box::new(crate::tui::onboarding::OnboardingScreen::new_startup(
+                yk.clone(),
+                app_state.clone(),
+                diagnostics.clone(),
+            ));
+        }
+        Box::new(crate::tui::dashboard::DashboardScreen::new(
+            app_state.clone(),
+            diagnostics.clone(),
+        ))
     });
     app.set_theme(theme);
     app.run()?;
