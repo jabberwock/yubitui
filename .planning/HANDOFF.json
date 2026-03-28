@@ -1,111 +1,38 @@
 {
   "version": "1.0",
-  "timestamp": "2026-03-27T16:10:57.316Z",
-  "phase": "08",
-  "phase_name": "textual-rs-migration (post-phase bug fixes)",
-  "phase_dir": ".planning/phases/08-textual-rs-migration",
-  "plan": null,
-  "task": null,
-  "total_tasks": null,
+  "timestamp": "2026-03-27T21:42:06.849Z",
+  "phase": "09",
+  "phase_name": "OATH/TOTP Screen",
+  "phase_dir": ".planning/phases/09-oath-totp-screen",
+  "plan": 0,
+  "task": 0,
+  "total_tasks": 7,
   "status": "paused",
-  "completed_tasks": [
-    {
-      "id": 1,
-      "name": "Create NavButton widget",
-      "status": "done",
-      "commit": "uncommitted",
-      "files": ["src/tui/widgets/nav_button.rs", "src/tui/widgets/mod.rs"]
-    },
-    {
-      "id": 2,
-      "name": "Update DashboardScreen to use NavButton + on_event",
-      "status": "done",
-      "commit": "uncommitted",
-      "files": ["src/tui/dashboard.rs"]
-    },
-    {
-      "id": 3,
-      "name": "Vendor textual-rs and patch default on_event to auto-dispatch key_bindings",
-      "status": "done",
-      "commit": "uncommitted",
-      "files": ["vendor/textual-rs/crates/textual-rs/src/widget/mod.rs"]
-    },
-    {
-      "id": 4,
-      "name": "Patch app.rs to fall back to screen root when no focused widget",
-      "status": "done",
-      "commit": "uncommitted",
-      "files": ["vendor/textual-rs/crates/textual-rs/src/app.rs"]
-    },
-    {
-      "id": 5,
-      "name": "Switch Cargo.toml to vendor path",
-      "status": "done",
-      "commit": "uncommitted",
-      "files": ["Cargo.toml"]
-    }
-  ],
+  "completed_tasks": [],
   "remaining_tasks": [
-    {
-      "id": 6,
-      "name": "Commit vendor/ directory and all modified files",
-      "status": "not_started"
-    },
-    {
-      "id": 7,
-      "name": "Manual end-to-end navigation test (cargo run)",
-      "status": "not_started"
-    },
-    {
-      "id": 8,
-      "name": "Audit sub-screen raw Button usages that may also need NavButton",
-      "status": "not_started"
-    }
+    {"id": 1, "plan": "09-01", "name": "OATH model types + APDU protocol + Cargo.toml deps (hmac, sha1)", "status": "not_started"},
+    {"id": 2, "plan": "09-01", "name": "Wire mock OATH data into mock.rs + app_state.rs", "status": "not_started"},
+    {"id": 3, "plan": "09-02", "name": "OathScreen Widget with credential list + countdown timer", "status": "not_started"},
+    {"id": 4, "plan": "09-03", "name": "Add account wizard + delete confirmation + password prompt", "status": "not_started"},
+    {"id": 5, "plan": "09-04", "name": "Dashboard nav wiring to OathScreen", "status": "not_started"},
+    {"id": 6, "plan": "09-04", "name": "Pilot snapshot tests", "status": "not_started"},
+    {"id": 7, "plan": "09-04", "name": "Human verify checkpoint", "status": "not_started"}
   ],
-  "blockers": [
-    {
-      "description": "vendor/ directory is untracked — patches will be lost if cargo cache is cleared before commit",
-      "type": "human_action",
-      "workaround": "run: git add vendor/ && git commit"
-    }
-  ],
-  "human_actions_pending": [
-    {
-      "action": "Commit vendor/ and modified source files",
-      "context": "All changes are uncommitted; vendor/textual-rs/ is untracked and large",
-      "blocking": true
-    },
-    {
-      "action": "Run cargo run and manually test navigation",
-      "context": "All tests pass but real terminal behavior with YubiKey/mock mode needs verification",
-      "blocking": false
-    }
-  ],
+  "blockers": [],
+  "human_actions_pending": [],
   "decisions": [
-    {
-      "decision": "Vendor textual-rs locally rather than adding on_event to every screen",
-      "rationale": "13 screens would all need identical boilerplate; one upstream patch protects all current and future screens",
-      "phase": "08"
-    },
-    {
-      "decision": "NavButton widget carries action string rather than per-button message types",
-      "rationale": "Reuses existing on_action string dispatch; no need for 6 distinct structs",
-      "phase": "08"
-    },
-    {
-      "decision": "Fallback to screen root (not skip) when focused_widget is None",
-      "rationale": "Labels-only screens like HelpScreen must still receive key events for Escape/back",
-      "phase": "08"
-    }
+    {"decision": "Live refresh: local clock tick every second, no card I/O between 30s window boundaries", "rationale": "Avoids unnecessary card I/O; countdown is purely cosmetic", "phase": "09"},
+    {"decision": "Add account UX: sequential wizard via push_screen_deferred", "rationale": "Matches established PinManagementScreen pattern", "phase": "09"},
+    {"decision": "Credential row density: name + code + type badge + countdown bar", "rationale": "Full information density without clutter", "phase": "09"},
+    {"decision": "HOTP: require explicit Enter to consume counter", "rationale": "Safer default, prevents accidental counter advancement", "phase": "09"},
+    {"decision": "discuss-phase skipped, gray areas resolved by planner from NOTES.md", "rationale": "User skipped ceremony to move fast", "phase": "09"}
   ],
   "uncommitted_files": [
-    "Cargo.toml",
-    "Cargo.lock",
-    "src/tui/dashboard.rs",
-    "src/tui/widgets/mod.rs",
-    "src/tui/widgets/nav_button.rs (new)",
-    "vendor/ (new, large)"
+    ".planning/phases/09-oath-totp-screen/09-01-PLAN.md",
+    ".planning/phases/09-oath-totp-screen/09-02-PLAN.md",
+    ".planning/phases/09-oath-totp-screen/09-03-PLAN.md",
+    ".planning/phases/09-oath-totp-screen/09-04-PLAN.md"
   ],
-  "next_action": "git add vendor/ src/tui/widgets/nav_button.rs src/tui/widgets/mod.rs src/tui/dashboard.rs Cargo.toml Cargo.lock .planning/ && git commit -m 'fix: button navigation and keyboard dispatch for all screens'",
-  "context_notes": "The textual-rs framework had two event-dispatch bugs. Bug 1: key_bindings on screens were never checked because screens can't be focused — only the focused child widget's bindings were checked at the app level. Bug 2: screens with no focusable children (Labels-only) had focused_widget=None, causing the dispatcher to skip entirely. Both fixed by patching the vendored copy. NavButton was added to DashboardScreen to solve the problem of distinguishing which of 6 identical Button widgets was pressed (they all emit the same generic Pressed message with no identity). Sub-screens with buttons may need the same NavButton treatment."
+  "next_action": "Delete leftover src/tui/widgets/nav_button.rs, commit the 4 plan files, then run /gsd:execute-phase 9",
+  "context_notes": "Planning complete and verified. Wave structure is fully sequential: 01→02→03→04. Checker caught a parallel-write conflict (09-02 and 09-03 both modifying oath.rs in same wave) and fixed it. No research, no discuss-phase — user skipped ceremony. Plans ready to execute."
 }

@@ -7,6 +7,7 @@ pub enum Screen {
     Diagnostics,
     Help,
     Keys,
+    Oath,
     PinManagement,
     SshWizard,
     Piv,

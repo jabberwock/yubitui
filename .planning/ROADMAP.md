@@ -98,7 +98,12 @@ Plans:
   3. User can add a new OATH account by entering issuer, account name, and Base32 secret — the credential appears in the list immediately
   4. User can delete an OATH account after confirming an irreversibility warning — the credential is gone from the list
   5. When the YubiKey OATH applet is password-protected, the user is prompted for the OATH password before any credential operation proceeds
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 09-01-PLAN.md — OATH model types, APDU protocol, and mock fixture data
+- [ ] 09-02-PLAN.md — OathScreen Widget with credential list and countdown timer
+- [ ] 09-03-PLAN.md — Add Account wizard and Delete Account confirmation flow
+- [ ] 09-04-PLAN.md — Dashboard navigation wiring, Pilot snapshot tests, human verification
 **UI hint**: yes
 
 ### Phase 10: FIDO2 Screen
@@ -141,7 +146,7 @@ Plans:
 | 6. Tech Debt + Infrastructure | v1.1 | 1/3 | In Progress|  |
 | 7. Mouse Support + E2E Test Harness | v1.1 | 3/4 | In Progress|  |
 | 8. textual-rs Migration | v1.1 | 6/6 | Complete |  |
-| 9. OATH/TOTP Screen | v1.1 | 0/TBD | Not started | - |
+| 9. OATH/TOTP Screen | v1.1 | 0/4 | Not started | - |
 | 10. FIDO2 Screen | v1.1 | 0/TBD | Not started | - |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 0/TBD | Not started | - |
 

@@ -171,6 +171,7 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         states.push(YubiKeyState {
             info,
             openpgp,
+            oath: None, // OATH detection is expensive — only fetched on-demand
             piv,
             pin_status,
             touch_policies,
