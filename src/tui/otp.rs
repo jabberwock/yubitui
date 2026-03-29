@@ -1,4 +1,4 @@
-use textual_rs::{Widget, Footer, Header, Label};
+use textual_rs::{Widget, Footer, Header, Label, Button, DataTable, ColumnDef};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -55,31 +55,52 @@ impl Widget for OtpScreen {
                 widgets.push(Box::new(Label::new("OTP Slot Configuration")));
                 widgets.push(Box::new(Label::new("")));
 
-                // Slot 1 (short touch)
-                let slot1_label = match &state.slot1 {
+                let slot1_status = match &state.slot1 {
+                    OtpSlotStatus::Occupied => "[OK]",
+                    OtpSlotStatus::Empty => "[EMPTY]",
+                };
+                let slot1_config = match &state.slot1 {
                     OtpSlotStatus::Occupied => {
                         if state.slot1_touch {
-                            "  Slot 1 (short touch): Configured (touch required)".to_string()
+                            "Configured (touch required)"
                         } else {
-                            "  Slot 1 (short touch): Configured".to_string()
+                            "Configured"
                         }
                     }
-                    OtpSlotStatus::Empty => "  Slot 1 (short touch): Empty".to_string(),
+                    OtpSlotStatus::Empty => "Empty",
                 };
-                widgets.push(Box::new(Label::new(slot1_label)));
 
-                // Slot 2 (long touch)
-                let slot2_label = match &state.slot2 {
+                let slot2_status = match &state.slot2 {
+                    OtpSlotStatus::Occupied => "[OK]",
+                    OtpSlotStatus::Empty => "[EMPTY]",
+                };
+                let slot2_config = match &state.slot2 {
                     OtpSlotStatus::Occupied => {
                         if state.slot2_touch {
-                            "  Slot 2 (long touch): Configured (touch required)".to_string()
+                            "Configured (touch required)"
                         } else {
-                            "  Slot 2 (long touch): Configured".to_string()
+                            "Configured"
                         }
                     }
-                    OtpSlotStatus::Empty => "  Slot 2 (long touch): Empty".to_string(),
+                    OtpSlotStatus::Empty => "Empty",
                 };
-                widgets.push(Box::new(Label::new(slot2_label)));
+
+                let mut table = DataTable::new(vec![
+                    ColumnDef::new("Status").with_width(10),
+                    ColumnDef::new("Slot").with_width(25),
+                    ColumnDef::new("Configuration").with_width(25),
+                ]);
+                table.add_row(vec![
+                    slot1_status.to_string(),
+                    "Slot 1 (short touch)".to_string(),
+                    slot1_config.to_string(),
+                ]);
+                table.add_row(vec![
+                    slot2_status.to_string(),
+                    "Slot 2 (long touch)".to_string(),
+                    slot2_config.to_string(),
+                ]);
+                widgets.push(Box::new(table));
 
                 widgets.push(Box::new(Label::new("")));
                 widgets.push(Box::new(Label::new(
@@ -88,6 +109,9 @@ impl Widget for OtpScreen {
                 widgets.push(Box::new(Label::new(
                     "cannot be read back from hardware — only occupied/empty is detectable.",
                 )));
+
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Button::new("Refresh (R)")));
             }
             None => {
                 if self.key_present {
@@ -101,6 +125,7 @@ impl Widget for OtpScreen {
                         "Insert your YubiKey and press R to refresh.",
                     )));
                 }
+                widgets.push(Box::new(Button::new("Refresh (R)")));
             }
         }
 

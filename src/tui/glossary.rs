@@ -1,9 +1,45 @@
-use textual_rs::{Widget, Footer, Header, Label};
+use textual_rs::{Widget, Footer, Header, Markdown};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+
+const GLOSSARY_MARKDOWN: &str = "\
+# Protocol Glossary
+
+## PIV (Personal Identity Verification)
+Smart card standard for X.509 certificates and key storage. Used for
+code signing, VPN auth, and Windows smart card login.
+
+## FIDO2 / WebAuthn
+Hardware passkey standard. Phishing-resistant -- the key verifies the
+website's identity before responding. Replaces passwords entirely.
+
+## FIDO U2F (Universal 2nd Factor)
+Original FIDO standard. Adds a hardware second factor to password login.
+Predecessor to FIDO2; still widely supported.
+
+## OpenPGP / PGP
+Encryption and signing standard. Your YubiKey stores private keys for
+email encryption, git commit signing, and SSH authentication.
+
+## SSH (Secure Shell)
+Remote server access. YubiKey can hold your SSH private key via the
+OpenPGP authentication subkey or PIV certificate.
+
+## TOTP (Time-Based One-Time Password)
+6-digit codes that change every 30 seconds. The standard behind Google
+Authenticator, Authy, etc. YubiKey stores secrets on hardware.
+
+## HOTP (HMAC-Based One-Time Password)
+Counter-based codes. Each press generates the next code in sequence.
+Less common than TOTP; used by some banking systems.
+
+## OTP / Yubico OTP
+Yubico's proprietary one-time password. The key types a 44-character
+string validated by Yubico's cloud service (or self-hosted).
+";
 
 /// Protocol Glossary screen — explains all 8 YubiKey protocols in plain language.
 ///
@@ -25,38 +61,7 @@ impl Widget for GlossaryScreen {
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         vec![
             Box::new(Header::new("Protocol Glossary")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(" PIV (Personal Identity Verification)")),
-            Box::new(Label::new("   Smart card standard for X.509 certificates and key storage. Used for")),
-            Box::new(Label::new("   code signing, VPN auth, and Windows smart card login.")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(" FIDO2 / WebAuthn")),
-            Box::new(Label::new("   Hardware passkey standard. Phishing-resistant — the key verifies the")),
-            Box::new(Label::new("   website's identity before responding. Replaces passwords entirely.")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(" FIDO U2F (Universal 2nd Factor)")),
-            Box::new(Label::new("   Original FIDO standard. Adds a hardware second factor to password login.")),
-            Box::new(Label::new("   Predecessor to FIDO2; still widely supported.")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(" OpenPGP / PGP")),
-            Box::new(Label::new("   Encryption and signing standard. Your YubiKey stores private keys for")),
-            Box::new(Label::new("   email encryption, git commit signing, and SSH authentication.")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(" SSH (Secure Shell)")),
-            Box::new(Label::new("   Remote server access. YubiKey can hold your SSH private key via the")),
-            Box::new(Label::new("   OpenPGP authentication subkey or PIV certificate.")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(" TOTP (Time-Based One-Time Password)")),
-            Box::new(Label::new("   6-digit codes that change every 30 seconds. The standard behind Google")),
-            Box::new(Label::new("   Authenticator, Authy, etc. YubiKey stores secrets on hardware.")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(" HOTP (HMAC-Based One-Time Password)")),
-            Box::new(Label::new("   Counter-based codes. Each press generates the next code in sequence.")),
-            Box::new(Label::new("   Less common than TOTP; used by some banking systems.")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(" OTP / Yubico OTP")),
-            Box::new(Label::new("   Yubico's proprietary one-time password. The key types a 44-character")),
-            Box::new(Label::new("   string validated by Yubico's cloud service (or self-hosted).")),
+            Box::new(Markdown::new(GLOSSARY_MARKDOWN)),
             Box::new(Footer),
         ]
     }
