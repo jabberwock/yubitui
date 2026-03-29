@@ -307,21 +307,39 @@ impl Widget for DashboardScreen {
             }
             "nav_7" => {
                 // OATH state is fetched on-demand (not during initial detection).
+                let key_present = self.app_state.yubikey_state().is_some();
                 let oath_state = crate::model::oath::get_oath_state().ok();
-                ctx.push_screen_deferred(Box::new(crate::tui::oath::OathScreen::new(oath_state)));
+                let screen = if key_present {
+                    crate::tui::oath::OathScreen::new_with_key(oath_state)
+                } else {
+                    crate::tui::oath::OathScreen::new(oath_state)
+                };
+                ctx.push_screen_deferred(Box::new(screen));
             }
             "nav_8" => {
                 // FIDO2 state is fetched on-demand via HID (not PC/SC).
+                let key_present = self.app_state.yubikey_state().is_some();
                 let fido2_result = crate::model::fido2::get_fido2_info();
                 if let Err(ref e) = fido2_result {
                     tracing::warn!("FIDO2 fetch failed: {}", e);
                 }
-                ctx.push_screen_deferred(Box::new(crate::tui::fido2::Fido2Screen::new(fido2_result.ok())));
+                let screen = if key_present {
+                    crate::tui::fido2::Fido2Screen::new_with_key(fido2_result.ok())
+                } else {
+                    crate::tui::fido2::Fido2Screen::new(fido2_result.ok())
+                };
+                ctx.push_screen_deferred(Box::new(screen));
             }
             "nav_9" => {
+                let key_present = self.app_state.yubikey_state().is_some();
                 let otp_state = self.app_state.yubikey_state()
                     .and_then(|yk| yk.otp.clone());
-                ctx.push_screen_deferred(Box::new(crate::tui::otp::OtpScreen::new(otp_state)));
+                let screen = if key_present {
+                    crate::tui::otp::OtpScreen::new_with_key(otp_state)
+                } else {
+                    crate::tui::otp::OtpScreen::new(otp_state)
+                };
+                ctx.push_screen_deferred(Box::new(screen));
             }
             "refresh" => {
                 // Re-detect YubiKey hardware state from PC/SC readers

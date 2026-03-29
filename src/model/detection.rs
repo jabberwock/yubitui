@@ -171,10 +171,22 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
         drop(card);
 
         // Get PIV state (best-effort, no error on failure)
-        let piv = super::piv::get_piv_state().ok();
+        let piv = match super::piv::get_piv_state() {
+            Ok(s) => Some(s),
+            Err(e) => {
+                tracing::debug!("PIV detection failed: {e}");
+                None
+            }
+        };
 
-        // Get OTP slot status (card already dropped above — opens its own connection).
-        let otp = super::otp::get_otp_slot_status().ok();
+        // Get OTP slot status (best-effort, no error on failure)
+        let otp = match super::otp::get_otp_slot_status() {
+            Ok(s) => Some(s),
+            Err(e) => {
+                tracing::debug!("OTP detection failed: {e}");
+                None
+            }
+        };
 
         states.push(YubiKeyState {
             info,

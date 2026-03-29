@@ -147,6 +147,7 @@ static FIDO2_BINDINGS: &[KeyBinding] = &[
 /// - credentials: Some(creds) = populated list
 pub struct Fido2Screen {
     fido2_state: Option<Fido2State>,
+    key_present: bool,
     state: Reactive<Fido2TuiState>,
     own_id: Cell<Option<WidgetId>>,
 }
@@ -155,6 +156,16 @@ impl Fido2Screen {
     pub fn new(fido2_state: Option<Fido2State>) -> Self {
         Self {
             fido2_state,
+            key_present: false,
+            state: Reactive::new(Fido2TuiState::default()),
+            own_id: Cell::new(None),
+        }
+    }
+
+    pub fn new_with_key(fido2_state: Option<Fido2State>) -> Self {
+        Self {
+            fido2_state,
+            key_present: true,
             state: Reactive::new(Fido2TuiState::default()),
             own_id: Cell::new(None),
         }
@@ -182,9 +193,15 @@ impl Widget for Fido2Screen {
         match &self.fido2_state {
             None => {
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "No YubiKey detected. Insert your YubiKey and press Esc to return.",
-                )));
+                if self.key_present {
+                    widgets.push(Box::new(Label::new(
+                        "FIDO2 data not loaded. Press Esc to return.",
+                    )));
+                } else {
+                    widgets.push(Box::new(Label::new(
+                        "No YubiKey detected. Insert your YubiKey and press Esc to return.",
+                    )));
+                }
             }
             Some(state) => {
                 let selected_index = self.state.get_untracked().selected_index;

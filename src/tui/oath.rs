@@ -137,6 +137,7 @@ static OATH_BINDINGS: &[KeyBinding] = &[
 /// HOTP credentials show "[press Enter]" until explicitly triggered via Enter key.
 pub struct OathScreen {
     oath_state: RefCell<Option<OathState>>,
+    key_present: bool,
     loading: Cell<bool>,
     state: Reactive<OathTuiState>,
     own_id: Cell<Option<WidgetId>>,
@@ -146,6 +147,17 @@ impl OathScreen {
     pub fn new(oath_state: Option<OathState>) -> Self {
         Self {
             oath_state: RefCell::new(oath_state),
+            key_present: false,
+            loading: Cell::new(false),
+            state: Reactive::new(OathTuiState::default()),
+            own_id: Cell::new(None),
+        }
+    }
+
+    pub fn new_with_key(oath_state: Option<OathState>) -> Self {
+        Self {
+            oath_state: RefCell::new(oath_state),
+            key_present: true,
             loading: Cell::new(false),
             state: Reactive::new(OathTuiState::default()),
             own_id: Cell::new(None),
@@ -208,6 +220,10 @@ impl Widget for OathScreen {
                 widgets.push(Box::new(Label::new("")));
                 if self.loading.get() {
                     widgets.push(Box::new(Label::new("Loading OATH credentials...")));
+                } else if self.key_present {
+                    widgets.push(Box::new(Label::new(
+                        "OATH credentials not loaded. Press R to load.",
+                    )));
                 } else {
                     widgets.push(Box::new(Label::new(
                         "No YubiKey detected. Insert your YubiKey and press R to refresh.",

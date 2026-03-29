@@ -27,11 +27,16 @@ Only occupied/empty status is detectable via the OTP status APDU.";
 /// Only occupied vs empty is detectable, consistent with the Yubico SDK.
 pub struct OtpScreen {
     pub otp_state: Option<OtpState>,
+    pub key_present: bool,
 }
 
 impl OtpScreen {
     pub fn new(otp_state: Option<OtpState>) -> Self {
-        OtpScreen { otp_state }
+        OtpScreen { otp_state, key_present: false }
+    }
+
+    pub fn new_with_key(otp_state: Option<OtpState>) -> Self {
+        OtpScreen { otp_state, key_present: true }
     }
 }
 
@@ -85,10 +90,17 @@ impl Widget for OtpScreen {
                 )));
             }
             None => {
-                widgets.push(Box::new(Label::new("No YubiKey Detected")));
-                widgets.push(Box::new(Label::new(
-                    "Insert your YubiKey and press R to refresh.",
-                )));
+                if self.key_present {
+                    widgets.push(Box::new(Label::new("OTP status unavailable")));
+                    widgets.push(Box::new(Label::new(
+                        "Could not read OTP slots via PC/SC on this hardware.",
+                    )));
+                } else {
+                    widgets.push(Box::new(Label::new("No YubiKey Detected")));
+                    widgets.push(Box::new(Label::new(
+                        "Insert your YubiKey and press R to refresh.",
+                    )));
+                }
             }
         }
 

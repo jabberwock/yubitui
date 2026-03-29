@@ -149,14 +149,17 @@ impl Widget for ConfirmScreen {
             Button::new("Confirm")
         };
 
-        vec![
+        let mut children: Vec<Box<dyn Widget>> = vec![
             Box::new(textual_rs::Header::new(&header_text)),
-            Box::new(Label::new(&self.message)),
-            // Cancel first — it is the default safe option (focused first by Tab order).
-            Box::new(Button::new("Cancel")),
-            Box::new(confirm_button),
-            Box::new(Footer),
-        ]
+        ];
+        for line in self.message.split('\n') {
+            children.push(Box::new(Label::new(line)));
+        }
+        // Cancel first — it is the default safe option (focused first by Tab order).
+        children.push(Box::new(Button::new("Cancel")));
+        children.push(Box::new(confirm_button));
+        children.push(Box::new(Footer));
+        children
     }
 
     fn key_bindings(&self) -> &[KeyBinding] {
