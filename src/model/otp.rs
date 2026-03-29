@@ -78,9 +78,6 @@ pub fn parse_otp_status(status_bytes: &[u8]) -> Result<OtpState> {
     })
 }
 
-/// Read OTP slot status using an already-connected exclusive PC/SC card handle.
-///
-
 /// Read OTP slot status from the YubiKey via native PC/SC APDUs.
 ///
 /// Protocol:
