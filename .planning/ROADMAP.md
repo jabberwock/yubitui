@@ -140,7 +140,6 @@ Plans:
 - [x] 11-01-PLAN.md — OTP model types, APDU reader, OTP screen widget, dashboard nav_9 wiring
 - [x] 11-02-PLAN.md — GlossaryScreen + per-screen ? help panels on all 8 screens
 - [x] 11-03-PLAN.md — Factory-default detection, OnboardingScreen, OTP help keybinding, human verification
-**UI hint**: yes
 
 ### Phase 12: YubiKey Slot Delete Workflow
 **Goal**: Users can delete individual OpenPGP key slots and PIV certificate/key slots from the TUI without factory reset — targeted slot clearing with proper authentication (Admin PIN for OpenPGP, management key 3DES for PIV) and firmware-gated PIV key deletion (5.7+ only)
@@ -151,11 +150,13 @@ Plans:
   2. User can delete a PIV certificate from any standard slot (9a, 9c, 9d, 9e) after management key authentication
   3. User can delete a PIV private key on firmware >= 5.7.0; on older firmware the option is clearly disabled with explanation
   4. All delete operations show clear success/error feedback and the affected screen refreshes to reflect the change
-**Plans**: 3 plans
+**Plans**: 5 plans
 Plans:
 - [x] 12-01-PLAN.md — OpenPGP individual key slot deletion (model APDUs + TUI Admin PIN + confirm flow)
 - [x] 12-02-PLAN.md — PIV certificate/key deletion (des crate, 3DES mgmt key auth, firmware gate, TUI flow)
 - [ ] 12-03-PLAN.md — Snapshot tests, cargo test 100%, human verification of both delete flows
+- [ ] 12-04-PLAN.md — Gap closure: wire refresh on Dashboard, Keys, PIV screens to re-detect hardware
+- [ ] 12-05-PLAN.md — Gap closure: wire OATH/FIDO2 on-demand refresh + fix PIV post-delete state
 **UI hint**: yes
 
 ## Progress
@@ -173,7 +174,7 @@ Plans:
 | 9. OATH/TOTP Screen | v1.1 | 4/4 | Complete | 2026-03-27 |
 | 10. FIDO2 Screen | v1.1 | 4/4 | Complete    | 2026-03-28 |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 3/3 | Complete | 2026-03-28 |
-| 12. YubiKey Slot Delete Workflow | v1.1 | 2/3 | In Progress|  |
+| 12. YubiKey Slot Delete Workflow | v1.1 | 2/5 | In Progress|  |
 | 13. UI Polish | v1.1 | 0/5 | Planned |  |
 
 ## Backlog
