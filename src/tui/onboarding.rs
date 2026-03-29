@@ -186,6 +186,6 @@ mod tests {
             Box::new(OnboardingScreen::new(yk.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 }

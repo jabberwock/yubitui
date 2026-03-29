@@ -1363,7 +1363,7 @@ mod tests {
             Box::new(Fido2Screen::new(state.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -1372,7 +1372,7 @@ mod tests {
             Box::new(Fido2Screen::new(None))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -1385,7 +1385,7 @@ mod tests {
             Box::new(Fido2Screen::new(state.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -1397,7 +1397,7 @@ mod tests {
             Box::new(Fido2Screen::new(state.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -1411,7 +1411,7 @@ mod tests {
         pilot.press(KeyCode::Down).await;
         pilot.settle().await;
         drop(pilot);
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -1420,7 +1420,7 @@ mod tests {
             Box::new(ResetConfirmScreen::new())
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -1429,7 +1429,7 @@ mod tests {
             Box::new(ResetGuidanceScreen::new())
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -1440,6 +1440,6 @@ mod tests {
             Box::new(Fido2Screen::new(fido2_state.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 }

@@ -855,7 +855,7 @@ mod tests {
             Box::new(OathScreen::new(None))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -868,7 +868,7 @@ mod tests {
             Box::new(OathScreen::new(oath.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -881,7 +881,7 @@ mod tests {
             Box::new(OathScreen::new(oath.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -890,7 +890,7 @@ mod tests {
             Box::new(AddAccountScreen::new())
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -908,7 +908,7 @@ mod tests {
         pilot.settle().await;
         drop(pilot);
         // Should now be on step 2 (Account Name)
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     // -----------------------------------------------------------------------
@@ -936,7 +936,7 @@ mod tests {
             Box::new(OathScreen::new(oath_state.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -949,7 +949,7 @@ mod tests {
             Box::new(OathScreen::new(oath_state.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]

@@ -431,7 +431,7 @@ mod tests {
             Box::new(SshWizardScreen::new(SshState::default()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -443,6 +443,6 @@ mod tests {
         pilot.press(KeyCode::Char('a')).await;
         pilot.settle().await;
         drop(pilot);
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 }

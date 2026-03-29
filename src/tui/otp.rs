@@ -201,7 +201,7 @@ mod tests {
             Box::new(OtpScreen::new(otp_state.clone()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -210,6 +210,6 @@ mod tests {
             Box::new(OtpScreen::new(None))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 }

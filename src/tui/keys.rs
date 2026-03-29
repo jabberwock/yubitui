@@ -1670,14 +1670,14 @@ mod tests {
         let yk = yubikey_states.into_iter().next();
         let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeysScreen::new(yk)));
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
     async fn keys_no_yubikey() {
         let mut app = TestApp::new_styled(80, 24, "", || Box::new(KeysScreen::new(None)));
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -1689,7 +1689,7 @@ mod tests {
         pilot.press(KeyCode::Char('i')).await;
         pilot.settle().await;
         drop(pilot);
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
@@ -1761,6 +1761,6 @@ mod tests {
         pilot.press(KeyCode::Enter).await;
         pilot.settle().await;
         drop(pilot);
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 }

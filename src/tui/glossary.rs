@@ -114,6 +114,6 @@ mod tests {
         let css = "GlossaryScreen Markdown { flex-grow: 1; }";
         let mut app = TestApp::new_styled(80, 24, css, || Box::new(GlossaryScreen::new()));
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 }

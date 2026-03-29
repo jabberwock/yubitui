@@ -207,6 +207,6 @@ mod tests {
             Box::new(DiagnosticsScreen::new(Diagnostics::default()))
         });
         app.pilot().settle().await;
-        insta::assert_display_snapshot!(app.backend());
+        insta::assert_snapshot!(app.backend());
     }
 }
