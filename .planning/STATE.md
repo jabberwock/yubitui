@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Guided Workflows & Advanced Operations
-status: Defining requirements — roadmap pending
-stopped_at: v1.2 requirements defined
-last_updated: "2026-03-29T21:35:00.000Z"
+status: Roadmap defined — ready to plan Phase 14
+stopped_at: v1.2 roadmap created (4 phases, 12 requirements)
+last_updated: "2026-03-29T22:00:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -19,19 +19,27 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Zero-friction YubiKey management — detect problems automatically, guide users through fixes
-**Current focus:** v1.1 archived — planning v1.2
+**Current focus:** v1.2 — Phase 14: OATH Import & Password Management
 
 ## Current Position
 
-Milestone: v1.1 — ARCHIVED
-Next: `/gsd:new-milestone` to start v1.2
+Milestone: v1.2 — Guided Workflows & Advanced Operations
+Phase: 14 — OATH Import & Password Management
+Status: Not started
+Progress: 0/4 phases complete
+
+```
+[░░░░░░░░░░░░░░░░░░░░] 0% (Phase 14 of 17)
+```
+
+Next: `/gsd:plan-phase 14`
 
 ## Performance Metrics
 
 **Velocity (v1.0 baseline):**
 
 - Total plans completed (v1.0): 18
-- v1.1 plans completed: 0
+- v1.1 plans completed: 35
 
 *Updated after each plan completion*
 
@@ -106,6 +114,7 @@ Next: `/gsd:new-milestone` to start v1.2
 
 - Phase 12 added: yubikey slot delete workflow — individual OpenPGP/PIV slot deletion without factory reset
 - Phase 13 added: UI polish — consistent card/panel layout, visual hierarchy, and design quality across all screens to match PIN Management standard
+- v1.2 roadmap: Phase 14 (OATH import + password mgmt), Phase 15 (PIV management key), Phase 16 (provisioning wizards), Phase 17 (dashboard nav affordance)
 
 ### Pending Todos
 
@@ -113,10 +122,10 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 9 (FIDO2): ctap-hid-fido2 credential management API needs prototyping before full plan scope is locked — flag for plan-phase to trigger research spike
+None.
 
 ## Session Continuity
 
-Last session: 2026-03-29T19:33:04.151Z
-Stopped at: Completed 13-ui-polish 13-03-PLAN.md
+Last session: 2026-03-29T22:00:00.000Z
+Stopped at: v1.2 roadmap created — 4 phases, 12 requirements mapped
 Resume file: None

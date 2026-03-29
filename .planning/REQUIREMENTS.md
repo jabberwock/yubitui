@@ -50,15 +50,15 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| WIZARD-01 | TBD | Pending |
-| WIZARD-02 | TBD | Pending |
-| WIZARD-03 | TBD | Pending |
-| WIZARD-04 | TBD | Pending |
-| WIZARD-05 | TBD | Pending |
-| OATH-07 | TBD | Pending |
-| OATH-08 | TBD | Pending |
-| OATH-09 | TBD | Pending |
-| OATH-10 | TBD | Pending |
-| PIV-03 | TBD | Pending |
-| PIV-04 | TBD | Pending |
-| PIV-05 | TBD | Pending |
+| OATH-07 | Phase 14 | Pending |
+| OATH-08 | Phase 14 | Pending |
+| OATH-09 | Phase 14 | Pending |
+| OATH-10 | Phase 14 | Pending |
+| PIV-03 | Phase 15 | Pending |
+| PIV-04 | Phase 15 | Pending |
+| PIV-05 | Phase 15 | Pending |
+| WIZARD-01 | Phase 16 | Pending |
+| WIZARD-02 | Phase 16 | Pending |
+| WIZARD-03 | Phase 16 | Pending |
+| WIZARD-05 | Phase 16 | Pending |
+| WIZARD-04 | Phase 17 | Pending |

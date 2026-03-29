@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 Production-Ready** — Phases 1–5 (shipped 2026-03-26)
 - ✅ **v1.1 Accessible to New Users** — Phases 6–13 (shipped 2026-03-29)
-- 📋 **v1.2** — (planning next)
+- 📋 **v1.2 Guided Workflows & Advanced Operations** — Phases 14–17 (in progress)
 
 ## Phases
 
@@ -37,29 +37,59 @@ See full details: `.planning/milestones/v1.1-ROADMAP.md`
 
 </details>
 
-### 📋 v1.2 (Planning)
+### 📋 v1.2 Guided Workflows & Advanced Operations (Phases 14–17)
 
-*Start with `/gsd:new-milestone` to define requirements and roadmap.*
+- [ ] **Phase 14: OATH Import & Password Management** - OATH URI import plus full password set/change/remove lifecycle
+- [ ] **Phase 15: PIV Management Key** - Management key change workflow with factory-default detection and warning
+- [ ] **Phase 16: Provisioning Wizards** - Initial YubiKey setup and SSH-with-touch-policy wizards with device state surfacing
+- [ ] **Phase 17: Dashboard Navigation Affordance** - 1–9 key discovery hints so users find all screens without docs
 
-## Backlog
+## Phase Details
 
-### Phase 999.1: Provisioning wizards — outcome-oriented multi-step flows
+### Phase 14: OATH Import & Password Management
+**Goal**: Users can import OATH accounts via URI paste and fully manage the OATH application password
+**Depends on**: Phase 13 (OATH screen already exists; extends it)
+**Requirements**: OATH-07, OATH-08, OATH-09, OATH-10
+**Success Criteria** (what must be TRUE):
+  1. User pastes an otpauth:// URI and sees issuer, account, secret, and algorithm pre-filled before confirming
+  2. User can set an OATH application password when none exists; subsequent OATH operations prompt for it only when SW 0x6982 is returned
+  3. User can change the OATH password by first authenticating with the current password
+  4. User can remove the OATH password after authenticating, returning the applet to unprotected mode
+**Plans**: TBD
+**UI hint**: yes
 
-**Goal:** Outcome-oriented provisioning flows that span applets (e.g. "Set up SSH key with touch policy", "Initial YubiKey setup"). User thinks in terms of goals, not slots. Build from existing keygen wizard pattern. Include: touch policy surfaced upfront, nav affordance hint (1-9 keys), onboarding flow for fresh YubiKey.
-**Requirements:** TBD
-**Plans:** TBD (promote with `/gsd:review-backlog` when ready)
+### Phase 15: PIV Management Key
+**Goal**: Users can change the PIV management key and are warned when it is at factory default
+**Depends on**: Phase 13 (PIV screen already exists; extends it)
+**Requirements**: PIV-03, PIV-04, PIV-05
+**Success Criteria** (what must be TRUE):
+  1. PIV screen shows a banner or badge when the management key is at the factory default, with a link to the change workflow
+  2. User can change the management key from default by confirming "I know it's default" without entering the key value
+  3. User can change the management key from a non-default value by first authenticating with the current key
+  4. User can select 3DES or AES-128/192/256 key type when setting the new management key on YubiKey 5.7+
+**Plans**: TBD
 
-*Consensus feedback from @macos-live-tester, @win, @kali — 2026-03-28*
+### Phase 16: Provisioning Wizards
+**Goal**: Users can complete goal-oriented provisioning flows ("Initial Setup", "SSH with Touch Policy") that guide through all required steps with device state visible at each step and touch policy chosen upfront
+**Depends on**: Phase 14, Phase 15 (wizards invoke OATH and PIV operations already built)
+**Requirements**: WIZARD-01, WIZARD-02, WIZARD-03, WIZARD-05
+**Success Criteria** (what must be TRUE):
+  1. User can launch "Initial YubiKey Setup" from the dashboard and step through FIDO2 PIN, first OATH account, and PIV/SSH key config — each step shows current device state and can be skipped
+  2. User can launch "Set Up SSH Key with Touch Policy" and complete key generation/import, touch policy selection, SSH public key export, and shell config instructions in one flow
+  3. Touch policy options (no touch, touch, cached touch) with plain-language descriptions appear before any irreversible operation in both wizards
+  4. Each wizard step displays the current device state (e.g. "FIDO2 PIN: not set") before the user commits to a change
+**Plans**: TBD
+**UI hint**: yes
 
-**Other deferred items:**
-- PIV certificate view (X.509 decode via x509-parser — deferred to v2)
-- PIV Management Key change (deferred to v2)
-- OATH application password set/change (deferred to v2)
-- OATH import via otpauth:// URI (deferred to v2)
-- OTP slot write (high-risk HID frame protocol — deferred to v2)
-- FIDO2 fingerprint management (Bio series only — deferred to v2)
-- Application enable/disable toggle (enterprise niche — deferred to v2)
-- Backup/restore workflows (deferred to v2)
+### Phase 17: Dashboard Navigation Affordance
+**Goal**: New users can discover all screens from the dashboard without reading documentation
+**Depends on**: Phase 16 (wizards exist and can be surfaced in the dashboard nav)
+**Requirements**: WIZARD-04
+**Success Criteria** (what must be TRUE):
+  1. Dashboard displays a visible 1–9 key hint mapping so users see which number key opens which screen
+  2. The hint does not clutter the dashboard for experienced users (dismissible or low-visual-weight presentation)
+**Plans**: TBD
+**UI hint**: yes
 
 ## Progress
 
@@ -78,3 +108,7 @@ See full details: `.planning/milestones/v1.1-ROADMAP.md`
 | 11. OTP Slots + Education + Onboarding | v1.1 | 3/3 | Complete | 2026-03-28 |
 | 12. YubiKey Slot Delete Workflow | v1.1 | 5/5 | Complete | 2026-03-29 |
 | 13. UI Polish | v1.1 | 5/5 | Complete | 2026-03-29 |
+| 14. OATH Import & Password Management | v1.2 | 0/? | Not started | - |
+| 15. PIV Management Key | v1.2 | 0/? | Not started | - |
+| 16. Provisioning Wizards | v1.2 | 0/? | Not started | - |
+| 17. Dashboard Navigation Affordance | v1.2 | 0/? | Not started | - |
