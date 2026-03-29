@@ -174,6 +174,7 @@ Plans:
 | 10. FIDO2 Screen | v1.1 | 4/4 | Complete    | 2026-03-28 |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 3/3 | Complete | 2026-03-28 |
 | 12. YubiKey Slot Delete Workflow | v1.1 | 2/3 | In Progress|  |
+| 13. UI Polish | v1.1 | 0/5 | Planned |  |
 
 ## Backlog
 
@@ -200,10 +201,23 @@ Plans:
 
 ### Phase 13: UI Polish
 
-**Goal:** Consistent card/panel layout, visual hierarchy, and design quality across all screens to match PIN Management standard
-**Requirements**: TBD
+**Goal:** Bring all screens up to PIN Management's visual quality — Button widgets for actions, DataTable for tabular data, ProgressBar for OATH countdown, Markdown for long-form content, consistent [OK]/[EMPTY]/[SET]/[BLOCKED] status badges, and Header->data->spacer->Buttons->Footer layout everywhere
+**Requirements**: POLISH-01, POLISH-02, POLISH-03, POLISH-04, POLISH-05, POLISH-06, POLISH-07, POLISH-08
 **Depends on:** Phase 12
-**Plans:** 0 plans
+**Plans:** 5 plans
+**Success Criteria** (what must be TRUE):
+  1. Every screen uses Button widgets for primary actions — no screen has actions only accessible via keybinding text labels
+  2. Every screen with tabular data (key slots, PIV slots, OTP slots, credentials) uses DataTable with aligned columns
+  3. OATH TOTP countdown uses ProgressBar widget instead of ASCII art
+  4. Help and Glossary screens use Markdown widget for formatted content
+  5. All status badges use consistent bracket notation: [OK], [EMPTY], [SET], [BLOCKED], [DANGER]
+  6. All screens follow Header -> data section -> spacer -> action Buttons -> Footer layout
+  7. All snapshot tests pass with updated expectations
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 13 to break down)
+- [ ] 13-01-PLAN.md — Dashboard + Diagnostics polish (Buttons, DataTable, status badges)
+- [ ] 13-02-PLAN.md — Keys + PIV polish (DataTable for slots, Button actions)
+- [ ] 13-03-PLAN.md — OATH + FIDO2 polish (DataTable, ProgressBar countdown, Buttons)
+- [ ] 13-04-PLAN.md — OTP + Help + Glossary polish (DataTable, Markdown content)
+- [ ] 13-05-PLAN.md — Snapshot re-acceptance + cargo test + human verification
+**UI hint**: yes
