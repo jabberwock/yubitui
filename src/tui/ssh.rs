@@ -5,7 +5,7 @@ use textual_rs::reactive::Reactive;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use crate::tui::widgets::popup::{ModalScreen, PopupScreen};
+use crate::tui::widgets::popup::PopupScreen;
 
 const SSH_HELP_TEXT: &str = "\
 SSH Setup Wizard\n\
@@ -407,9 +407,7 @@ impl Widget for SshWizardScreen {
             }
             "help" => {
                 ctx.push_screen_deferred(Box::new(
-                    ModalScreen::new(Box::new(
-                        PopupScreen::new("SSH Wizard Help", SSH_HELP_TEXT)
-                    ))
+                    PopupScreen::new("SSH Wizard Help", SSH_HELP_TEXT)
                 ));
             }
             _ => {}

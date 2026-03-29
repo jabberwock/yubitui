@@ -7,7 +7,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
 use crate::diagnostics::Diagnostics;
-use crate::tui::widgets::popup::{ModalScreen, PopupScreen};
+use crate::tui::widgets::popup::PopupScreen;
 
 const DIAGNOSTICS_HELP_TEXT: &str = "\
 Diagnostics\n\
@@ -177,9 +177,7 @@ impl Widget for DiagnosticsScreen {
             "back" => ctx.pop_screen_deferred(),
             "help" => {
                 ctx.push_screen_deferred(Box::new(
-                    ModalScreen::new(Box::new(
-                        PopupScreen::new("Diagnostics Help", DIAGNOSTICS_HELP_TEXT)
-                    ))
+                    PopupScreen::new("Diagnostics Help", DIAGNOSTICS_HELP_TEXT)
                 ));
             }
             "run_diagnostics" => {

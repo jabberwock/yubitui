@@ -5,7 +5,6 @@ use textual_rs::widget::context::AppContext;
 use textual_rs::widget::{EventPropagation, WidgetId};
 use textual_rs::event::keybinding::KeyBinding;
 use textual_rs::reactive::Reactive;
-use textual_rs::widget::screen::ModalScreen;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -339,9 +338,7 @@ impl Widget for OathScreen {
             }
             "help" => {
                 ctx.push_screen_deferred(Box::new(
-                    ModalScreen::new(Box::new(
-                        PopupScreen::new("OATH Help", OATH_HELP_TEXT)
-                    ))
+                    PopupScreen::new("OATH Help", OATH_HELP_TEXT)
                 ));
             }
             _ => {}
@@ -466,12 +463,12 @@ impl AddAccountScreen {
                 ) {
                     Ok(()) => {
                         ctx.pop_screen_deferred();
-                        ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                        ctx.push_screen_deferred(Box::new(
                             PopupScreen::new(
                                 "Success",
                                 format!("Account '{}' added successfully.", name),
                             ),
-                        ))));
+                        ));
                     }
                     Err(e) => {
                         self.state.borrow_mut().error_message = Some(e.to_string());
@@ -705,18 +702,18 @@ impl Widget for DeleteConfirmScreen {
                 match crate::model::oath::delete_credential(&self.credential_name) {
                     Ok(()) => {
                         ctx.pop_screen_deferred();
-                        ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                        ctx.push_screen_deferred(Box::new(
                             PopupScreen::new(
                                 "Success",
                                 format!("'{}' deleted from YubiKey.", self.display_name),
                             ),
-                        ))));
+                        ));
                     }
                     Err(e) => {
                         ctx.pop_screen_deferred();
-                        ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                        ctx.push_screen_deferred(Box::new(
                             PopupScreen::new("Error", format!("Delete failed: {}", e)),
-                        ))));
+                        ));
                     }
                 }
             }

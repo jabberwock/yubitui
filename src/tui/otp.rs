@@ -134,9 +134,7 @@ impl Widget for OtpScreen {
             "back" | "refresh" => ctx.pop_screen_deferred(),
             "help" => {
                 ctx.push_screen_deferred(Box::new(
-                    crate::tui::widgets::popup::ModalScreen::new(Box::new(
-                        crate::tui::widgets::popup::PopupScreen::new("OTP Slots Help", OTP_HELP_TEXT),
-                    )),
+                    crate::tui::widgets::popup::PopupScreen::new("OTP Slots Help", OTP_HELP_TEXT),
                 ));
             }
             _ => {}

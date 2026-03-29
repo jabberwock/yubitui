@@ -109,3 +109,11 @@ None — no external service configuration required.
 ---
 *Phase: 12-yubikey-slot-delete-workflow*
 *Completed: 2026-03-28 (pending human-verify)*
+
+## Self-Check: PASSED
+
+- FOUND: src/tui/keys.rs
+- FOUND: keys_default_state.snap (updated)
+- FOUND: keys_no_yubikey.snap (updated)
+- FOUND: 12-03-SUMMARY.md
+- FOUND commit f93804f1 (Task 1)
