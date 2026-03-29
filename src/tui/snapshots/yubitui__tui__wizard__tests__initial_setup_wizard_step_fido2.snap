@@ -1,0 +1,28 @@
+---
+source: src/tui/wizard.rs
+expression: app.backend()
+---
+"                             Initial YubiKey Setup                              "
+"[#---] Step 1/4                                                                 "
+"                                                                                "
+"Step 1: FIDO2 PIN                                                               "
+"                                                                                "
+"Status: FIDO2 PIN is SET.                                                       "
+"Your key is protected against unauthorized use.                                 "
+"                                                                                "
+"Press Enter or S to continue to the next step.                                  "
+"                                                                                "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "

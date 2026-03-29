@@ -1,0 +1,28 @@
+---
+source: src/tui/wizard.rs
+expression: app.backend()
+---
+"                                 Setup Wizards                                  "
+"                                                                                "
+"Choose a guided setup flow:                                                     "
+"                                                                                "
+"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+"┃                          [1] Initial YubiKey Setup                           ┃"
+"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+"    Set FIDO2 PIN, add first OATH account, configure PIV/SSH key.               "
+"                                                                                "
+"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+"┃                        [2] SSH Key with Touch Policy                         ┃"
+"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+"    Choose touch policy, generate OpenPGP key, export SSH public key.           "
+"                                                                                "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "

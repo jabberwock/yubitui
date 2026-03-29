@@ -1,0 +1,28 @@
+---
+source: src/tui/wizard.rs
+expression: app.backend()
+---
+"                           SSH Key with Touch Policy                            "
+"[---] Step 0/3                                                                  "
+"                                                                                "
+"Step 1: Choose Touch Policy                                                     "
+"                                                                                "
+"Select the touch behaviour for your SSH key (use K/J or Up/Down to move):       "
+"                                                                                "
+"  [1] No touch required                                                         "
+"> [2] Touch required for every use                                              "
+"  [3] Touch required (cached for 15 s)                                          "
+"                                                                                "
+"About this choice:                                                              "
+"  You must physically touch the YubiKey for every SSH operation.                "
+"  This prevents silent use — if you did not initiate a login,                   "
+"  you will notice the LED blinking and can refuse.                              "
+"                                                                                "
+"Press Enter to confirm and continue.                                            "
+"                                                                                "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "

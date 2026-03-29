@@ -1,0 +1,28 @@
+---
+source: src/tui/wizard.rs
+expression: app.backend()
+---
+"                             Initial YubiKey Setup                              "
+"[----] Step 0/4                                                                 "
+"                                                                                "
+"Welcome to the Initial YubiKey Setup Wizard.                                    "
+"                                                                                "
+"Device: YubiKey 5 NFC (serial 12345678)                                         "
+"Firmware: 5.4.3                                                                 "
+"                                                                                "
+"This wizard will guide you through:                                             "
+"  1. Setting a FIDO2 PIN                                                        "
+"  2. Adding your first OATH (TOTP/HOTP) account                                 "
+"  3. Configuring a PIV or SSH key                                               "
+"                                                                                "
+"Press Enter to begin, or Esc to exit.                                           "
+"                                                                                "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "

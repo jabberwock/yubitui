@@ -13,6 +13,7 @@ pub mod piv;
 pub mod ssh;
 pub mod theme;
 pub mod widgets;
+pub mod wizard;
 
 #[allow(unused_imports)]
 pub use keys::{KeyScreen, KeyState};

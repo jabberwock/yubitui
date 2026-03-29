@@ -153,6 +153,13 @@ static DASHBOARD_BINDINGS: &[KeyBinding] = &[
         show: false,
     },
     KeyBinding {
+        key: KeyCode::Char('w'),
+        modifiers: KeyModifiers::NONE,
+        action: "wizards",
+        description: "W Wizards",
+        show: true,
+    },
+    KeyBinding {
         key: KeyCode::Char('q'),
         modifiers: KeyModifiers::NONE,
         action: "quit",
@@ -258,6 +265,8 @@ impl Widget for DashboardScreen {
         children.push(Box::new(Button::new("[7] OATH / Authenticator")));
         children.push(Box::new(Button::new("[8] FIDO2 / Security Key")));
         children.push(Box::new(Button::new("[9] OTP Slots")));
+        children.push(Box::new(Label::new("")));
+        children.push(Box::new(Button::new("[W] Setup Wizards")));
 
         children.push(Box::new(Footer));
         children
@@ -363,6 +372,12 @@ impl Widget for DashboardScreen {
             "open_menu" => {
                 // Push Help as context menu placeholder — full context menu in 08-06.
                 ctx.push_screen_deferred(Box::new(crate::tui::help::HelpScreen::new()));
+            }
+            "wizards" => {
+                let yk = self.app_state.yubikey_state().cloned();
+                ctx.push_screen_deferred(Box::new(
+                    crate::tui::wizard::WizardMenuScreen::new(yk),
+                ));
             }
             "quit" => ctx.quit(),
             _ => {}

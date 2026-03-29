@@ -46,7 +46,8 @@ OathSetPasswordScreen, OathChangePasswordScreen, OathRemovePasswordScreen,
 Fido2Screen, PinSetScreen, PinChangeScreen, PinAuthScreen,
 DeleteCredentialScreen, ResetGuidanceScreen, ResetConfirmScreen,
 OtpScreen, PopupScreen, ConfirmScreen,
-ChangeMgmtKeyScreen, NewMgmtKeyScreen
+ChangeMgmtKeyScreen, NewMgmtKeyScreen,
+WizardMenuScreen, InitialSetupWizardScreen, SshTouchPolicyWizardScreen
 { background: $background; }
 
 HelpScreen Markdown { flex-grow: 1; }
