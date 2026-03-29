@@ -1,0 +1,28 @@
+---
+source: src/tui/keys.rs
+expression: app.backend()
+---
+"                       Generate Key — Step 1/5: Algorithm                       "
+"Select key algorithm:                                                           "
+"                                                                                "
+"> Ed25519/Cv25519                                                               "
+"    Modern elliptic curve — recommended for new keys                            "
+"  RSA 2048                                                                      "
+"  RSA 4096                                                                      "
+"  Tab  Focus   Ctrl+P  Palette   q  Quit                                        "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
