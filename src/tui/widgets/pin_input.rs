@@ -8,7 +8,7 @@
 
 use std::cell::RefCell;
 
-use textual_rs::{Widget, Input, Label, Vertical, Footer};
+use textual_rs::{Widget, Input, Label, Footer};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use crossterm::event::{KeyCode, KeyModifiers};
