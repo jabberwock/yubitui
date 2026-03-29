@@ -57,69 +57,53 @@
 ## Milestone: v1.1 — Accessible to New Users
 
 **Shipped:** 2026-03-29
-**Phases:** 8 (phases 6–13) | **Plans:** 34 | **Commits:** ~200
+**Phases:** 8 (6–13) | **Plans:** 35 | **Timeline:** 2026-03-26 → 2026-03-29 (3 days)
 
 ### What Was Built
 
-- **textual-rs migration**: All 7 screens rebuilt as textual-rs components; Pilot snapshot tests replace tmux harness; 160 tests, no hardware
-- **Model/View separation**: `src/model/` zero ratatui, CI boundary lint, all types `serde::Serialize`
-- **Mouse support**: Region-based click dispatch (reverse iteration, popup-first), scroll, Windows ConPTY graceful degradation
-- **OATH/TOTP screen**: Live codes with ProgressBar countdown, Add Account wizard, OATH password prompt
-- **FIDO2 screen**: PIN set/change, resident credential list/delete, factory reset with timing guidance
-- **OTP slots screen**: Slot 1/2 status view, hardware write-only constraint surfaced
-- **Education system**: Per-screen `?` help panels (all 8 screens), Glossary with Markdown rendering
-- **Onboarding flow**: Factory-default heuristic detection, guided first-time setup screen
-- **Slot delete workflows**: OpenPGP (RSA attribute-change trick), PIV cert (empty PUT DATA), PIV key (MOVE KEY firmware 5.7+)
-- **UI polish**: DataTable, Button widgets, status badges, consistent Header→data→spacer→Buttons→Footer layout
+- Model/View split: `src/model/` zero ratatui, CI lint boundary, serde::Serialize on all types
+- Full textual-rs migration: all 7 screens rebuilt as components with Footer, Buttons, themes
+- OATH/TOTP screen: live codes, countdown, add/delete wizard, password-protected vault
+- FIDO2 screen: PIN management, resident credential list/delete, CTAPHID factory reset
+- OTP slot read-only view
+- Per-screen `?` help panels and protocol glossary
+- Factory-default detection heuristic and onboarding checklist for new users
+- OpenPGP slot deletion (Admin PIN + RSA attribute trick)
+- PIV cert/key deletion (3DES management key auth, firmware 5.7+ gate)
+- DataTable, Button, ProgressBar, Markdown on every screen; consistent bracket badges
+- 161 unit/snapshot tests (74 added this milestone)
 
 ### What Worked
 
-- **textual-rs component model** — Switching from raw ratatui to textual-rs widgets gave structural consistency across all screens. The Header/Footer/Button primitives meant every new screen followed the same pattern without extra effort.
-- **Pilot snapshot tests** — Replacing tmux E2E with insta+Pilot eliminated process-spawn flakiness entirely. 160 tests run in `cargo test` with no hardware and no timing sensitivity.
-- **Multi-worker collab** — @win, @kali, @macos-live-tester running in parallel enabled live hardware verification on 3 platforms simultaneously. Issues surfaced the same day they were introduced.
-- **DataTable API discovery** — When the plan documented `DataTable::new(columns, rows)` but the actual API was `DataTable::new(columns)` + `add_row()`, the gap was caught and fixed within the same plan execution rather than during UAT.
-- **Gap closure naming discipline** — Phases 12's 12-04/12-05 gap plans targeted exactly the PinInputWidget and card refresh issues without touching unrelated scope.
+- **Multi-instance collab coordination** — @mac, @win, @kali, @macos-live-tester as parallel workers with collab message passing caught cross-platform issues (PinInputWidget height collapse on Windows) before they reached users.
+- **Phase 12 gap closure plans (12-04, 12-05)** — Verifier caught missing refresh wiring after the main delete workflow landed. Dedicated gap plans kept the core plan clean while closing the holes systematically.
+- **textual-rs component pattern** — Once established in Phase 8, each new screen (OATH, FIDO2, OTP) followed the same widget pattern with minimal deviation. Decision memos in STATE.md prevented drift.
+- **Snapshot tests as visual regression guard** — 161 tests run in 0.1s and catch render regressions immediately. Phase 13 used snapshots to verify DataTable/Button layout changes across all 10 screens in one pass.
+- **Yolo mode with granularity: coarse** — Removed friction from routine decisions; workers could execute without confirming every step while still respecting blocking deviations.
 
 ### What Was Inefficient
 
-- **textual-rs path dep for worktrees** — Multiple worktrees hit a path dependency issue when textual-rs wasn't yet on crates.io. Each worktree needed a manual path override before work could start. Publishing to crates.io (done during v1.1) resolved this.
-- **DataTable API mismatch** — Three separate plans discovered the same `add_row()` API discrepancy independently. A single "API orientation" note in the phase CONTEXT.md would have prevented the repeat lookups.
-- **STATE.md drift** — STATE.md `stopped_at` was stale by 2 plans at milestone close. Automated state update after each plan completion would prevent this.
-- **Phase 11 directory naming** — `11-yubikey-slot-delete-workflow` mislabeled what is actually the OTP/Education phase. A naming collision at worktree time was never corrected. Phase directory names should always match ROADMAP phase names.
+- **textual-rs not on crates.io** — Required git dependency throughout v1.1, adding friction at every worktree/clone. Resolved by textual-rs team publishing to crates.io during the milestone, but the gap caused deviation handling in nearly every phase.
+- **Snapshot file conflicts on parallel branches** — Multiple workers updating `.snap` files on separate worktrees created merge conflicts. Pattern: snapshot updates should be committed with the plan that caused them, not deferred.
+- **STATE.md overwritten by gsd-tools** — `milestone complete` CLI command reset STATE.md to stale counts. Needed manual correction. The tool should preserve higher `completed_phases` counts, not regress them.
 
 ### Patterns Established
 
-- `DataTable::new(columns)` + `add_row(&mut self)` — textual-rs DataTable API
-- `ctx.quit()` for global quit (added in textual-rs 0.3.5; `q` global was removed in 0.3.3)
-- `push_screen_deferred()` for wizard sub-screens; `pop_screen()` for return
-- Factory-default heuristic: `fido2.pin_is_set == false && oath.credentials.is_empty() && piv.slots.is_empty()`
-- OpenPGP slot delete: PUT DATA RSA4096 → PUT DATA RSA2048 (attribute-change trick, no DELETE KEY APDU exists)
-- PIV key delete: MOVE KEY INS=0xF6 P1=0xFF, firmware 5.7+ only — gate in UI with firmware check
-- `des 0.9.0-rc.3` with `cipher = "0.5"` (not 0.4) — cipher version incompatibility trap
+- `push_screen_deferred` for all screen transitions in textual-rs (sync context constraint)
+- `on_mount()` Cell<Option<WidgetId>> for matching worker source_id in async events (ResetGuidanceScreen)
+- `detect_all()` for post-delete refresh (full state, not partial); pop+push-fresh-screen pattern for refresh
+- F5 for FIDO2 refresh (R reserved for factory reset); R for all other screen refreshes
+- `Vertical{height:1fr}` children must be direct, not wrapped — collapses to 0 in screen-stack
+- 3-state model for credential lists: `None`=locked, `Some([])`=empty, `Some(vec)`=populated
 
 ### Key Lessons
 
-1. **API orientation in CONTEXT.md pays off** — Documenting the actual textual-rs DataTable API once (rather than re-discovering it per plan) would have saved 3 plan-level lookups across the milestone.
-2. **Multi-platform collab is powerful** — Having @win/@kali/@macos-live-tester verifying live simultaneously meant cross-platform bugs were caught same-day. This cadence should be maintained for v2.
-3. **Phase directory names must match roadmap** — The phase 11 naming collision created confusion in roadmap analysis tooling. Always verify the directory slug matches the ROADMAP phase name at creation time.
-4. **Publish deps before worktree-heavy sprints** — textual-rs path dep issue blocked multiple worktrees at sprint start. Publishing dependencies to registries before parallelizing work avoids the per-worktree manual fix.
+1. **collab coordination scales** — Running 4 parallel workers with clear role separation (mac=primary executor, win=Windows verifier, kali=Linux verifier, macos-live-tester=hardware) caught more issues than single-instance execution. The overhead is low when collab messages are signal-only (API changes, blockers).
+2. **Firmware-gate early** — PIV key delete (5.7+ only) required firmware version check that touched multiple layers. Build the gate first, then the feature — not the reverse.
+3. **Research phase pays off for novel protocols** — FIDO2 CTAPHID framing was the highest-risk part of v1.1. The spike in planning caught that ctap-hid-fido2 didn't expose `authenticatorReset` before committing to the approach.
 
 ### Cost Observations
 
-- Sessions: 3-day sprint (2026-03-26 → 2026-03-29)
-- ~200 commits, 304 files changed, 46,543 insertions / 6,222 deletions
-- 8 phases, 34 plans — velocity maintained from v1.0
-- Multi-worker collab (5 workers): @win, @kali, @macos-live-tester, @textual-rs, @claude-ipc
-
-## Cross-Milestone Trends
-
-| Metric | v1.0 | v1.1 |
-|--------|------|------|
-| Phases | 5 | 8 |
-| Plans | 21 | 34 |
-| Tests | 87 | 160 |
-| LOC (Rust) | ~10,053 | ~15,732 |
-| Sprint (days) | 3 | 3 |
-| Commits | 168 | ~200 |
-| Gap plans needed | 3 | 2 |
-| UAT issues | 7 | 0 (snapshot-verified) |
+- Sessions: 3-day sprint (2026-03-26 → 2026-03-29), 201 commits
+- Multi-instance collab: 4 active workers across mac/win/kali/macos-live-tester
+- Yolo mode / coarse granularity throughout

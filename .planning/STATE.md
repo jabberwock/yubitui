@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
-status: v1.1 milestone archived — ready for v2.0 planning
-stopped_at: v1.1 complete — all 8 phases, 34 plans, 160 tests, UAT 10/10
-last_updated: "2026-03-29T21:30:00.000Z"
+status: v1.1 milestone archived — ready for v1.2 planning
+stopped_at: Completed 13-ui-polish 13-05-PLAN.md — milestone archived
+last_updated: "2026-03-29T21:25:00.000Z"
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 34
-  completed_plans: 34
+  total_phases: 9
+  completed_phases: 9
+  total_plans: 35
+  completed_plans: 35
 ---
 
 # Project State
@@ -19,11 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Zero-friction YubiKey management — detect problems automatically, guide users through fixes
-**Current focus:** v2.0 planning — run `/gsd:new-milestone` to begin
+**Current focus:** v1.1 archived — planning v1.2
 
 ## Current Position
 
-v1.1 complete. All phases archived. Run `/gsd:new-milestone` to start v2.0.
+Milestone: v1.1 — ARCHIVED
+Next: `/gsd:new-milestone` to start v1.2
 
 ## Performance Metrics
 

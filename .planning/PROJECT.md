@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A terminal user interface (TUI) for YubiKey management, written in Rust. Provides comprehensive YubiKey operations through a keyboard-driven interface: diagnostics, PIN management, key import/generation, SSH setup wizard, OATH/TOTP live codes, FIDO2 passkey management, OTP slot view, PIV certificates, touch policy, attestation, and new-user onboarding — all via native PC/SC APDUs without requiring ykman or gpg --card-status. Built on textual-rs component model with Pilot-based snapshot testing.
+A terminal user interface (TUI) for YubiKey management, written in Rust on the textual-rs component framework. Provides comprehensive YubiKey operations through a keyboard-driven interface: OATH/TOTP credentials, FIDO2 passkeys and PIN management, OTP slot inspection, PIV certificates, OpenPGP key management, diagnostics, PIN management, SSH setup, touch policy, attestation, and targeted slot deletion — all via native PC/SC APDUs without requiring ykman or gpg --card-status. New users are guided by an onboarding checklist when a factory-default YubiKey is detected.
 
 ## Why It Exists
 
@@ -10,7 +10,7 @@ Managing YubiKeys currently requires juggling multiple CLI tools (`gpg`, `ykman`
 
 ## Who It's For
 
-Developers and security-conscious users who use YubiKeys for SSH authentication and GPG signing — primarily on Linux and macOS, with Windows support required.
+Developers and security-conscious users who use YubiKeys for SSH authentication, GPG signing, TOTP codes, and FIDO2 — primarily on Linux and macOS, with Windows support required.
 
 ## Core Value
 
@@ -23,35 +23,22 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 
 ## Current State (as of 2026-03-29 — v1.1 shipped)
 
-**v1.1 shipped.** All 8 phases complete (phases 6–13), 34 plans executed.
+**v1.1 shipped.** All 9 v1.1 phases complete, 35 plans executed.
 
-### Shipped in v1.0 (2026-03-26)
+### Shipped in v1.1 (Phases 6–13)
 
-- YubiKey detection via native PC/SC reader enumeration (no ykman)
-- Dashboard with live status and context menu
-- Full diagnostics screen (gpg-agent, pcscd, scdaemon, SSH agent)
-- PIN management: change user/admin PIN, set reset code, unblock
-- Key operations: view, import, generate (7-step wizard), export SSH pubkey
-- SSH wizard: enable SSH support, configure shell rc, restart agent
-- Touch policy (view and set per slot), Attestation (PEM popup)
-- Multi-key: Tab cycling between connected YubiKeys
-- PIV certificates screen (9a/9c/9d/9e slot occupancy)
-- CI: 3-OS matrix (Linux/macOS/Windows) + tag-triggered release builds
-- Native PC/SC protocol: zero ykman dependency
-
-### Shipped in v1.1 (2026-03-29)
-
-- **textual-rs migration**: All 7 screens rebuilt as textual-rs components — Header/Footer, Button widgets, DataTable, ProgressBar, Markdown. Pilot-based snapshot tests replace tmux harness.
-- **Model/View separation**: `src/model/` has zero ratatui imports; `src/tui/` renders only. CI lint enforces boundary. All model types `serde::Serialize`.
-- **Mouse support**: Region-based click dispatch (reverse iteration for popup-first), scroll on all list screens, Windows ConPTY graceful degradation.
-- **OATH/TOTP screen**: Live TOTP codes with countdown ProgressBar, Add Account wizard, Delete confirmation, OATH password prompt on SW 0x6982.
-- **FIDO2 screen**: PIN set/change, resident credential list, per-credential delete, factory reset with 10s timing guidance, Windows admin privilege notice.
-- **OTP slots screen**: Slot 1/2 status (Occupied/Empty/type), hardware write-only note, Refresh button.
-- **Education system**: Per-screen `?` help panels on all 8 screens, protocol Glossary (PIV/FIDO/FIDO2/OpenPGP/SSH/TOTP/OTP), Markdown rendering via textual-rs.
-- **Onboarding flow**: Factory-default detection heuristic (no FIDO2 PIN + no OATH credentials + no PIV certs), OnboardingScreen guides initial setup.
-- **Slot delete workflows**: OpenPGP slot delete via Admin PIN + RSA attribute-change trick (PUT DATA RSA4096→RSA2048). PIV cert delete (PUT DATA empty 0x53), PIV key delete (MOVE KEY INS=0xF6, firmware 5.7+ only). Management key 3DES auth via `des` crate.
-- **UI polish**: All screens use DataTable for tabular data, Button widgets for actions, consistent `[OK]`/`[SET]`/`[EMPTY]`/`[BLOCKED]` status badges, Header→data→spacer→Buttons→Footer layout everywhere.
-- **160 tests** — Pilot snapshot tests for all screens, no hardware required.
+- Model/View architectural split: `src/model/` zero ratatui, `src/tui/` all rendering, CI lint boundary enforced
+- Full textual-rs migration: all screens as components with rule-of-thirds layout, Footer keybindings, Button widgets, configurable themes
+- OATH/TOTP screen: live codes, countdown timer, add/delete wizard, password-protected vault
+- FIDO2 screen: PIN management, resident credential list/delete, factory reset via CTAPHID
+- OTP Slots screen: slot occupancy display (read-only; write deferred)
+- Per-screen `?` help panels and protocol glossary
+- Factory-default detection and onboarding checklist for new users
+- OpenPGP individual key slot deletion (Admin PIN + RSA attribute trick)
+- PIV cert/key deletion (3DES management key auth, firmware 5.7+ gate for key delete)
+- DataTable, Button, ProgressBar, Markdown widgets on every screen; consistent status badges
+- Post-delete and on-demand refresh on all screens (R key)
+- 161 unit/snapshot tests — all hardware paths mockable
 
 ## Requirements
 
@@ -72,32 +59,35 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 - ✓ CI 3-OS matrix + release builds — v1.0
 - ✓ Native PC/SC protocol (zero ykman/gpg-card dependency) — v1.0
 - ✓ PIV certificates screen — v1.0
-- ✓ Full mouse support (click navigation + scroll — region-based dispatch) — v1.1
-- ✓ Model/View architectural separation (no ratatui in business logic) — v1.1
-- ✓ Snapshot test suite (160 Pilot tests, no hardware required) — v1.1
-- ✓ Feature parity with Yubico Authenticator (OATH/TOTP, FIDO2, OTP slots) — v1.1
-- ✓ In-TUI protocol education (per-screen help + Glossary) — v1.1
-- ✓ New user onboarding flow (factory-default detection) — v1.1
-- ✓ Individual slot delete (OpenPGP + PIV cert + PIV key) — v1.1
-- ✓ UI polish (DataTable, Button, status badges, consistent layout) — v1.1
+- ✓ Full mouse support (click navigation + scroll — region-based dispatch) — v1.1 Phase 07
+- ✓ Model/View architectural separation (no ratatui in business logic) — v1.1 Phase 06
+- ✓ E2E test suite (15 insta snapshot tests + Pilot integration tests) — v1.1 Phase 07
+- ✓ textual-rs component migration — all screens rebuilt — v1.1 Phase 08
+- ✓ OATH/TOTP credential management with live codes — v1.1 Phase 09
+- ✓ FIDO2 PIN management and resident credential management — v1.1 Phase 10
+- ✓ OTP slot read-only inspection — v1.1 Phase 11
+- ✓ Per-screen help panels and protocol glossary — v1.1 Phase 11
+- ✓ New user onboarding checklist (factory-default detection) — v1.1 Phase 11
+- ✓ OpenPGP individual key slot deletion — v1.1 Phase 12
+- ✓ PIV cert/key deletion with management key auth — v1.1 Phase 12
+- ✓ Consistent DataTable/Button/Badge UI across all screens — v1.1 Phase 13
 
 ### Active
 
-- [ ] PIV cert view (X.509 decode via x509-parser) — v2 candidate
-- [ ] PIV management key change — v2 candidate
-- [ ] OATH application password set/change — v2 candidate
-- [ ] OATH import via otpauth:// URI — v2 candidate
-- [ ] Provisioning wizards — outcome-oriented multi-step flows (backlog 999.1)
-- [ ] FIDO2 fingerprint management (Bio series only) — v2 candidate
+- [ ] Outcome-oriented provisioning wizards (SSH+touch, initial YubiKey setup) — backlog 999.1
+- [ ] OTP slot write (configure Yubico OTP, static password, HMAC-SHA1) — high risk, deferred
+- [ ] PIV cert view (decoded X.509) — deferred
+- [ ] PIV management key change — deferred
+- [ ] OATH application password set/change — deferred
+- [ ] OATH URI import (otpauth://) — deferred
+- [ ] Backup/restore workflows — deferred to v2
 
 ### Out of Scope
 
-- GUI (non-TUI) interface — terminal-first; Tauri GUI is v2 possibility when model layer is stable
-- OTP slot write — underdocumented HID frame protocol and access code complexity deferred to v2
-- Backup/restore workflows — deferred to v2
-- FIDO2 fingerprint management — Bio series only, niche hardware
-- Application enable/disable toggle — enterprise niche
-- Reactive ratatui rendering engine — future milestone
+- GUI (non-TUI) interface — terminal-first until Tauri milestone
+- FIDO2 via PC/SC — requires HID FIDO transport (0xF1D0), not CCID
+- Key material backup to cloud — security boundary
+- FIDO2/WebAuthn browser operations — out of scope for TUI
 
 ## Key Decisions
 
@@ -107,41 +97,32 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 | gpg remains for keyring operations only | gpg handles GPG keyring; card reads all native | ✓ Validated — clean separation |
 | Kill scdaemon before exclusive card access | Avoids SW 0x6B00 contention on shared card channel | ✓ Validated — required on all platforms |
 | T=0 GET RESPONSE chaining in get_data() | Multi-part card responses on YubiKey 5.4.x | ✓ Validated — fingerprint reads work |
-| 0x71 outer TLV unwrap for GET_DEVICE_INFO | ykman does Tlv.unpack(0x71) first — we must too | ✓ Validated — fixes NEO misidentification |
 | --pinentry-mode loopback for PIN ops | Non-interactive gpg PIN input without terminal escape | ✓ Validated — all PIN ops in-TUI |
-| 7-step wizard for key generation | Complex multi-step flow needs guided UX | ✓ Validated — usable by non-experts |
-| previous_screen field for modal overlays | Enables return navigation from help/attestation/etc. | ✓ Validated — uniform pattern |
-| Vec<YubiKeyState> with selected index | Multi-key support without breaking single-key UX | ✓ Validated — Tab switching works |
-| gpgconf --list-dirs homedir as authoritative path | Handles Windows GPG4Win, non-standard installs | ✓ Validated — SSH fix correct |
-| Log to temp dir instead of /tmp | /tmp doesn't exist on Windows | ✓ Validated |
-| Security: no sensitive values in logs | Serial numbers, PINs, key material never logged | ✓ Validated |
-| textual-rs component model replacing raw ratatui | Enables consistent layout, Pilot tests, widget reuse | ✓ Validated — 160 tests, 7 screens clean |
-| Pilot snapshot tests replacing tmux E2E harness | Faster, deterministic, no process spawn overhead | ✓ Validated — all coverage in cargo test |
-| src/model/ zero ratatui boundary enforced by CI lint | Enables Tauri GUI without rearchitecting | ✓ Validated — boundary clean in v1.1 |
-| DataTable::new(columns) + add_row() API | textual-rs actual API differs from docs at planning time | ✓ Adapted — all screens use correct API |
-| OATH countdown computed per-render from chrono::Utc::now() | No background timer thread needed | ✓ Validated — textual-rs re-renders on key events |
-| OpenPGP slot delete via RSA attribute-change trick | No DELETE KEY APDU in OpenPGP card spec | ✓ Validated — PUT DATA RSA4096→RSA2048 destroys key |
-| PIV key delete via MOVE KEY INS=0xF6 (firmware 5.7+ only) | Standard PIV doesn't have key delete | ✓ Validated — firmware gate UX is clear |
-| des 0.9.0-rc.3 with cipher 0.5 (not cipher 0.4) | Pre-release cipher version incompatibility | ✓ Resolved — correct dep pinned |
-| Factory-default heuristic uses model data only | Avoids double scdaemon kill at startup (Pitfall 5) | ✓ Validated — PIV management key auth deferred to v2 |
+| textual-rs via git dep (jabberwock/textual-rs) | Not on crates.io yet; switch to registry when published | ✓ Working — upgrade to registry version when available |
+| src/model/ zero ratatui imports, CI lint enforced | Enables Tauri GUI layer without code changes | ✓ Validated — boundary holds in v1.1 |
+| AppState with serde::Serialize on all model types | Downstream Tauri layer can consume without code changes | ✓ Validated — all model types serialize |
+| OpenPGP slot delete via RSA attribute trick | No DELETE KEY APDU in OpenPGP card spec | ✓ Validated — destroys key material correctly |
+| PIV key delete MOVE KEY INS=0xF6, firmware 5.7+ only | Older firmware has no key delete | ✓ Validated — firmware gate shows clear message |
+| 3DES challenge-response for PIV management key auth | des 0.9.0-rc.3 with cipher 0.5 required | ✓ Validated — auth works |
+| Reset FIDO2 via raw CTAPHID frames (hidapi) | ctap-hid-fido2 doesn't expose authenticatorReset (0x07) | ✓ Validated |
+| Factory-default detection: no FIDO2 PIN + 0 OATH creds + default PIV mgmt key | Heuristic with no extra PC/SC calls | ✓ Validated — detects new YubiKeys reliably |
+| PinInputWidget fields as direct children (not Vertical-wrapped) | Vertical{height:1fr} collapses to 0 in screen-stack | ✓ Fixed in f2bc499 |
 
 ## Context
 
-**Stack:** Rust, ratatui 0.30, textual-rs 0.3.11, pcsc crate, GitHub Actions
-**LOC:** ~15,732 Rust (160 tests, 8 screens, all cross-platform)
-**Shipped:** v1.0 on 2026-03-26, v1.1 on 2026-03-29 (3-day sprint, ~200 commits)
+**Stack:** Rust, textual-rs (git dep), pcsc crate, hidapi, des 0.9.0-rc.3, chrono, GitHub Actions
+**LOC:** ~14,000 Rust (161 tests)
+**Shipped:** v1.0 on 2026-03-26, v1.1 on 2026-03-29
 **CI:** Linux/macOS/Windows matrix, clippy -D warnings enforced, tag-triggered releases
-**Testing:** 160 Pilot snapshot tests (no hardware required), all in `cargo test`
+**Next:** v1.2 — provisioning wizards, OTP write, PIV improvements (plan via `/gsd:new-milestone`)
+
+## Tauri Future
+
+Business logic is in `src/model/` with zero ratatui/textual-rs imports. All model types implement `serde::Serialize`. A Tauri GUI layer can consume `src/model/` without modification when that milestone arrives.
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
-
-**After each milestone** (via `/gsd:complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
 
 ---
 *Last updated: 2026-03-29 after v1.1 milestone — Accessible to New Users*
