@@ -1,9 +1,11 @@
 ---
-status: partial
+status: gaps-fixed
 phase: 12-yubikey-slot-delete-workflow
 source: [12-01-SUMMARY.md, 12-02-SUMMARY.md, 12-03-SUMMARY.md]
 started: 2026-03-29T01:55:00Z
-updated: 2026-03-29T06:45:00Z
+updated: 2026-03-29T18:45:00Z
+gap_closure_plans: [12-04-PLAN.md, 12-05-PLAN.md]
+gap_closure_commits: [313bace7, 6c58db73]
 ---
 
 ## Current Test
@@ -84,9 +86,11 @@ blocked: 10
 ## Gaps
 
 - truth: "YubiKey detected on dashboard but card data not accessible in subsequent screens (KeysScreen, PivScreen, etc.)"
-  status: failed
+  status: fixed
   reason: "User reported: Only the first screen even recognized the yubikey"
   severity: blocker
   test: 1
-  artifacts: []
-  missing: ["Card session scoping investigation — exclusive access may be released after dashboard read, subsequent screens fail to re-acquire"]
+  fix_plan: 12-04, 12-05
+  fix_commits: [313bace7, 6c58db73]
+  fix_summary: "Replaced no-op refresh stubs in dashboard/keys/piv with detect_all() pop+push. Wired OATH/FIDO2 on-demand fetch on mount. Fixed PIV post-delete to use fresh state."
+  artifacts: [12-04-SUMMARY.md, 12-05-SUMMARY.md]
