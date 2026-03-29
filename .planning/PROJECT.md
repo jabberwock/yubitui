@@ -74,12 +74,12 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 
 ### Active
 
-- [ ] Outcome-oriented provisioning wizards (SSH+touch, initial YubiKey setup) — backlog 999.1
+- ✓ PIV cert view (x509-parser, slot DataTable shows Algorithm+Subject, V opens popup) — pre-v1.2 commit
+- [ ] Outcome-oriented provisioning wizards (SSH+touch, initial YubiKey setup) — v1.2
+- [ ] OATH URI import (otpauth://) — v1.2
+- [ ] OATH application password set/change — v1.2
+- [ ] PIV management key change — v1.2
 - [ ] OTP slot write (configure Yubico OTP, static password, HMAC-SHA1) — high risk, deferred
-- [ ] PIV cert view (decoded X.509) — deferred
-- [ ] PIV management key change — deferred
-- [ ] OATH application password set/change — deferred
-- [ ] OATH URI import (otpauth://) — deferred
 - [ ] Backup/restore workflows — deferred to v2
 
 ### Out of Scope
@@ -108,13 +108,24 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 | Factory-default detection: no FIDO2 PIN + 0 OATH creds + default PIV mgmt key | Heuristic with no extra PC/SC calls | ✓ Validated — detects new YubiKeys reliably |
 | PinInputWidget fields as direct children (not Vertical-wrapped) | Vertical{height:1fr} collapses to 0 in screen-stack | ✓ Fixed in f2bc499 |
 
+## Current Milestone: v1.2 Guided Workflows & Advanced Operations
+
+**Goal:** Elevate yubitui from feature-complete to goal-oriented — provisioning wizards that span applets, OATH credential import via URI, OATH password protection management, and PIV management key change.
+
+**Target features:**
+- Outcome-oriented provisioning wizards ("Set up SSH key with touch policy", "Initial YubiKey setup")
+- OATH account import via otpauth:// URI paste
+- OATH application password set/change (HMAC challenge/response auth)
+- PIV management key change (3DES → AES or rotation)
+- PIV X.509 cert view (already shipped pre-milestone in feat: PIV cert view)
+
 ## Context
 
-**Stack:** Rust, textual-rs (git dep), pcsc crate, hidapi, des 0.9.0-rc.3, chrono, GitHub Actions
-**LOC:** ~14,000 Rust (161 tests)
+**Stack:** Rust, textual-rs 0.3.11 (crates.io), pcsc crate, hidapi, des 0.9.0-rc.3, x509-parser, chrono, GitHub Actions
+**LOC:** ~14,000+ Rust (163+ tests)
 **Shipped:** v1.0 on 2026-03-26, v1.1 on 2026-03-29
 **CI:** Linux/macOS/Windows matrix, clippy -D warnings enforced, tag-triggered releases
-**Next:** v1.2 — provisioning wizards, OTP write, PIV improvements (plan via `/gsd:new-milestone`)
+**Next:** v1.2 — provisioning wizards, OATH improvements, PIV management key
 
 ## Tauri Future
 
@@ -125,4 +136,4 @@ Business logic is in `src/model/` with zero ratatui/textual-rs imports. All mode
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-29 after v1.1 milestone — Accessible to New Users*
+*Last updated: 2026-03-29 — v1.2 milestone started (Guided Workflows & Advanced Operations)*

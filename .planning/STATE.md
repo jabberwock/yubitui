@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Accessible to New Users
-status: v1.1 milestone archived — ready for v1.2 planning
-stopped_at: Completed 13-ui-polish 13-05-PLAN.md — milestone archived
-last_updated: "2026-03-29T21:25:00.000Z"
+milestone: v1.2
+milestone_name: Guided Workflows & Advanced Operations
+status: Defining requirements — roadmap pending
+stopped_at: v1.2 requirements defined
+last_updated: "2026-03-29T21:35:00.000Z"
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 35
-  completed_plans: 35
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
