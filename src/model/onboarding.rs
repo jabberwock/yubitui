@@ -75,7 +75,7 @@ mod tests {
     }
 
     fn empty_piv() -> PivState {
-        PivState { slots: vec![] }
+        PivState { slots: vec![], mgmt_key_is_default: false }
     }
 
     fn occupied_oath() -> OathState {
@@ -97,6 +97,7 @@ mod tests {
     fn occupied_piv() -> PivState {
         PivState {
             slots: vec![SlotInfo::occupied("9a")],
+            mgmt_key_is_default: false,
         }
     }
 

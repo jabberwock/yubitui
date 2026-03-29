@@ -158,7 +158,7 @@ mod tests {
                 credentials: vec![],
                 password_required: false,
             }),
-            piv: Some(crate::model::piv::PivState { slots: vec![] }),
+            piv: Some(crate::model::piv::PivState { slots: vec![], mgmt_key_is_default: false }),
             fido2: Some(crate::model::fido2::Fido2State {
                 firmware_version: None,
                 algorithms: vec![],

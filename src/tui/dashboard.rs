@@ -244,6 +244,10 @@ impl Widget for DashboardScreen {
 
         children.push(Box::new(Label::new("")));
 
+        // WIZARD-04: nav affordance hint so new users discover all screens
+        children.push(Box::new(Label::new("Press 1–9 to jump to any screen:")));
+        children.push(Box::new(Label::new("")));
+
         // Navigation items — Buttons for all 9 destinations.
         children.push(Box::new(Button::new("[1] OpenPGP Keys")));
         children.push(Box::new(Button::new("[2] Diagnostics")));

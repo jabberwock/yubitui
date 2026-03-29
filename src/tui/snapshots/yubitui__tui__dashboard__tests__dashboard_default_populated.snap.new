@@ -1,5 +1,6 @@
 ---
 source: src/tui/dashboard.rs
+assertion_line: 403
 expression: app.backend()
 ---
 "Device: YubiKey 5 NFC USB-A | Firmware: 5.4.3 | Serial: 12345678                "

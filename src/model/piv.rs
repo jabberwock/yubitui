@@ -4,6 +4,8 @@ use pcsc::{Context, Protocols, Scope, ShareMode};
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PivState {
     pub slots: Vec<SlotInfo>,
+    /// True when the PIV management key is still the factory default — a security risk.
+    pub mgmt_key_is_default: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -61,11 +63,11 @@ pub fn get_piv_state() -> Result<PivState> {
     let mut readers_buf = [0u8; 2048];
     let readers: Vec<_> = match ctx.list_readers(&mut readers_buf) {
         Ok(r) => r.collect(),
-        Err(_) => return Ok(PivState { slots: vec![] }),
+        Err(_) => return Ok(PivState { slots: vec![], mgmt_key_is_default: false }),
     };
 
     if readers.is_empty() {
-        return Ok(PivState { slots: vec![] });
+        return Ok(PivState { slots: vec![], mgmt_key_is_default: false });
     }
 
     // Connect to first available reader
@@ -74,7 +76,7 @@ pub fn get_piv_state() -> Result<PivState> {
             .ok()
     }) {
         Some(c) => c,
-        None => return Ok(PivState { slots: vec![] }),
+        None => return Ok(PivState { slots: vec![], mgmt_key_is_default: false }),
     };
 
     // SELECT PIV AID
@@ -82,7 +84,7 @@ pub fn get_piv_state() -> Result<PivState> {
     let resp = card.transmit(SELECT_PIV, &mut buf).unwrap_or(&[0x6A, 0x82]);
     if super::card::apdu_sw(resp) != 0x9000 {
         // PIV application not available (best-effort per D-14)
-        return Ok(PivState { slots: vec![] });
+        return Ok(PivState { slots: vec![], mgmt_key_is_default: false });
     }
 
     // PIV GET DATA APDUs per slot
@@ -133,7 +135,14 @@ pub fn get_piv_state() -> Result<PivState> {
         // SW 0x6A82 = empty slot (skip); other SWs = skip
     }
 
-    Ok(PivState { slots })
+    // Probe whether the factory-default management key is still in use.
+    // authenticate_piv_mgmt_key_3des() returns Ok(()) if auth succeeds.
+    let mgmt_key_is_default = crate::model::piv_delete::authenticate_piv_mgmt_key_3des(
+        &card,
+        crate::model::piv_delete::PIV_DEFAULT_MGMT_KEY_3DES,
+    ).is_ok();
+
+    Ok(PivState { slots, mgmt_key_is_default })
 }
 
 // ============================================================================
@@ -279,7 +288,7 @@ pub fn parse_piv_info(output: &str) -> PivState {
         }
     }
 
-    PivState { slots }
+    PivState { slots, mgmt_key_is_default: false }
 }
 
 /// Check whether a PIV GET DATA response indicates a slot is occupied.

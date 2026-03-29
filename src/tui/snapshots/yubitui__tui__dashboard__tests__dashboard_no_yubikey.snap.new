@@ -1,11 +1,12 @@
 ---
 source: src/tui/dashboard.rs
+assertion_line: 412
 expression: app.backend()
 ---
-"Device: YubiKey 5 NFC USB-A | Firmware: 5.4.3 | Serial: 12345678                "
-"PIN: 3/3 retries [OK]  Admin: 3/3 retries [OK]                                  "
-"Keys: Sign [SET]  Encrypt [SET]  Auth [SET]                                     "
-"Device ready                                                                    "
+"No YubiKey Detected                                                             "
+"Insert your YubiKey and press R to refresh. Check the USB connection or run Diag"
+"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 "                                                                                "
 "Press 1–9 to jump to any screen:                                                "
 "                                                                                "

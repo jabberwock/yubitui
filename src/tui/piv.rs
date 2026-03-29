@@ -211,6 +211,15 @@ impl Widget for PivScreen {
                         }
 
                         widgets.push(Box::new(table));
+
+                        // PIV-04: warn when management key is still factory default
+                        if piv_state.mgmt_key_is_default {
+                            widgets.push(Box::new(Label::new("")));
+                            widgets.push(Box::new(Label::new(
+                                "[!] Management key is factory default — change it to secure your PIV applet.",
+                            )));
+                        }
+
                         widgets.push(Box::new(Label::new("")));
                         widgets.push(Box::new(Button::new("[V] View Cert")));
                         widgets.push(Box::new(Button::new("[D] Delete Slot")));

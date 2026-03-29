@@ -82,6 +82,7 @@ pub fn mock_yubikey_states() -> Vec<YubiKeyState> {
                     validity: Some("2024-01-01 – 2027-01-01".to_string()),
                 },
             ],
+            mgmt_key_is_default: true, // mock shows the default-key warning
         }),
         fido2: Some(fido2::Fido2State {
             firmware_version: Some("5.4.3".to_string()),
