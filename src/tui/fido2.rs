@@ -5,7 +5,6 @@ use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
 use textual_rs::reactive::Reactive;
-use textual_rs::widget::screen::ModalScreen;
 use textual_rs::worker::{WorkerProgress, WorkerResult};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
@@ -296,13 +295,9 @@ impl Widget for Fido2Screen {
                     .map(|s| s.pin_is_set)
                     .unwrap_or(false);
                 if pin_is_set {
-                    ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                        PinChangeScreen::new(),
-                    ))));
+                    ctx.push_screen_deferred(Box::new(PinChangeScreen::new()));
                 } else {
-                    ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                        PinSetScreen::new(),
-                    ))));
+                    ctx.push_screen_deferred(Box::new(PinSetScreen::new()));
                 }
             }
             "delete_credential" => {
@@ -316,31 +311,25 @@ impl Widget for Fido2Screen {
                     .cloned();
 
                 if let Some(cred) = cred_opt {
-                    ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                    ctx.push_screen_deferred(Box::new(
                         DeleteCredentialScreen::new(
                             cred.rp_id,
                             cred.user_name,
                             cred.credential_id,
                             cached_pin,
                         ),
-                    ))));
+                    ));
                 }
             }
             "authenticate_pin" => {
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    PinAuthScreen::new(),
-                ))));
+                ctx.push_screen_deferred(Box::new(PinAuthScreen::new()));
             }
             "reset" => {
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    ResetConfirmScreen::new(),
-                ))));
+                ctx.push_screen_deferred(Box::new(ResetConfirmScreen::new()));
             }
             "help" => {
                 ctx.push_screen_deferred(Box::new(
-                    ModalScreen::new(Box::new(
-                        PopupScreen::new("FIDO2 Help", FIDO2_HELP_TEXT)
-                    ))
+                    PopupScreen::new("FIDO2 Help", FIDO2_HELP_TEXT)
                 ));
             }
             _ => {}
@@ -509,9 +498,9 @@ impl Widget for PinSetScreen {
                         match crate::model::fido2::set_pin(&new_pin) {
                             Ok(()) => {
                                 ctx.pop_screen_deferred();
-                                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                                ctx.push_screen_deferred(Box::new(
                                     PopupScreen::new("Success", "PIN set successfully."),
-                                ))));
+                                ));
                             }
                             Err(e) => {
                                 *self.error_message.borrow_mut() = Some(e.to_string());
@@ -705,9 +694,9 @@ impl Widget for PinChangeScreen {
                         match crate::model::fido2::change_pin(&current, &new_pin) {
                             Ok(()) => {
                                 ctx.pop_screen_deferred();
-                                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                                ctx.push_screen_deferred(Box::new(
                                     PopupScreen::new("Success", "PIN changed successfully."),
-                                ))));
+                                ));
                             }
                             Err(e) => {
                                 *self.error_message.borrow_mut() = Some(e.to_string());
@@ -736,6 +725,7 @@ impl Widget for PinChangeScreen {
 pub struct PinAuthScreen {
     pin_input: RefCell<String>,
     error_message: RefCell<Option<String>>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl PinAuthScreen {
@@ -743,6 +733,7 @@ impl PinAuthScreen {
         Self {
             pin_input: RefCell::new(String::new()),
             error_message: RefCell::new(None),
+            own_id: Cell::new(None),
         }
     }
 }
@@ -767,6 +758,13 @@ static PIN_AUTH_BINDINGS: &[KeyBinding] = &[
 impl Widget for PinAuthScreen {
     fn widget_type_name(&self) -> &'static str {
         "PinAuthScreen"
+    }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
+
+    fn can_focus(&self) -> bool {
+        true
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
@@ -803,6 +801,7 @@ impl Widget for PinAuthScreen {
                 }
                 KeyCode::Backspace => {
                     self.pin_input.borrow_mut().pop();
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 KeyCode::Enter => {
@@ -811,6 +810,7 @@ impl Widget for PinAuthScreen {
                 }
                 KeyCode::Char(c) => {
                     self.pin_input.borrow_mut().push(c);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 _ => {}
@@ -914,27 +914,25 @@ impl Widget for DeleteCredentialScreen {
                     match crate::model::fido2::delete_credential(pin, &self.credential_id) {
                         Ok(()) => {
                             ctx.pop_screen_deferred();
-                            ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                            ctx.push_screen_deferred(Box::new(
                                 PopupScreen::new(
                                     "Success",
                                     format!("'{}' credential deleted.", self.rp_id),
                                 ),
-                            ))));
+                            ));
                         }
                         Err(e) => {
                             ctx.pop_screen_deferred();
-                            ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                            ctx.push_screen_deferred(Box::new(
                                 PopupScreen::new("Error", format!("Delete failed: {}", e)),
-                            ))));
+                            ));
                         }
                     }
                 } else {
                     // No cached PIN — need to authenticate first
                     // Push PinAuthScreen; user must authenticate before deleting
                     ctx.pop_screen_deferred();
-                    ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                        PinAuthScreen::new(),
-                    ))));
+                    ctx.push_screen_deferred(Box::new(PinAuthScreen::new()));
                 }
             }
             "cancel" => ctx.pop_screen_deferred(),
@@ -986,9 +984,7 @@ impl Widget for ResetConfirmScreen {
         match action {
             "confirm" => {
                 ctx.pop_screen_deferred();
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    ResetGuidanceScreen::new(),
-                ))));
+                ctx.push_screen_deferred(Box::new(ResetGuidanceScreen::new()));
             }
             "cancel" => ctx.pop_screen_deferred(),
             _ => {}

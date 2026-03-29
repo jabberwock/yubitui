@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label};
+use textual_rs::{Widget, Footer, Header, Label, WidgetId};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
@@ -11,7 +11,7 @@ use ratatui::layout::Rect;
 
 use crate::model::YubiKeyState;
 use crate::model::piv_delete::{PivSlot, PIV_DEFAULT_MGMT_KEY_3DES};
-use crate::tui::widgets::popup::{ConfirmScreen, ModalScreen, PopupScreen};
+use crate::tui::widgets::popup::{ConfirmScreen, PopupScreen};
 
 const PIV_HELP_TEXT: &str = "\
 PIV Certificates\n\
@@ -271,12 +271,10 @@ impl Widget for PivScreen {
                     .unwrap_or(false);
 
                 if !occupied {
-                    ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                        PopupScreen::new(
-                            "Empty Slot",
-                            "No certificate or key to delete in this slot.",
-                        ),
-                    ))));
+                    ctx.push_screen_deferred(Box::new(PopupScreen::new(
+                        "Empty Slot",
+                        "No certificate or key to delete in this slot.",
+                    )));
                     return;
                 }
 
@@ -291,17 +289,11 @@ impl Widget for PivScreen {
                     .map(|yk| yk.info.version.clone())
                     .unwrap_or(crate::model::Version { major: 5, minor: 0, patch: 0 });
 
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    MgmtKeyThenDeleteScreen::new(piv_slot, firmware),
-                ))));
+                ctx.push_screen_deferred(Box::new(MgmtKeyThenDeleteScreen::new(piv_slot, firmware)));
             }
 
             "help" => {
-                ctx.push_screen_deferred(Box::new(
-                    ModalScreen::new(Box::new(
-                        PopupScreen::new("PIV Help", PIV_HELP_TEXT)
-                    ))
-                ));
+                ctx.push_screen_deferred(Box::new(PopupScreen::new("PIV Help", PIV_HELP_TEXT)));
             }
 
             "view_slot" => {
@@ -339,6 +331,7 @@ pub struct MgmtKeyThenDeleteScreen {
     firmware: crate::model::Version,
     input: RefCell<String>,
     error: RefCell<Option<String>>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl MgmtKeyThenDeleteScreen {
@@ -348,6 +341,7 @@ impl MgmtKeyThenDeleteScreen {
             firmware,
             input: RefCell::new(String::new()),
             error: RefCell::new(None),
+            own_id: Cell::new(None),
         }
     }
 }
@@ -372,6 +366,13 @@ static MGMT_KEY_BINDINGS: &[KeyBinding] = &[
 impl Widget for MgmtKeyThenDeleteScreen {
     fn widget_type_name(&self) -> &'static str {
         "MgmtKeyThenDeleteScreen"
+    }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
+
+    fn can_focus(&self) -> bool {
+        true
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
@@ -416,6 +417,7 @@ impl Widget for MgmtKeyThenDeleteScreen {
                 }
                 KeyCode::Backspace => {
                     self.input.borrow_mut().pop();
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 KeyCode::Char(c) => {
@@ -426,6 +428,7 @@ impl Widget for MgmtKeyThenDeleteScreen {
                             self.input.borrow_mut().push(c);
                         }
                     }
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 _ => {}
@@ -460,9 +463,7 @@ impl Widget for MgmtKeyThenDeleteScreen {
 
                 *self.error.borrow_mut() = None;
 
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    DeletePivConfirmScreen::new(self.slot.clone(), key, self.firmware.clone()),
-                ))));
+                ctx.push_screen_deferred(Box::new(DeletePivConfirmScreen::new(self.slot.clone(), key, self.firmware.clone())));
             }
             _ => {}
         }
@@ -563,15 +564,11 @@ impl Widget for DeletePivConfirmScreen {
                         // and show the success popup.
                         let _ = fresh_piv_state; // acknowledged — limited context here
                         ctx.push_screen_deferred(Box::new(PivScreen::new(None)));
-                        ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                            PopupScreen::new("Success", msg),
-                        ))));
+                        ctx.push_screen_deferred(Box::new(PopupScreen::new("Success", msg)));
                     }
                     Err(e) => {
                         ctx.pop_screen_deferred();
-                        ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                            PopupScreen::new("Error", format!("Delete failed: {}", e)),
-                        ))));
+                        ctx.push_screen_deferred(Box::new(PopupScreen::new("Error", format!("Delete failed: {}", e))));
                     }
                 }
             }

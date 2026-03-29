@@ -3,7 +3,6 @@ use std::cell::{Cell, RefCell};
 use textual_rs::{Widget, WidgetId, Header, Label, Button, Footer};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
-use textual_rs::widget::screen::ModalScreen;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -488,16 +487,12 @@ impl Widget for KeysScreen {
                     .unwrap_or(false);
 
                 if !key_present {
-                    ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                        PopupScreen::new(
-                            "No Key",
-                            format!("No key in the {} slot to delete.", slot.display_name()),
-                        ),
-                    ))));
+                    ctx.push_screen_deferred(Box::new(PopupScreen::new(
+                        "No Key",
+                        format!("No key in the {} slot to delete.", slot.display_name()),
+                    )));
                 } else {
-                    ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                        PinThenDeleteScreen::new(slot),
-                    ))));
+                    ctx.push_screen_deferred(Box::new(PinThenDeleteScreen::new(slot)));
                 }
             }
             "view_status" => {
@@ -522,9 +517,7 @@ impl Widget for KeysScreen {
                 } else {
                     "No authentication key found on card.\nImport or generate a key first.".to_string()
                 };
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    PopupScreen::new("SSH Public Key", body),
-                ))));
+                ctx.push_screen_deferred(Box::new(PopupScreen::new("SSH Public Key", body)));
             }
             "key_attributes" => {
                 let state = self.state.borrow();
@@ -546,9 +539,7 @@ impl Widget for KeysScreen {
                     "Key attributes unavailable. Press K to load.".to_string()
                 };
                 drop(state);
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    PopupScreen::new("Key Attributes", body),
-                ))));
+                ctx.push_screen_deferred(Box::new(PopupScreen::new("Key Attributes", body)));
             }
             "touch_policy" => {
                 ctx.push_screen_deferred(Box::new(TouchPolicyScreen::new(
@@ -566,9 +557,7 @@ impl Widget for KeysScreen {
                     "No authentication key found on card.\nImport or generate a key first.".to_string()
                 };
                 drop(state);
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    PopupScreen::new("SSH Public Key", body),
-                ))));
+                ctx.push_screen_deferred(Box::new(PopupScreen::new("SSH Public Key", body)));
             }
             "attestation" => {
                 let state = self.state.borrow();
@@ -578,9 +567,7 @@ impl Widget for KeysScreen {
                     "No attestation certificate available.\nGenerate a key on-device to obtain attestation.".to_string()
                 };
                 drop(state);
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    PopupScreen::new("Attestation Certificate", body),
-                ))));
+                ctx.push_screen_deferred(Box::new(PopupScreen::new("Attestation Certificate", body)));
             }
             "refresh" => {
                 // Refresh is an app-level side effect — no-op in widget scope.
@@ -589,11 +576,7 @@ impl Widget for KeysScreen {
                 ctx.pop_screen_deferred();
             }
             "help" => {
-                ctx.push_screen_deferred(Box::new(
-                    ModalScreen::new(Box::new(
-                        PopupScreen::new("OpenPGP Keys Help", KEYS_HELP_TEXT)
-                    ))
-                ));
+                ctx.push_screen_deferred(Box::new(PopupScreen::new("OpenPGP Keys Help", KEYS_HELP_TEXT)));
             }
             _ => {}
         }
@@ -1059,9 +1042,7 @@ impl Widget for ImportKeyScreen {
             "confirm_import" => {
                 // Push PIN input for admin PIN
                 use crate::tui::widgets::pin_input::PinInputWidget;
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    PinInputWidget::new("Import Key — Admin PIN", &["Admin PIN"]),
-                ))));
+                ctx.push_screen_deferred(Box::new(PinInputWidget::new("Import Key — Admin PIN", &["Admin PIN"])));
             }
             "back" => ctx.pop_screen_deferred(),
             _ => {}
@@ -1255,9 +1236,7 @@ impl Widget for TouchPolicyScreen {
             "select_slot" => {
                 // Push PIN input for admin PIN to confirm
                 use crate::tui::widgets::pin_input::PinInputWidget;
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    PinInputWidget::new("Set Touch Policy — Admin PIN", &["Admin PIN"]),
-                ))));
+                ctx.push_screen_deferred(Box::new(PinInputWidget::new("Set Touch Policy — Admin PIN", &["Admin PIN"])));
             }
             "back" => ctx.pop_screen_deferred(),
             _ => {}
@@ -1359,21 +1338,17 @@ impl Widget for DeleteKeyScreen {
                 match crate::model::openpgp_delete::delete_openpgp_key(self.slot, &self.admin_pin) {
                     Ok(()) => {
                         ctx.pop_screen_deferred();
-                        ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                            crate::tui::widgets::popup::PopupScreen::new(
-                                "Success",
-                                format!("{} key deleted.", self.slot.display_name()),
-                            ),
-                        ))));
+                        ctx.push_screen_deferred(Box::new(crate::tui::widgets::popup::PopupScreen::new(
+                            "Success",
+                            format!("{} key deleted.", self.slot.display_name()),
+                        )));
                     }
                     Err(e) => {
                         ctx.pop_screen_deferred();
-                        ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                            crate::tui::widgets::popup::PopupScreen::new(
-                                "Error",
-                                format!("Delete failed: {}", e),
-                            ),
-                        ))));
+                        ctx.push_screen_deferred(Box::new(crate::tui::widgets::popup::PopupScreen::new(
+                            "Error",
+                            format!("Delete failed: {}", e),
+                        )));
                     }
                 }
             }
@@ -1393,11 +1368,12 @@ impl Widget for DeleteKeyScreen {
 ///
 /// Follows the PinAuthScreen pattern from fido2.rs: on_event captures character
 /// input into a RefCell<String>, Enter submits, Esc cancels.
-/// On submit: pops self, pushes ModalScreen(DeleteKeyScreen).
+/// On submit: pops self, pushes DeleteKeyScreen.
 pub struct PinThenDeleteScreen {
     slot: crate::model::openpgp_delete::OpenPgpKeySlot,
     pin_input: RefCell<String>,
     error_message: RefCell<Option<String>>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl PinThenDeleteScreen {
@@ -1406,6 +1382,7 @@ impl PinThenDeleteScreen {
             slot,
             pin_input: RefCell::new(String::new()),
             error_message: RefCell::new(None),
+            own_id: Cell::new(None),
         }
     }
 }
@@ -1430,6 +1407,13 @@ static PIN_THEN_DELETE_BINDINGS: &[KeyBinding] = &[
 impl Widget for PinThenDeleteScreen {
     fn widget_type_name(&self) -> &'static str {
         "PinThenDeleteScreen"
+    }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
+
+    fn can_focus(&self) -> bool {
+        true
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
@@ -1478,6 +1462,7 @@ impl Widget for PinThenDeleteScreen {
                 }
                 KeyCode::Backspace => {
                     self.pin_input.borrow_mut().pop();
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 KeyCode::Enter => {
@@ -1486,6 +1471,7 @@ impl Widget for PinThenDeleteScreen {
                 }
                 KeyCode::Char(c) => {
                     self.pin_input.borrow_mut().push(c);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 _ => {}
@@ -1504,9 +1490,7 @@ impl Widget for PinThenDeleteScreen {
                     return;
                 }
                 ctx.pop_screen_deferred();
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
-                    DeleteKeyScreen::new(self.slot, pin),
-                ))));
+                ctx.push_screen_deferred(Box::new(DeleteKeyScreen::new(self.slot, pin)));
             }
             _ => {}
         }

@@ -3,7 +3,6 @@ use std::cell::{Cell, RefCell};
 use textual_rs::{Widget, Label, Button, ButtonVariant, Footer};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
-use textual_rs::widget::screen::ModalScreen;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -274,9 +273,7 @@ impl Widget for PinManagementScreen {
             }
             "help" => {
                 ctx.push_screen_deferred(Box::new(
-                    ModalScreen::new(Box::new(
-                        PopupScreen::new("PIN Management Help", PIN_HELP_TEXT)
-                    ))
+                    PopupScreen::new("PIN Management Help", PIN_HELP_TEXT)
                 ));
             }
             _ => {}
@@ -390,29 +387,29 @@ impl Widget for UnblockWizardScreen {
         match action {
             "back" => ctx.pop_screen_deferred(),
             "unblock_with_reset" => {
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                ctx.push_screen_deferred(Box::new(
                     PinInputWidget::new(
                         "Unblock with Reset Code",
                         &["Reset Code", "New User PIN", "Confirm New PIN"],
                     ),
-                ))));
+                ));
             }
             "unblock_with_admin" => {
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                ctx.push_screen_deferred(Box::new(
                     PinInputWidget::new(
                         "Unblock with Admin PIN",
                         &["Admin PIN", "New User PIN", "Confirm New PIN"],
                     ),
-                ))));
+                ));
             }
             "factory_reset" => {
-                ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(
+                ctx.push_screen_deferred(Box::new(
                     ConfirmScreen::new(
                         "Confirm Factory Reset",
                         "THIS WILL PERMANENTLY DELETE all GPG keys, certificates, and cardholder data.\nDefault PINs will be restored (User: 123456, Admin: 12345678).\nAre you ABSOLUTELY sure?",
                         true, // destructive
                     ),
-                ))));
+                ));
             }
             _ => {}
         }
@@ -526,9 +523,7 @@ impl Widget for FactoryResetScreen {
 /// Push an operation result popup (success or failure message).
 #[allow(dead_code)]
 pub fn push_result_popup(ctx: &AppContext, title: &str, message: String) {
-    ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(PopupScreen::new(
-        title, message,
-    )))));
+    ctx.push_screen_deferred(Box::new(PopupScreen::new(title, message)));
 }
 
 // ---------------------------------------------------------------------------

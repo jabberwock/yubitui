@@ -1,7 +1,7 @@
 //! Popup / modal dialog widgets for textual-rs screen stack.
 //!
-//! In textual-rs, popups become pushed screens — overlay dialogs are implemented
-//! via `ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(PopupScreen::new(...)))))`.
+//! In textual-rs, popups become pushed screens — push them directly via
+//! `ctx.push_screen_deferred(Box::new(PopupScreen::new(...)))`.
 //!
 //! This module provides:
 //! - `PopupScreen` — a generic titled popup with body text and a Close button.
@@ -15,7 +15,6 @@ use std::cell::Cell;
 use textual_rs::{Widget, Label, Button, ButtonVariant, Footer};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
-pub use textual_rs::widget::screen::ModalScreen;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -24,7 +23,7 @@ use ratatui::layout::Rect;
 ///
 /// Push it via:
 /// ```no_run
-/// ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(PopupScreen::new("Title", "Body")))));
+/// ctx.push_screen_deferred(Box::new(PopupScreen::new("Title", "Body")));
 /// ```
 pub struct PopupScreen {
     title: String,
@@ -103,11 +102,11 @@ impl Widget for PopupScreen {
 ///
 /// Push it via:
 /// ```no_run
-/// ctx.push_screen_deferred(Box::new(ModalScreen::new(Box::new(ConfirmScreen::new(
+/// ctx.push_screen_deferred(Box::new(ConfirmScreen::new(
 ///     "Confirm Reset",
 ///     "Are you sure? This cannot be undone.",
 ///     true, // destructive
-/// )))));
+/// )));
 /// ```
 pub struct ConfirmScreen {
     title: String,
