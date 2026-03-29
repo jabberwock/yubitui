@@ -45,6 +45,9 @@ Fido2Screen, PinSetScreen, PinChangeScreen, PinAuthScreen,
 DeleteCredentialScreen, ResetGuidanceScreen, ResetConfirmScreen,
 OtpScreen, PopupScreen, ConfirmScreen
 { background: $background; }
+
+HelpScreen Markdown { flex-grow: 1; }
+GlossaryScreen Markdown { flex-grow: 1; }
 ";
 
     let mut app = App::new(move || {

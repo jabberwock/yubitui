@@ -1748,4 +1748,19 @@ mod tests {
         let content: String = app.buffer().content().iter().map(|c| c.symbol()).collect();
         assert!(!content.contains("OpenPGP Keys Help"), "help popup should be dismissed after Esc");
     }
+
+    #[tokio::test]
+    async fn keys_touch_policy_value_screen() {
+        // Navigate: KeysScreen → t (TouchPolicyScreen) → Enter (TouchPolicyValueScreen)
+        let yubikey_states = crate::model::mock::mock_yubikey_states();
+        let yk = yubikey_states.into_iter().next();
+        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeysScreen::new(yk)));
+        let mut pilot = app.pilot();
+        pilot.press(KeyCode::Char('t')).await;
+        pilot.settle().await;
+        pilot.press(KeyCode::Enter).await;
+        pilot.settle().await;
+        drop(pilot);
+        insta::assert_display_snapshot!(app.backend());
+    }
 }

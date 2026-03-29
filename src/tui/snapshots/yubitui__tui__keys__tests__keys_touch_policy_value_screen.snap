@@ -1,0 +1,28 @@
+---
+source: src/tui/keys.rs
+expression: app.backend()
+---
+"                       Set Touch Policy — Signature Slot                        "
+"Select touch policy:                                                            "
+"                                                                                "
+"  Off             No touch required                                             "
+"> On              Touch required for every operation                            "
+"  Fixed           Touch required; cannot be changed without admin PIN           "
+"  Cached          Touch required; cached for 15 seconds                         "
+"  CachedFixed     Cached touch; cannot be changed without admin PIN             "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
