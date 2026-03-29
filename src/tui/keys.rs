@@ -344,6 +344,10 @@ impl Widget for KeysScreen {
         "KeysScreen"
     }
 
+    fn can_focus(&self) -> bool {
+        true
+    }
+
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let mut children: Vec<Box<dyn Widget>> = Vec::new();
 
@@ -659,6 +663,10 @@ impl KeyGenWizardScreen {
 impl Widget for KeyGenWizardScreen {
     fn widget_type_name(&self) -> &'static str {
         "KeyGenWizardScreen"
+    }
+
+    fn can_focus(&self) -> bool {
+        true
     }
 
     fn on_mount(&self, id: WidgetId) {
@@ -1002,6 +1010,10 @@ impl Widget for ImportKeyScreen {
         "ImportKeyScreen"
     }
 
+    fn can_focus(&self) -> bool {
+        true
+    }
+
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let mut children: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Import Key to YubiKey")),
@@ -1119,6 +1131,10 @@ impl Widget for KeyDetailScreen {
         children
     }
 
+    fn can_focus(&self) -> bool {
+        true
+    }
+
     fn key_bindings(&self) -> &[KeyBinding] {
         KEY_DETAIL_BINDINGS
     }
@@ -1178,6 +1194,7 @@ static TOUCH_POLICY_BINDINGS: &[KeyBinding] = &[
 pub struct TouchPolicyScreen {
     yubikey_state: Option<YubiKeyState>,
     slot_index: RefCell<usize>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl TouchPolicyScreen {
@@ -1185,6 +1202,7 @@ impl TouchPolicyScreen {
         Self {
             yubikey_state,
             slot_index: RefCell::new(0),
+            own_id: Cell::new(None),
         }
     }
 }
@@ -1192,6 +1210,18 @@ impl TouchPolicyScreen {
 impl Widget for TouchPolicyScreen {
     fn widget_type_name(&self) -> &'static str {
         "TouchPolicyScreen"
+    }
+
+    fn can_focus(&self) -> bool {
+        true
+    }
+
+    fn on_mount(&self, id: WidgetId) {
+        self.own_id.set(Some(id));
+    }
+
+    fn on_unmount(&self, _id: WidgetId) {
+        self.own_id.set(None);
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
@@ -1230,12 +1260,16 @@ impl Widget for TouchPolicyScreen {
                 let mut idx = self.slot_index.borrow_mut();
                 if *idx > 0 {
                     *idx -= 1;
+                    drop(idx);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                 }
             }
             "slot_down" => {
                 let mut idx = self.slot_index.borrow_mut();
                 if *idx < 3 {
                     *idx += 1;
+                    drop(idx);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                 }
             }
             "select_slot" => {

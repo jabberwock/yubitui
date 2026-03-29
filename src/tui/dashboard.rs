@@ -306,14 +306,17 @@ impl Widget for DashboardScreen {
                 ctx.push_screen_deferred(Box::new(crate::tui::glossary::GlossaryScreen::new()));
             }
             "nav_7" => {
-                let oath_state = self.app_state.yubikey_state()
-                    .and_then(|yk| yk.oath.clone());
+                // OATH state is fetched on-demand (not during initial detection).
+                let oath_state = crate::model::oath::get_oath_state().ok();
                 ctx.push_screen_deferred(Box::new(crate::tui::oath::OathScreen::new(oath_state)));
             }
             "nav_8" => {
-                let fido2_state = self.app_state.yubikey_state()
-                    .and_then(|yk| yk.fido2.clone());
-                ctx.push_screen_deferred(Box::new(crate::tui::fido2::Fido2Screen::new(fido2_state)));
+                // FIDO2 state is fetched on-demand via HID (not PC/SC).
+                let fido2_result = crate::model::fido2::get_fido2_info();
+                if let Err(ref e) = fido2_result {
+                    tracing::warn!("FIDO2 fetch failed: {}", e);
+                }
+                ctx.push_screen_deferred(Box::new(crate::tui::fido2::Fido2Screen::new(fido2_result.ok())));
             }
             "nav_9" => {
                 let otp_state = self.app_state.yubikey_state()

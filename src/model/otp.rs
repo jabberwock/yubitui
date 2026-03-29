@@ -78,6 +78,32 @@ pub fn parse_otp_status(status_bytes: &[u8]) -> Result<OtpState> {
     })
 }
 
+/// Read OTP slot status using an already-connected exclusive PC/SC card handle.
+///
+/// Use this from the detection loop where an exclusive card connection is already held.
+/// Selects the OTP AID on the existing card handle and reads status without
+/// creating a new context (which would conflict with the outer exclusive connection).
+pub fn get_otp_slot_status_from_card(card: &pcsc::Card) -> Result<OtpState> {
+    let mut buf = [0u8; 256];
+    let resp = card.transmit(SELECT_OTP, &mut buf).unwrap_or(&[0x6A, 0x82]);
+    if super::card::apdu_sw(resp) != 0x9000 {
+        anyhow::bail!("OTP application not available (SW 0x{:04X})", super::card::apdu_sw(resp));
+    }
+
+    let mut resp_buf = [0u8; 64];
+    let resp = card
+        .transmit(READ_OTP_STATUS, &mut resp_buf)
+        .map_err(|e| anyhow::anyhow!("READ_OTP_STATUS transmit error: {e}"))?;
+    if super::card::apdu_sw(resp) != 0x9000 {
+        anyhow::bail!("READ_OTP_STATUS failed (SW 0x{:04X})", super::card::apdu_sw(resp));
+    }
+    if resp.len() < 6 {
+        anyhow::bail!("READ_OTP_STATUS response too short: {} bytes", resp.len());
+    }
+
+    parse_otp_status(resp)
+}
+
 /// Read OTP slot status from the YubiKey via native PC/SC APDUs.
 ///
 /// Protocol:

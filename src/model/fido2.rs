@@ -89,7 +89,6 @@ pub fn get_fido2_device() -> Result<ctap_hid_fido2::FidoKeyHid> {
 pub fn get_fido2_info() -> Result<Fido2State> {
     let device = get_fido2_device()?;
     let info = device.get_info()?;
-    let pin_retry_count = device.get_pin_retries()?;
 
     let pin_is_set = info
         .options
@@ -97,6 +96,14 @@ pub fn get_fido2_info() -> Result<Fido2State> {
         .find(|(k, _)| k == "clientPin")
         .map(|(_, v)| *v)
         .unwrap_or(false);
+
+    // get_pin_retries() returns CTAP2_ERR_PIN_NOT_SET (0x35) when no PIN is configured.
+    // Treat that as 0 retries rather than propagating the error.
+    let pin_retry_count = if pin_is_set {
+        device.get_pin_retries().unwrap_or(0)
+    } else {
+        0
+    };
 
     let supports_cred_mgmt = info
         .options

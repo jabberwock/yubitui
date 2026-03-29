@@ -223,11 +223,11 @@ impl Widget for PinManagementScreen {
 
         children.push(Box::new(Label::new("")));
 
-        // Action buttons
-        children.push(Box::new(Button::new("Change User PIN")));
-        children.push(Box::new(Button::new("Change Admin PIN")));
-        children.push(Box::new(Button::new("Set Reset Code")));
-        children.push(Box::new(Button::new("Unblock PIN (Wizard)")));
+        // Action buttons — label includes keyboard shortcut for discoverability
+        children.push(Box::new(Button::new("[C] Change User PIN")));
+        children.push(Box::new(Button::new("[A] Change Admin PIN")));
+        children.push(Box::new(Button::new("[R] Set Reset Code")));
+        children.push(Box::new(Button::new("[U] Unblock PIN (Wizard)")));
 
         children.push(Box::new(Footer));
         children

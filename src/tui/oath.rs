@@ -5,6 +5,7 @@ use textual_rs::widget::context::AppContext;
 use textual_rs::widget::{EventPropagation, WidgetId};
 use textual_rs::event::keybinding::KeyBinding;
 use textual_rs::reactive::Reactive;
+use textual_rs::worker::WorkerResult;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -135,7 +136,8 @@ static OATH_BINDINGS: &[KeyBinding] = &[
 ///
 /// HOTP credentials show "[press Enter]" until explicitly triggered via Enter key.
 pub struct OathScreen {
-    oath_state: Option<OathState>,
+    oath_state: RefCell<Option<OathState>>,
+    loading: Cell<bool>,
     state: Reactive<OathTuiState>,
     own_id: Cell<Option<WidgetId>>,
 }
@@ -143,9 +145,21 @@ pub struct OathScreen {
 impl OathScreen {
     pub fn new(oath_state: Option<OathState>) -> Self {
         Self {
-            oath_state,
+            oath_state: RefCell::new(oath_state),
+            loading: Cell::new(false),
             state: Reactive::new(OathTuiState::default()),
             own_id: Cell::new(None),
+        }
+    }
+
+    fn spawn_fetch(&self, ctx: &AppContext) {
+        if let Some(id) = self.own_id.get() {
+            self.loading.set(true);
+            ctx.run_worker(id, async {
+                tokio::task::spawn_blocking(crate::model::oath::get_oath_state)
+                    .await
+                    .unwrap_or_else(|e| Err(anyhow::anyhow!("join error: {e}")))
+            });
         }
     }
 }
@@ -161,6 +175,26 @@ impl Widget for OathScreen {
 
     fn on_unmount(&self, _id: WidgetId) {
         self.own_id.set(None);
+        self.loading.set(false);
+    }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
+        if let Some(result) = event.downcast_ref::<WorkerResult<anyhow::Result<OathState>>>() {
+            self.loading.set(false);
+            match &result.value {
+                Ok(state) => {
+                    *self.oath_state.borrow_mut() = Some(state.clone());
+                }
+                Err(_) => {
+                    // Leave oath_state as None; compose will show the no-yubikey message
+                }
+            }
+            if let Some(id) = self.own_id.get() {
+                ctx.request_recompose(id);
+            }
+            return EventPropagation::Stop;
+        }
+        EventPropagation::Continue
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
@@ -168,12 +202,17 @@ impl Widget for OathScreen {
             Box::new(Header::new("OATH Credentials")),
         ];
 
-        match &self.oath_state {
+        let oath_state = self.oath_state.borrow();
+        match &*oath_state {
             None => {
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "No YubiKey detected. Insert your YubiKey and press R to refresh.",
-                )));
+                if self.loading.get() {
+                    widgets.push(Box::new(Label::new("Loading OATH credentials...")));
+                } else {
+                    widgets.push(Box::new(Label::new(
+                        "No YubiKey detected. Insert your YubiKey and press R to refresh.",
+                    )));
+                }
             }
             Some(state) if state.password_required => {
                 widgets.push(Box::new(Label::new("")));
@@ -288,6 +327,7 @@ impl Widget for OathScreen {
             "down" => {
                 let cred_count = self
                     .oath_state
+                    .borrow()
                     .as_ref()
                     .map(|s| s.credentials.len())
                     .unwrap_or(0);
@@ -303,6 +343,7 @@ impl Widget for OathScreen {
                 // Check if selected credential is HOTP
                 let is_hotp = self
                     .oath_state
+                    .borrow()
                     .as_ref()
                     .and_then(|s| s.credentials.get(self.state.get_untracked().selected_index))
                     .map(|c| matches!(c.oath_type, OathType::Hotp))
@@ -318,8 +359,8 @@ impl Widget for OathScreen {
             }
             "delete_account" => {
                 let selected_idx = self.state.get_untracked().selected_index;
-                let cred_opt = self
-                    .oath_state
+                let oath = self.oath_state.borrow();
+                let cred_opt = oath
                     .as_ref()
                     .and_then(|s| s.credentials.get(selected_idx));
 
