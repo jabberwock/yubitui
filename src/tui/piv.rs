@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label, WidgetId};
+use textual_rs::{Widget, Footer, Header, Label, Button, DataTable, ColumnDef, WidgetId};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
@@ -163,7 +163,7 @@ impl Widget for PivScreen {
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
-        let slot_labels: &[(&str, &str)] = &[
+        let slot_defs: &[(&str, &str)] = &[
             ("9a", "Authentication (9a)"),
             ("9c", "Digital Signature (9c)"),
             ("9d", "Key Management (9d)"),
@@ -180,24 +180,33 @@ impl Widget for PivScreen {
             Some(yk) => {
                 match &yk.piv {
                     Some(piv_state) => {
-                        widgets.push(Box::new(Label::new("PIV Slot Status")));
-                        widgets.push(Box::new(Label::new("")));
+                        // PIV slot list as DataTable
+                        let columns = vec![
+                            ColumnDef::new("").with_width(2),
+                            ColumnDef::new("Status").with_width(7),
+                            ColumnDef::new("Slot").with_width(30),
+                            ColumnDef::new("Occupancy").with_width(9),
+                        ];
+                        let mut table = DataTable::new(columns);
 
-                        for (idx, (slot_id, label)) in slot_labels.iter().enumerate() {
+                        for (idx, (slot_id, slot_label)) in slot_defs.iter().enumerate() {
                             let occupied = piv_state.slots.iter().any(|s| s.slot == *slot_id);
-                            let marker = if idx == selected { ">" } else { " " };
-                            let status = if occupied { "Occupied" } else { "Empty" };
-                            let prefix = if occupied { "[OK]" } else { "[  ]" };
-                            widgets.push(Box::new(Label::new(format!(
-                                "{} {} {} -- {}",
-                                marker, prefix, label, status
-                            ))));
+                            let cursor = if idx == selected { ">" } else { " " };
+                            let status = if occupied { "[OK]" } else { "[EMPTY]" };
+                            let occupancy = if occupied { "Occupied" } else { "Empty" };
+                            table.add_row(vec![
+                                cursor.to_string(),
+                                status.to_string(),
+                                slot_label.to_string(),
+                                occupancy.to_string(),
+                            ]);
                         }
 
+                        widgets.push(Box::new(table));
                         widgets.push(Box::new(Label::new("")));
-                        widgets.push(Box::new(Label::new(
-                            "Up/Down to select slot. D to delete. V to view. R to refresh.",
-                        )));
+                        widgets.push(Box::new(Button::new("[V] View Slot")));
+                        widgets.push(Box::new(Button::new("[D] Delete Slot")));
+                        widgets.push(Box::new(Button::new("[R] Refresh")));
                     }
                     None => {
                         widgets.push(Box::new(Label::new(
@@ -207,10 +216,12 @@ impl Widget for PivScreen {
                 }
             }
             None => {
-                widgets.push(Box::new(Label::new("No YubiKey Detected")));
+                widgets.push(Box::new(Label::new("No YubiKey detected.")));
                 widgets.push(Box::new(Label::new(
                     "Insert your YubiKey and press R to refresh.",
                 )));
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Button::new("[R] Refresh")));
             }
         }
 

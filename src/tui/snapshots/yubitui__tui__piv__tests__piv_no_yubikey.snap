@@ -3,13 +3,13 @@ source: src/tui/piv.rs
 expression: app.backend()
 ---
 "                                PIV Certificates                                "
-"No YubiKey Detected                                                             "
+"No YubiKey detected.                                                            "
 "Insert your YubiKey and press R to refresh.                                     "
+"                                                                                "
+"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+"┃                                 [R] Refresh                                  ┃"
+"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 "  Tab  Focus   Ctrl+P  Palette                                                  "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "
