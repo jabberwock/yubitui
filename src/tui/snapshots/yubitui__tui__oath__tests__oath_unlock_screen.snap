@@ -2,16 +2,16 @@
 source: src/tui/oath.rs
 expression: app.backend()
 ---
-"                                OATH Credentials                                "
+"                                 OATH Password                                  "
 "                                                                                "
-"OATH applet is password-protected.                                              "
-"Press P to enter the password and unlock credentials.                           "
+"Enter the OATH application password:                                            "
 "                                                                                "
-"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-"┃                           [P] Unlock with Password                           ┃"
-"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+"> _                                                                             "
 "                                                                                "
 "  Tab  Focus   Ctrl+P  Palette                                                  "
+"                                                                                "
+"                                                                                "
+"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "

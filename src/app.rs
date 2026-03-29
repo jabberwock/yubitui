@@ -41,6 +41,8 @@ KeysScreen, KeyGenWizardScreen, ImportKeyScreen, KeyDetailScreen, TouchPolicyScr
 DiagnosticsScreen, PinManagementScreen, UnblockWizardScreen, FactoryResetScreen,
 SshWizardScreen, PivScreen, HelpScreen, GlossaryScreen,
 OathScreen, AddAccountScreen, ImportUriScreen, DeleteConfirmScreen,
+OathUnlockScreen, OathPasswordMgmtScreen,
+OathSetPasswordScreen, OathChangePasswordScreen, OathRemovePasswordScreen,
 Fido2Screen, PinSetScreen, PinChangeScreen, PinAuthScreen,
 DeleteCredentialScreen, ResetGuidanceScreen, ResetConfirmScreen,
 OtpScreen, PopupScreen, ConfirmScreen

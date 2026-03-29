@@ -111,6 +111,13 @@ static OATH_BINDINGS: &[KeyBinding] = &[
         show: true,
     },
     KeyBinding {
+        key: KeyCode::Char('p'),
+        modifiers: KeyModifiers::NONE,
+        action: "password_mgmt",
+        description: "P Password",
+        show: true,
+    },
+    KeyBinding {
         key: KeyCode::Char('r'),
         modifiers: KeyModifiers::NONE,
         action: "refresh",
@@ -235,11 +242,10 @@ impl Widget for OathScreen {
                     "OATH applet is password-protected.",
                 )));
                 widgets.push(Box::new(Label::new(
-                    "Password management is not yet supported (deferred to v2).",
+                    "Press P to enter the password and unlock credentials.",
                 )));
-                widgets.push(Box::new(Label::new(
-                    "Use the yubikey manager CLI to remove the password, then retry.",
-                )));
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Button::new("[P] Unlock with Password")));
             }
             Some(state) if state.credentials.is_empty() => {
                 widgets.push(Box::new(Label::new("")));
@@ -373,6 +379,15 @@ impl Widget for OathScreen {
             }
             "import_uri" => {
                 ctx.push_screen_deferred(Box::new(ImportUriScreen::new()));
+            }
+            "password_mgmt" => {
+                let password_required = self.oath_state.borrow()
+                    .as_ref().map(|s| s.password_required).unwrap_or(false);
+                if password_required {
+                    ctx.push_screen_deferred(Box::new(OathUnlockScreen::new()));
+                } else {
+                    ctx.push_screen_deferred(Box::new(OathPasswordMgmtScreen::new()));
+                }
             }
             "delete_account" => {
                 let selected_idx = self.state.get_untracked().selected_index;
@@ -1052,6 +1067,603 @@ impl Widget for DeleteConfirmScreen {
 }
 
 // ============================================================================
+// OathUnlockScreen — enter password to access a password-protected OATH applet
+// ============================================================================
+
+/// Prompts for the OATH application password, validates against the card,
+/// and (on success) pops itself and pushes a fresh OathScreen with credentials.
+pub struct OathUnlockScreen {
+    input: RefCell<String>,
+    error: RefCell<Option<String>>,
+    own_id: Cell<Option<textual_rs::WidgetId>>,
+}
+
+impl OathUnlockScreen {
+    pub fn new() -> Self {
+        Self {
+            input: RefCell::new(String::new()),
+            error: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+
+    fn attempt_unlock(&self, ctx: &AppContext) {
+        let password = self.input.borrow().clone();
+        if password.is_empty() {
+            *self.error.borrow_mut() = Some("Password cannot be empty".to_string());
+            if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+            return;
+        }
+
+        match crate::model::oath::get_oath_state_with_password(&password) {
+            Ok(state) => {
+                ctx.pop_screen_deferred();
+                ctx.push_screen_deferred(Box::new(OathScreen::new(Some(state))));
+            }
+            Err(e) => {
+                *self.error.borrow_mut() = Some(e.to_string());
+                *self.input.borrow_mut() = String::new();
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+            }
+        }
+    }
+}
+
+static OATH_UNLOCK_BINDINGS: &[KeyBinding] = &[
+    KeyBinding {
+        key: KeyCode::Esc,
+        modifiers: KeyModifiers::NONE,
+        action: "cancel",
+        description: "Esc Cancel",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Enter,
+        modifiers: KeyModifiers::NONE,
+        action: "unlock",
+        description: "Enter Unlock",
+        show: true,
+    },
+];
+
+impl Widget for OathUnlockScreen {
+    fn widget_type_name(&self) -> &'static str { "OathUnlockScreen" }
+
+    fn on_mount(&self, id: textual_rs::WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _: textual_rs::WidgetId) { self.own_id.set(None); }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let masked = "*".repeat(self.input.borrow().len());
+        let error = self.error.borrow().clone();
+        let mut widgets: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new("OATH Password")),
+            Box::new(Label::new("")),
+            Box::new(Label::new("Enter the OATH application password:")),
+            Box::new(Label::new("")),
+            Box::new(Label::new(format!("> {}_", masked))),
+        ];
+        if let Some(err) = error {
+            widgets.push(Box::new(Label::new("")));
+            widgets.push(Box::new(Label::new(format!("Error: {}", err))));
+        }
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Footer));
+        widgets
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] { OATH_UNLOCK_BINDINGS }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
+        if let Some(key) = event.downcast_ref::<KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => { ctx.pop_screen_deferred(); return EventPropagation::Stop; }
+                KeyCode::Enter => { self.attempt_unlock(ctx); return EventPropagation::Stop; }
+                KeyCode::Backspace => {
+                    self.input.borrow_mut().pop();
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Char(c) => {
+                    self.input.borrow_mut().push(c);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "cancel" => ctx.pop_screen_deferred(),
+            "unlock" => self.attempt_unlock(ctx),
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ============================================================================
+// OathPasswordMgmtScreen — set, change, or remove OATH application password
+// ============================================================================
+
+/// Password management menu: set, change, or remove the OATH applet password.
+pub struct OathPasswordMgmtScreen;
+
+impl OathPasswordMgmtScreen {
+    pub fn new() -> Self { Self }
+}
+
+static OATH_PASSWD_MENU_BINDINGS: &[KeyBinding] = &[
+    KeyBinding {
+        key: KeyCode::Esc,
+        modifiers: KeyModifiers::NONE,
+        action: "back",
+        description: "Esc Back",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Char('s'),
+        modifiers: KeyModifiers::NONE,
+        action: "set_password",
+        description: "S Set password",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Char('c'),
+        modifiers: KeyModifiers::NONE,
+        action: "change_password",
+        description: "C Change password",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Char('x'),
+        modifiers: KeyModifiers::NONE,
+        action: "remove_password",
+        description: "X Remove password",
+        show: true,
+    },
+];
+
+impl Widget for OathPasswordMgmtScreen {
+    fn widget_type_name(&self) -> &'static str { "OathPasswordMgmtScreen" }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        vec![
+            Box::new(Header::new("OATH Password Management")),
+            Box::new(Label::new("")),
+            Box::new(Label::new("Manage the OATH applet application password.")),
+            Box::new(Label::new("")),
+            Box::new(Button::new("[S] Set new password")),
+            Box::new(Button::new("[C] Change existing password")),
+            Box::new(Button::new("[X] Remove password")),
+            Box::new(Label::new("")),
+            Box::new(Footer),
+        ]
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] { OATH_PASSWD_MENU_BINDINGS }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "back" => ctx.pop_screen_deferred(),
+            "set_password" => ctx.push_screen_deferred(Box::new(OathSetPasswordScreen::new())),
+            "change_password" => ctx.push_screen_deferred(Box::new(OathChangePasswordScreen::new())),
+            "remove_password" => ctx.push_screen_deferred(Box::new(OathRemovePasswordScreen::new())),
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ============================================================================
+// OathSetPasswordScreen — OATH-08: set password when none is configured
+// ============================================================================
+
+/// Two-field form: new password + confirm. Calls `set_oath_password()` on submit.
+pub struct OathSetPasswordScreen {
+    new_pw: RefCell<String>,
+    confirm_pw: RefCell<String>,
+    active_field: Cell<u8>, // 0 = new, 1 = confirm
+    error: RefCell<Option<String>>,
+    own_id: Cell<Option<textual_rs::WidgetId>>,
+}
+
+impl OathSetPasswordScreen {
+    pub fn new() -> Self {
+        Self {
+            new_pw: RefCell::new(String::new()),
+            confirm_pw: RefCell::new(String::new()),
+            active_field: Cell::new(0),
+            error: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+
+    fn submit(&self, ctx: &AppContext) {
+        let new_pw = self.new_pw.borrow().clone();
+        let confirm = self.confirm_pw.borrow().clone();
+        if new_pw.is_empty() {
+            *self.error.borrow_mut() = Some("Password cannot be empty".to_string());
+        } else if new_pw != confirm {
+            *self.error.borrow_mut() = Some("Passwords do not match".to_string());
+            self.confirm_pw.borrow_mut().clear();
+            self.active_field.set(1);
+        } else {
+            match crate::model::oath::set_oath_password(&new_pw) {
+                Ok(()) => {
+                    ctx.pop_screen_deferred(); // pop OathSetPasswordScreen
+                    ctx.pop_screen_deferred(); // pop OathPasswordMgmtScreen
+                    ctx.push_screen_deferred(Box::new(
+                        PopupScreen::new("Password Set", "OATH application password has been set."),
+                    ));
+                    return;
+                }
+                Err(e) => { *self.error.borrow_mut() = Some(e.to_string()); }
+            }
+        }
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+    }
+}
+
+static OATH_SET_PW_BINDINGS: &[KeyBinding] = &[
+    KeyBinding { key: KeyCode::Esc, modifiers: KeyModifiers::NONE, action: "cancel", description: "Esc Cancel", show: true },
+    KeyBinding { key: KeyCode::Tab, modifiers: KeyModifiers::NONE, action: "next_field", description: "Tab Next", show: true },
+    KeyBinding { key: KeyCode::Enter, modifiers: KeyModifiers::NONE, action: "submit", description: "Enter Submit", show: true },
+];
+
+impl Widget for OathSetPasswordScreen {
+    fn widget_type_name(&self) -> &'static str { "OathSetPasswordScreen" }
+    fn on_mount(&self, id: textual_rs::WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _: textual_rs::WidgetId) { self.own_id.set(None); }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let f = self.active_field.get();
+        let m1 = "*".repeat(self.new_pw.borrow().len());
+        let m2 = "*".repeat(self.confirm_pw.borrow().len());
+        let err = self.error.borrow().clone();
+        let mut w: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new("Set OATH Password")),
+            Box::new(Label::new("")),
+            Box::new(Label::new(format!("{}New password:", if f == 0 { "> " } else { "  " }))),
+            Box::new(Label::new(format!("  {}_", m1))),
+            Box::new(Label::new("")),
+            Box::new(Label::new(format!("{}Confirm password:", if f == 1 { "> " } else { "  " }))),
+            Box::new(Label::new(format!("  {}_", m2))),
+        ];
+        if let Some(e) = err {
+            w.push(Box::new(Label::new("")));
+            w.push(Box::new(Label::new(format!("Error: {}", e))));
+        }
+        w.push(Box::new(Label::new("")));
+        w.push(Box::new(Footer));
+        w
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] { OATH_SET_PW_BINDINGS }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
+        if let Some(key) = event.downcast_ref::<KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => { ctx.pop_screen_deferred(); return EventPropagation::Stop; }
+                KeyCode::Enter | KeyCode::Tab => {
+                    let f = self.active_field.get();
+                    if key.code == KeyCode::Enter && f == 1 {
+                        self.submit(ctx);
+                    } else {
+                        self.active_field.set(1 - f);
+                        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    }
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Backspace => {
+                    let f = self.active_field.get();
+                    if f == 0 { self.new_pw.borrow_mut().pop(); }
+                    else { self.confirm_pw.borrow_mut().pop(); }
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Char(c) => {
+                    let f = self.active_field.get();
+                    if f == 0 { self.new_pw.borrow_mut().push(c); }
+                    else { self.confirm_pw.borrow_mut().push(c); }
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "cancel" => ctx.pop_screen_deferred(),
+            "submit" => self.submit(ctx),
+            "next_field" => {
+                self.active_field.set(1 - self.active_field.get());
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+            }
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ============================================================================
+// OathChangePasswordScreen — OATH-09: change existing password
+// ============================================================================
+
+/// Three-field form: current password, new password, confirm.
+pub struct OathChangePasswordScreen {
+    current_pw: RefCell<String>,
+    new_pw: RefCell<String>,
+    confirm_pw: RefCell<String>,
+    active_field: Cell<u8>, // 0/1/2
+    error: RefCell<Option<String>>,
+    own_id: Cell<Option<textual_rs::WidgetId>>,
+}
+
+impl OathChangePasswordScreen {
+    pub fn new() -> Self {
+        Self {
+            current_pw: RefCell::new(String::new()),
+            new_pw: RefCell::new(String::new()),
+            confirm_pw: RefCell::new(String::new()),
+            active_field: Cell::new(0),
+            error: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+
+    fn submit(&self, ctx: &AppContext) {
+        let current = self.current_pw.borrow().clone();
+        let new_pw = self.new_pw.borrow().clone();
+        let confirm = self.confirm_pw.borrow().clone();
+        if current.is_empty() || new_pw.is_empty() {
+            *self.error.borrow_mut() = Some("All fields required".to_string());
+        } else if new_pw != confirm {
+            *self.error.borrow_mut() = Some("New passwords do not match".to_string());
+            self.confirm_pw.borrow_mut().clear();
+            self.active_field.set(2);
+        } else {
+            match crate::model::oath::change_oath_password(&current, &new_pw) {
+                Ok(()) => {
+                    ctx.pop_screen_deferred();
+                    ctx.pop_screen_deferred();
+                    ctx.push_screen_deferred(Box::new(
+                        PopupScreen::new("Password Changed", "OATH application password has been changed."),
+                    ));
+                    return;
+                }
+                Err(e) => {
+                    *self.error.borrow_mut() = Some(e.to_string());
+                    self.current_pw.borrow_mut().clear();
+                    self.active_field.set(0);
+                }
+            }
+        }
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+    }
+}
+
+static OATH_CHANGE_PW_BINDINGS: &[KeyBinding] = &[
+    KeyBinding { key: KeyCode::Esc, modifiers: KeyModifiers::NONE, action: "cancel", description: "Esc Cancel", show: true },
+    KeyBinding { key: KeyCode::Tab, modifiers: KeyModifiers::NONE, action: "next_field", description: "Tab Next", show: true },
+    KeyBinding { key: KeyCode::Enter, modifiers: KeyModifiers::NONE, action: "submit", description: "Enter Submit", show: true },
+];
+
+impl Widget for OathChangePasswordScreen {
+    fn widget_type_name(&self) -> &'static str { "OathChangePasswordScreen" }
+    fn on_mount(&self, id: textual_rs::WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _: textual_rs::WidgetId) { self.own_id.set(None); }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let f = self.active_field.get();
+        let labels = ["Current password:", "New password:", "Confirm new password:"];
+        let values = [
+            "*".repeat(self.current_pw.borrow().len()),
+            "*".repeat(self.new_pw.borrow().len()),
+            "*".repeat(self.confirm_pw.borrow().len()),
+        ];
+        let err = self.error.borrow().clone();
+
+        let mut w: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new("Change OATH Password")),
+            Box::new(Label::new("")),
+        ];
+        for (i, (label, value)) in labels.iter().zip(values.iter()).enumerate() {
+            let cursor = if i as u8 == f { "> " } else { "  " };
+            w.push(Box::new(Label::new(format!("{}{}", cursor, label))));
+            w.push(Box::new(Label::new(format!("  {}_", value))));
+            w.push(Box::new(Label::new("")));
+        }
+        if let Some(e) = err {
+            w.push(Box::new(Label::new(format!("Error: {}", e))));
+            w.push(Box::new(Label::new("")));
+        }
+        w.push(Box::new(Footer));
+        w
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] { OATH_CHANGE_PW_BINDINGS }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
+        if let Some(key) = event.downcast_ref::<KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => { ctx.pop_screen_deferred(); return EventPropagation::Stop; }
+                KeyCode::Enter | KeyCode::Tab => {
+                    let f = self.active_field.get();
+                    if key.code == KeyCode::Enter && f == 2 {
+                        self.submit(ctx);
+                    } else if f < 2 {
+                        self.active_field.set(f + 1);
+                        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    }
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Backspace => {
+                    match self.active_field.get() {
+                        0 => { self.current_pw.borrow_mut().pop(); }
+                        1 => { self.new_pw.borrow_mut().pop(); }
+                        _ => { self.confirm_pw.borrow_mut().pop(); }
+                    }
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Char(c) => {
+                    match self.active_field.get() {
+                        0 => { self.current_pw.borrow_mut().push(c); }
+                        1 => { self.new_pw.borrow_mut().push(c); }
+                        _ => { self.confirm_pw.borrow_mut().push(c); }
+                    }
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "cancel" => ctx.pop_screen_deferred(),
+            "submit" => self.submit(ctx),
+            "next_field" => {
+                let f = self.active_field.get();
+                if f < 2 { self.active_field.set(f + 1); }
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+            }
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ============================================================================
+// OathRemovePasswordScreen — OATH-10: remove existing password
+// ============================================================================
+
+/// Single-field form: current password. Calls `remove_oath_password()` on submit.
+pub struct OathRemovePasswordScreen {
+    current_pw: RefCell<String>,
+    error: RefCell<Option<String>>,
+    own_id: Cell<Option<textual_rs::WidgetId>>,
+}
+
+impl OathRemovePasswordScreen {
+    pub fn new() -> Self {
+        Self {
+            current_pw: RefCell::new(String::new()),
+            error: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+
+    fn submit(&self, ctx: &AppContext) {
+        let pw = self.current_pw.borrow().clone();
+        if pw.is_empty() {
+            *self.error.borrow_mut() = Some("Password required".to_string());
+            if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+            return;
+        }
+        match crate::model::oath::remove_oath_password(&pw) {
+            Ok(()) => {
+                ctx.pop_screen_deferred();
+                ctx.pop_screen_deferred();
+                ctx.push_screen_deferred(Box::new(
+                    PopupScreen::new("Password Removed", "OATH application password has been removed."),
+                ));
+            }
+            Err(e) => {
+                *self.error.borrow_mut() = Some(e.to_string());
+                self.current_pw.borrow_mut().clear();
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+            }
+        }
+    }
+}
+
+static OATH_REMOVE_PW_BINDINGS: &[KeyBinding] = &[
+    KeyBinding { key: KeyCode::Esc, modifiers: KeyModifiers::NONE, action: "cancel", description: "Esc Cancel", show: true },
+    KeyBinding { key: KeyCode::Enter, modifiers: KeyModifiers::NONE, action: "submit", description: "Enter Remove", show: true },
+];
+
+impl Widget for OathRemovePasswordScreen {
+    fn widget_type_name(&self) -> &'static str { "OathRemovePasswordScreen" }
+    fn on_mount(&self, id: textual_rs::WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _: textual_rs::WidgetId) { self.own_id.set(None); }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let masked = "*".repeat(self.current_pw.borrow().len());
+        let err = self.error.borrow().clone();
+        let mut w: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new("Remove OATH Password")),
+            Box::new(Label::new("")),
+            Box::new(Label::new("Enter current password to confirm removal:")),
+            Box::new(Label::new("")),
+            Box::new(Label::new(format!("> {}_", masked))),
+        ];
+        if let Some(e) = err {
+            w.push(Box::new(Label::new("")));
+            w.push(Box::new(Label::new(format!("Error: {}", e))));
+        }
+        w.push(Box::new(Label::new("")));
+        w.push(Box::new(Footer));
+        w
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] { OATH_REMOVE_PW_BINDINGS }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
+        if let Some(key) = event.downcast_ref::<KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => { ctx.pop_screen_deferred(); return EventPropagation::Stop; }
+                KeyCode::Enter => { self.submit(ctx); return EventPropagation::Stop; }
+                KeyCode::Backspace => {
+                    self.current_pw.borrow_mut().pop();
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Char(c) => {
+                    self.current_pw.borrow_mut().push(c);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "cancel" => ctx.pop_screen_deferred(),
+            "submit" => self.submit(ctx),
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -1300,5 +1912,40 @@ mod tests {
         let uri = "otpauth://totp/X?secret=jbswy3dpehpk3pxp";
         let (_, secret, _) = parse_otpauth_uri(uri).unwrap();
         assert_eq!(secret, "JBSWY3DPEHPK3PXP");
+    }
+
+    #[tokio::test]
+    async fn oath_unlock_screen() {
+        let mut app = TestApp::new_styled(80, 24, "", || Box::new(OathUnlockScreen::new()));
+        app.pilot().settle().await;
+        insta::assert_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn oath_password_mgmt_screen() {
+        let mut app = TestApp::new_styled(80, 24, "", || Box::new(OathPasswordMgmtScreen::new()));
+        app.pilot().settle().await;
+        insta::assert_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn oath_set_password_screen() {
+        let mut app = TestApp::new_styled(80, 24, "", || Box::new(OathSetPasswordScreen::new()));
+        app.pilot().settle().await;
+        insta::assert_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn oath_change_password_screen() {
+        let mut app = TestApp::new_styled(80, 24, "", || Box::new(OathChangePasswordScreen::new()));
+        app.pilot().settle().await;
+        insta::assert_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn oath_remove_password_screen() {
+        let mut app = TestApp::new_styled(80, 24, "", || Box::new(OathRemovePasswordScreen::new()));
+        app.pilot().settle().await;
+        insta::assert_snapshot!(app.backend());
     }
 }
