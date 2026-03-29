@@ -45,7 +45,8 @@ OathUnlockScreen, OathPasswordMgmtScreen,
 OathSetPasswordScreen, OathChangePasswordScreen, OathRemovePasswordScreen,
 Fido2Screen, PinSetScreen, PinChangeScreen, PinAuthScreen,
 DeleteCredentialScreen, ResetGuidanceScreen, ResetConfirmScreen,
-OtpScreen, PopupScreen, ConfirmScreen
+OtpScreen, PopupScreen, ConfirmScreen,
+ChangeMgmtKeyScreen, NewMgmtKeyScreen
 { background: $background; }
 
 HelpScreen Markdown { flex-grow: 1; }

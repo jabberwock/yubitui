@@ -110,6 +110,13 @@ static PIV_BINDINGS: &[KeyBinding] = &[
         show: true,
     },
     KeyBinding {
+        key: KeyCode::Char('m'),
+        modifiers: KeyModifiers::NONE,
+        action: "change_mgmt_key",
+        description: "M Mgmt Key",
+        show: true,
+    },
+    KeyBinding {
         key: KeyCode::Char('?'),
         modifiers: KeyModifiers::NONE,
         action: "help",
@@ -223,6 +230,7 @@ impl Widget for PivScreen {
                         widgets.push(Box::new(Label::new("")));
                         widgets.push(Box::new(Button::new("[V] View Cert")));
                         widgets.push(Box::new(Button::new("[D] Delete Slot")));
+                        widgets.push(Box::new(Button::new("[M] Change Management Key")));
                         widgets.push(Box::new(Button::new("[R] Refresh")));
                     }
                     None => {
@@ -362,6 +370,16 @@ impl Widget for PivScreen {
 
                 let title = format!("PIV Slot {} Certificate", slot_str.to_uppercase());
                 ctx.push_screen_deferred(Box::new(PopupScreen::new(title, body)));
+            }
+
+            "change_mgmt_key" => {
+                let is_default = self
+                    .yubikey_state
+                    .as_ref()
+                    .and_then(|yk| yk.piv.as_ref())
+                    .map(|piv| piv.mgmt_key_is_default)
+                    .unwrap_or(false);
+                ctx.push_screen_deferred(Box::new(ChangeMgmtKeyScreen::new(is_default)));
             }
 
             "refresh" => {
@@ -646,6 +664,315 @@ impl Widget for DeletePivConfirmScreen {
 }
 
 // ============================================================================
+// ChangeMgmtKeyScreen — enter current management key
+// ============================================================================
+
+/// Step 1 of the management key change flow.
+///
+/// Prompts the user for the current management key (48 hex chars).
+/// Empty input uses the factory default (`01020304...`).
+///
+/// If `is_default` is true we display a hint that the current key is still
+/// factory default and the user can just press Enter.
+pub struct ChangeMgmtKeyScreen {
+    is_default: bool,
+    input: RefCell<String>,
+    error: RefCell<Option<String>>,
+    own_id: Cell<Option<WidgetId>>,
+}
+
+impl ChangeMgmtKeyScreen {
+    pub fn new(is_default: bool) -> Self {
+        Self {
+            is_default,
+            input: RefCell::new(String::new()),
+            error: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+}
+
+static CHANGE_KEY_BINDINGS: &[KeyBinding] = &[
+    KeyBinding {
+        key: KeyCode::Esc,
+        modifiers: KeyModifiers::NONE,
+        action: "cancel",
+        description: "Esc Cancel",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Enter,
+        modifiers: KeyModifiers::NONE,
+        action: "next",
+        description: "Enter Next",
+        show: true,
+    },
+];
+
+impl Widget for ChangeMgmtKeyScreen {
+    fn widget_type_name(&self) -> &'static str {
+        "ChangeMgmtKeyScreen"
+    }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
+
+    fn can_focus(&self) -> bool { true }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let input = self.input.borrow().clone();
+        let error = self.error.borrow().clone();
+
+        let mut widgets: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new("Change PIV Management Key (1/2)")),
+            Box::new(Label::new("")),
+            Box::new(Label::new("Step 1: Enter your current management key.")),
+            Box::new(Label::new("")),
+        ];
+
+        if self.is_default {
+            widgets.push(Box::new(Label::new(
+                "Your management key is currently the factory default.",
+            )));
+            widgets.push(Box::new(Label::new(
+                "Press Enter with empty input to use the default key.",
+            )));
+        } else {
+            widgets.push(Box::new(Label::new(
+                "Enter current management key (48 hex chars = 24 bytes):",
+            )));
+            widgets.push(Box::new(Label::new(
+                "Press Enter with empty input to try the default key.",
+            )));
+        }
+
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Label::new(format!("> {}_", input))));
+
+        if let Some(err) = error {
+            widgets.push(Box::new(Label::new("")));
+            widgets.push(Box::new(Label::new(format!("Error: {}", err))));
+        }
+
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Footer));
+        widgets
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        CHANGE_KEY_BINDINGS
+    }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
+        if let Some(key) = event.downcast_ref::<KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => {
+                    ctx.pop_screen_deferred();
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Enter => {
+                    self.on_action("next", ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Backspace => {
+                    self.input.borrow_mut().pop();
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Char(c) => {
+                    if c.is_ascii_hexdigit() && self.input.borrow().len() < 48 {
+                        self.input.borrow_mut().push(c);
+                    }
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "cancel" => ctx.pop_screen_deferred(),
+            "next" => {
+                let input = self.input.borrow().clone();
+                let current_key: [u8; 24] = if input.is_empty() {
+                    *PIV_DEFAULT_MGMT_KEY_3DES
+                } else if input.len() != 48 {
+                    *self.error.borrow_mut() = Some(format!(
+                        "Key must be 48 hex characters (24 bytes). Got {}.",
+                        input.len()
+                    ));
+                    return;
+                } else {
+                    let mut bytes = [0u8; 24];
+                    for (i, chunk) in input.as_bytes().chunks(2).enumerate() {
+                        let hi = (chunk[0] as char).to_digit(16).unwrap_or(0) as u8;
+                        let lo = (chunk[1] as char).to_digit(16).unwrap_or(0) as u8;
+                        bytes[i] = (hi << 4) | lo;
+                    }
+                    bytes
+                };
+
+                *self.error.borrow_mut() = None;
+                ctx.push_screen_deferred(Box::new(NewMgmtKeyScreen::new(current_key)));
+            }
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ============================================================================
+// NewMgmtKeyScreen — enter and confirm new management key
+// ============================================================================
+
+/// Step 2 of the management key change flow.
+///
+/// Prompts for the new management key (48 hex chars).
+/// On Enter, executes `change_piv_management_key()` immediately and reports
+/// success or error via a `PopupScreen`.
+pub struct NewMgmtKeyScreen {
+    current_key: [u8; 24],
+    input: RefCell<String>,
+    error: RefCell<Option<String>>,
+    own_id: Cell<Option<WidgetId>>,
+}
+
+impl NewMgmtKeyScreen {
+    pub fn new(current_key: [u8; 24]) -> Self {
+        Self {
+            current_key,
+            input: RefCell::new(String::new()),
+            error: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+}
+
+impl Widget for NewMgmtKeyScreen {
+    fn widget_type_name(&self) -> &'static str {
+        "NewMgmtKeyScreen"
+    }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
+
+    fn can_focus(&self) -> bool { true }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let input = self.input.borrow().clone();
+        let error = self.error.borrow().clone();
+
+        let mut widgets: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new("Change PIV Management Key (2/2)")),
+            Box::new(Label::new("")),
+            Box::new(Label::new("Step 2: Enter your new management key (48 hex chars = 24 bytes).")),
+            Box::new(Label::new("")),
+            Box::new(Label::new("Use a random value — do not reuse the default key.")),
+            Box::new(Label::new("Store it in a password manager before confirming.")),
+            Box::new(Label::new("")),
+            Box::new(Label::new(format!("> {}_", input))),
+            Box::new(Label::new(format!("  ({}/48 chars entered)", input.len()))),
+        ];
+
+        if let Some(err) = error {
+            widgets.push(Box::new(Label::new("")));
+            widgets.push(Box::new(Label::new(format!("Error: {}", err))));
+        }
+
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Footer));
+        widgets
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        CHANGE_KEY_BINDINGS
+    }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
+        if let Some(key) = event.downcast_ref::<KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => {
+                    ctx.pop_screen_deferred();
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Enter => {
+                    self.on_action("next", ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Backspace => {
+                    self.input.borrow_mut().pop();
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Char(c) => {
+                    if c.is_ascii_hexdigit() && self.input.borrow().len() < 48 {
+                        self.input.borrow_mut().push(c);
+                    }
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "cancel" => ctx.pop_screen_deferred(),
+            "next" => {
+                let input = self.input.borrow().clone();
+                if input.len() != 48 {
+                    *self.error.borrow_mut() = Some(format!(
+                        "New key must be exactly 48 hex characters (24 bytes). Got {}.",
+                        input.len()
+                    ));
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return;
+                }
+
+                let mut new_key = [0u8; 24];
+                for (i, chunk) in input.as_bytes().chunks(2).enumerate() {
+                    let hi = (chunk[0] as char).to_digit(16).unwrap_or(0) as u8;
+                    let lo = (chunk[1] as char).to_digit(16).unwrap_or(0) as u8;
+                    new_key[i] = (hi << 4) | lo;
+                }
+
+                match crate::model::piv_delete::change_piv_management_key(&self.current_key, &new_key) {
+                    Ok(()) => {
+                        // Pop NewMgmtKeyScreen and ChangeMgmtKeyScreen
+                        ctx.pop_screen_deferred();
+                        ctx.pop_screen_deferred();
+                        ctx.push_screen_deferred(Box::new(PopupScreen::new(
+                            "Success",
+                            "PIV management key changed successfully.\nStore the new key in a safe place.",
+                        )));
+                    }
+                    Err(e) => {
+                        ctx.pop_screen_deferred();
+                        ctx.push_screen_deferred(Box::new(PopupScreen::new(
+                            "Error",
+                            format!("Failed to change management key: {}", e),
+                        )));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -669,6 +996,25 @@ mod tests {
     async fn piv_no_yubikey() {
         let mut app = TestApp::new_styled(80, 24, "", || {
             Box::new(PivScreen::new(None))
+        });
+        app.pilot().settle().await;
+        insta::assert_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn piv_change_mgmt_key_screen() {
+        let mut app = TestApp::new_styled(80, 24, "", || {
+            Box::new(ChangeMgmtKeyScreen::new(true))
+        });
+        app.pilot().settle().await;
+        insta::assert_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn piv_new_mgmt_key_screen() {
+        let current = *crate::model::piv_delete::PIV_DEFAULT_MGMT_KEY_3DES;
+        let mut app = TestApp::new_styled(80, 24, "", move || {
+            Box::new(NewMgmtKeyScreen::new(current))
         });
         app.pilot().settle().await;
         insta::assert_snapshot!(app.backend());

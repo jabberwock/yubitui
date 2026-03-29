@@ -346,6 +346,74 @@ pub fn delete_piv_slot(
 }
 
 // ============================================================================
+// Management key change
+// ============================================================================
+
+/// Change the PIV management key (3DES → 3DES).
+///
+/// Protocol:
+///   1. SELECT PIV
+///   2. GENERAL AUTHENTICATE with current_key to establish session
+///   3. SET MANAGEMENT KEY: CLA=00 INS=FF P1=FF P2=FE
+///      Data: 9B 03 18 [24 new key bytes]
+///
+/// `new_key` must be 24 bytes of a valid 3DES-EDE key.
+/// Returns `Ok(())` on success or `Err` with a user-friendly message.
+pub fn change_piv_management_key(
+    current_key: &[u8; 24],
+    new_key: &[u8; 24],
+) -> Result<()> {
+    crate::model::card::kill_scdaemon();
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    let ctx = Context::establish(Scope::User)
+        .map_err(|e| anyhow::anyhow!("PC/SC error: {e}"))?;
+
+    let mut readers_buf = [0u8; 2048];
+    let readers: Vec<_> = ctx
+        .list_readers(&mut readers_buf)
+        .map_err(|e| anyhow::anyhow!("list readers: {e}"))?
+        .collect();
+    if readers.is_empty() {
+        return Err(anyhow::anyhow!("No readers found"));
+    }
+
+    let card = readers
+        .into_iter()
+        .find_map(|r| ctx.connect(r, ShareMode::Exclusive, Protocols::T0 | Protocols::T1).ok())
+        .ok_or_else(|| anyhow::anyhow!("Failed to connect to reader"))?;
+
+    // SELECT PIV
+    use crate::model::piv::{SELECT_PIV};
+    let mut buf = [0u8; 256];
+    let resp = card.transmit(SELECT_PIV, &mut buf)
+        .map_err(|e| anyhow::anyhow!("SELECT PIV: {e}"))?;
+    if crate::model::card::apdu_sw(resp) != 0x9000 {
+        return Err(anyhow::anyhow!("PIV application not found on this YubiKey"));
+    }
+
+    // Authenticate with current management key
+    authenticate_piv_mgmt_key_3des(&card, current_key)?;
+
+    // SET MANAGEMENT KEY: CLA=00 INS=FF P1=FF P2=FE
+    // Data: 9B 03 18 [24 new key bytes]  (9B=tag, 03=3DES, 18=24 decimal)
+    let mut set_apdu = vec![0x00u8, 0xFF, 0xFF, 0xFE, 0x1C, 0x9B, 0x03, 0x18];
+    set_apdu.extend_from_slice(new_key.as_slice());
+
+    let mut buf2 = [0u8; 256];
+    let resp2 = card.transmit(&set_apdu, &mut buf2)
+        .map_err(|e| anyhow::anyhow!("SET MANAGEMENT KEY: {e}"))?;
+    let sw = crate::model::card::apdu_sw(resp2);
+
+    match sw {
+        0x9000 => Ok(()),
+        0x6982 => Err(anyhow::anyhow!("Authentication failed — wrong current management key")),
+        0x6A80 => Err(anyhow::anyhow!("Invalid management key (check length and format)")),
+        other => Err(anyhow::anyhow!("SET MANAGEMENT KEY failed: SW {:04X}", other)),
+    }
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
