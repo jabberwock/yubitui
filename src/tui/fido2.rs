@@ -107,6 +107,13 @@ static FIDO2_BINDINGS: &[KeyBinding] = &[
         show: true,
     },
     KeyBinding {
+        key: KeyCode::F(5),
+        modifiers: KeyModifiers::NONE,
+        action: "refresh",
+        description: "F5 Refresh",
+        show: true,
+    },
+    KeyBinding {
         key: KeyCode::Char('p'),
         modifiers: KeyModifiers::NONE,
         action: "authenticate_pin",
@@ -326,6 +333,12 @@ impl Widget for Fido2Screen {
             }
             "reset" => {
                 ctx.push_screen_deferred(Box::new(ResetConfirmScreen::new()));
+            }
+            "refresh" => {
+                // On-demand FIDO2 fetch from card (detection.rs skips FIDO2 as expensive)
+                let fresh_fido2 = crate::model::fido2::get_fido2_info().ok();
+                ctx.pop_screen_deferred();
+                ctx.push_screen_deferred(Box::new(Fido2Screen::new(fresh_fido2)));
             }
             "help" => {
                 ctx.push_screen_deferred(Box::new(

@@ -333,8 +333,10 @@ impl Widget for OathScreen {
                 }
             }
             "refresh" => {
-                // Re-CALCULATE ALL from card; no-op in mock mode.
-                let _ = ctx;
+                // On-demand OATH fetch from card (detection.rs skips OATH as expensive)
+                let fresh_oath = crate::model::oath::get_oath_state().ok();
+                ctx.pop_screen_deferred();
+                ctx.push_screen_deferred(Box::new(OathScreen::new(fresh_oath)));
             }
             "help" => {
                 ctx.push_screen_deferred(Box::new(

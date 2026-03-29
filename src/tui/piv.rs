@@ -558,16 +558,11 @@ impl Widget for DeletePivConfirmScreen {
                         ctx.pop_screen_deferred();
                         ctx.pop_screen_deferred();
 
-                        // Push fresh PivScreen with updated state
-                        let fresh_piv_state = crate::model::piv::get_piv_state().ok();
-                        // We don't have the full YubiKeyState here; push without one and
-                        // let the user see the refreshed slot state via None (safe fallback).
-                        // The PivScreen will show "PIV data unavailable" if piv_state fetch
-                        // fails — but we can construct a minimal YubiKeyState with fresh PIV.
-                        // For simplicity, push a fresh PivScreen with None (user can R to refresh)
-                        // and show the success popup.
-                        let _ = fresh_piv_state; // acknowledged — limited context here
-                        ctx.push_screen_deferred(Box::new(PivScreen::new(None)));
+                        // Re-detect full YubiKey state so PivScreen shows updated slot data
+                        let fresh_yk = crate::model::YubiKeyState::detect_all()
+                            .ok()
+                            .and_then(|mut v| if v.is_empty() { None } else { Some(v.remove(0)) });
+                        ctx.push_screen_deferred(Box::new(PivScreen::new(fresh_yk)));
                         ctx.push_screen_deferred(Box::new(PopupScreen::new("Success", msg)));
                     }
                     Err(e) => {
