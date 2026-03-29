@@ -569,4 +569,18 @@ mod tests {
         drop(pilot);
         insta::assert_display_snapshot!(app.backend());
     }
+
+    #[tokio::test]
+    async fn pin_change_user_pin_form() {
+        let yubikey_states = crate::model::mock::mock_yubikey_states();
+        let yk = yubikey_states.into_iter().next();
+        let mut app = TestApp::new_styled(80, 24, "", move || {
+            Box::new(PinManagementScreen::new(yk))
+        });
+        let mut pilot = app.pilot();
+        pilot.press(KeyCode::Char('c')).await;
+        pilot.settle().await;
+        drop(pilot);
+        insta::assert_display_snapshot!(app.backend());
+    }
 }

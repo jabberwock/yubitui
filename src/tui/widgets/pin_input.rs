@@ -187,13 +187,14 @@ impl Widget for PinInputWidget {
             textual_rs::Header::new(&self.title)
         ));
 
+        // Push Label and Input as separate top-level children rather than wrapping
+        // in a Vertical container. Vertical's default height is `1fr`, which resolves
+        // to 0 when PinInputWidget has no explicit height in the screen-stack context,
+        // causing the children to be invisible. Input has `height: 3` (absolute), so
+        // it renders correctly when laid out directly by the root vertical layout.
         for label in &self.field_labels {
-            children.push(Box::new(
-                Vertical::with_children(vec![
-                    Box::new(Label::new(label.as_str())),
-                    Box::new(Input::new("").with_password()),
-                ])
-            ));
+            children.push(Box::new(Label::new(label.as_str())));
+            children.push(Box::new(Input::new("").with_password()));
         }
 
         // Error message line — shown when validation fails.
