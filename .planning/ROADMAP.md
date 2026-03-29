@@ -175,7 +175,7 @@ Plans:
 | 10. FIDO2 Screen | v1.1 | 4/4 | Complete    | 2026-03-28 |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 3/3 | Complete | 2026-03-28 |
 | 12. YubiKey Slot Delete Workflow | v1.1 | 5/5 | Complete   | 2026-03-29 |
-| 13. UI Polish | v1.1 | 1/5 | In Progress|  |
+| 13. UI Polish | v1.1 | 3/5 | In Progress|  |
 
 ## Backlog
 
@@ -205,7 +205,7 @@ Plans:
 **Goal:** Bring all screens up to PIN Management's visual quality — Button widgets for actions, DataTable for tabular data, ProgressBar for OATH countdown, Markdown for long-form content, consistent [OK]/[EMPTY]/[SET]/[BLOCKED] status badges, and Header->data->spacer->Buttons->Footer layout everywhere
 **Requirements**: POLISH-01, POLISH-02, POLISH-03, POLISH-04, POLISH-05, POLISH-06, POLISH-07, POLISH-08
 **Depends on:** Phase 12
-**Plans:** 1/5 plans executed
+**Plans:** 3/5 plans executed
 **Success Criteria** (what must be TRUE):
   1. Every screen uses Button widgets for primary actions — no screen has actions only accessible via keybinding text labels
   2. Every screen with tabular data (key slots, PIV slots, OTP slots, credentials) uses DataTable with aligned columns
@@ -216,9 +216,9 @@ Plans:
   7. All snapshot tests pass with updated expectations
 
 Plans:
-- [ ] 13-01-PLAN.md — Dashboard + Diagnostics polish (Buttons, DataTable, status badges)
+- [x] 13-01-PLAN.md — Dashboard + Diagnostics polish (Buttons, DataTable, status badges)
 - [x] 13-02-PLAN.md — Keys + PIV polish (DataTable for slots, Button actions)
 - [ ] 13-03-PLAN.md — OATH + FIDO2 polish (DataTable, ProgressBar countdown, Buttons)
-- [ ] 13-04-PLAN.md — OTP + Help + Glossary polish (DataTable, Markdown content)
+- [x] 13-04-PLAN.md — OTP + Help + Glossary polish (DataTable, Markdown content)
 - [ ] 13-05-PLAN.md — Snapshot re-acceptance + cargo test + human verification
 **UI hint**: yes
