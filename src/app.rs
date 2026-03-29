@@ -40,7 +40,7 @@ DashboardScreen, OnboardingScreen,
 KeysScreen, KeyGenWizardScreen, ImportKeyScreen, KeyDetailScreen, TouchPolicyScreen,
 DiagnosticsScreen, PinManagementScreen, UnblockWizardScreen, FactoryResetScreen,
 SshWizardScreen, PivScreen, HelpScreen, GlossaryScreen,
-OathScreen, AddAccountScreen, DeleteConfirmScreen,
+OathScreen, AddAccountScreen, ImportUriScreen, DeleteConfirmScreen,
 Fido2Screen, PinSetScreen, PinChangeScreen, PinAuthScreen,
 DeleteCredentialScreen, ResetGuidanceScreen, ResetConfirmScreen,
 OtpScreen, PopupScreen, ConfirmScreen

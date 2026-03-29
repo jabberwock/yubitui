@@ -97,6 +97,13 @@ static OATH_BINDINGS: &[KeyBinding] = &[
         show: true,
     },
     KeyBinding {
+        key: KeyCode::Char('u'),
+        modifiers: KeyModifiers::NONE,
+        action: "import_uri",
+        description: "U Import URI",
+        show: true,
+    },
+    KeyBinding {
         key: KeyCode::Char('d'),
         modifiers: KeyModifiers::NONE,
         action: "delete_account",
@@ -363,6 +370,9 @@ impl Widget for OathScreen {
             }
             "add_account" => {
                 ctx.push_screen_deferred(Box::new(AddAccountScreen::new()));
+            }
+            "import_uri" => {
+                ctx.push_screen_deferred(Box::new(ImportUriScreen::new()));
             }
             "delete_account" => {
                 let selected_idx = self.state.get_untracked().selected_index;
@@ -706,6 +716,270 @@ impl Widget for AddAccountScreen {
 }
 
 // ============================================================================
+// ImportUriScreen — paste an otpauth:// URI to skip the 5-step wizard
+// ============================================================================
+
+/// Single-field screen for importing an OATH credential via an otpauth:// URI.
+///
+/// Accepts the standard format:
+///   `otpauth://totp/Issuer:account?secret=BASE32&issuer=Issuer&...`
+///
+/// On Enter the URI is parsed; on success the credential is added to the YubiKey
+/// and the screen is dismissed. Esc cancels without changes.
+pub struct ImportUriScreen {
+    input: RefCell<String>,
+    error: RefCell<Option<String>>,
+    own_id: Cell<Option<textual_rs::WidgetId>>,
+}
+
+impl ImportUriScreen {
+    pub fn new() -> Self {
+        Self {
+            input: RefCell::new(String::new()),
+            error: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+
+    /// Parse an otpauth:// URI and add the credential to the YubiKey.
+    fn import(&self, ctx: &AppContext) {
+        let uri = self.input.borrow().trim().to_string();
+
+        match parse_otpauth_uri(&uri) {
+            Err(e) => {
+                *self.error.borrow_mut() = Some(e);
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+            }
+            Ok((name, secret, oath_type)) => {
+                match crate::model::oath::put_credential(
+                    &name,
+                    &secret,
+                    oath_type,
+                    OathAlgorithm::Sha1,
+                    6,
+                ) {
+                    Ok(()) => {
+                        ctx.pop_screen_deferred();
+                        ctx.push_screen_deferred(Box::new(
+                            PopupScreen::new("Imported", format!("Account '{}' added.", name)),
+                        ));
+                    }
+                    Err(e) => {
+                        *self.error.borrow_mut() = Some(format!("Add failed: {}", e));
+                        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+static IMPORT_URI_BINDINGS: &[KeyBinding] = &[
+    KeyBinding {
+        key: KeyCode::Esc,
+        modifiers: KeyModifiers::NONE,
+        action: "cancel",
+        description: "Esc Cancel",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Enter,
+        modifiers: KeyModifiers::NONE,
+        action: "import",
+        description: "Enter Import",
+        show: true,
+    },
+];
+
+impl Widget for ImportUriScreen {
+    fn widget_type_name(&self) -> &'static str {
+        "ImportUriScreen"
+    }
+
+    fn on_mount(&self, id: textual_rs::WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: textual_rs::WidgetId) { self.own_id.set(None); }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let input = self.input.borrow().clone();
+        let error = self.error.borrow().clone();
+
+        let mut widgets: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new("Import OATH URI")),
+            Box::new(Label::new("")),
+            Box::new(Label::new("Paste an otpauth:// URI from an authenticator app or QR")),
+            Box::new(Label::new("code scanner, then press Enter.")),
+            Box::new(Label::new("")),
+            Box::new(Label::new("Example:")),
+            Box::new(Label::new("  otpauth://totp/GitHub:user@example.com?secret=BASE32SECRET")),
+            Box::new(Label::new("")),
+            Box::new(Label::new(format!("> {}_", input))),
+        ];
+
+        if let Some(err) = error {
+            widgets.push(Box::new(Label::new("")));
+            widgets.push(Box::new(Label::new(format!("Error: {}", err))));
+        }
+
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Footer));
+        widgets
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        IMPORT_URI_BINDINGS
+    }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
+        if let Some(key) = event.downcast_ref::<KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => {
+                    ctx.pop_screen_deferred();
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Enter => {
+                    self.import(ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Backspace => {
+                    self.input.borrow_mut().pop();
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Char(c) => {
+                    self.input.borrow_mut().push(c);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "cancel" => ctx.pop_screen_deferred(),
+            "import" => self.import(ctx),
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+/// Parse an `otpauth://` URI and return `(credential_name, secret_b32, oath_type)`.
+///
+/// Supports the standard format used by Google Authenticator, 1Password, etc.:
+///   `otpauth://TYPE/LABEL?secret=BASE32&issuer=ISSUER&...`
+///
+/// The `issuer` query parameter takes precedence over an issuer prefix in LABEL
+/// (standard per RFC 6030 / Google key URI format spec).
+fn parse_otpauth_uri(uri: &str) -> Result<(String, String, OathType), String> {
+    let uri = uri.trim();
+
+    // Must start with otpauth://
+    let rest = uri
+        .strip_prefix("otpauth://")
+        .ok_or_else(|| "URI must start with otpauth://".to_string())?;
+
+    // TYPE/LABEL?QUERY
+    let (type_and_label, query) = rest.split_once('?').unwrap_or((rest, ""));
+
+    let (type_str, label_encoded) = type_and_label
+        .split_once('/')
+        .ok_or_else(|| "URI must contain a label after the type".to_string())?;
+
+    let oath_type = match type_str.to_lowercase().as_str() {
+        "totp" => OathType::Totp,
+        "hotp" => OathType::Hotp,
+        other => return Err(format!("Unknown OATH type '{}' (expected totp or hotp)", other)),
+    };
+
+    let label = percent_decode(label_encoded);
+
+    // Parse query parameters
+    let mut secret: Option<String> = None;
+    let mut issuer_param: Option<String> = None;
+
+    for pair in query.split('&') {
+        if let Some((key, value)) = pair.split_once('=') {
+            let key = key.to_lowercase();
+            let value = percent_decode(value);
+            match key.as_str() {
+                "secret" => secret = Some(value.to_uppercase()),
+                "issuer" => issuer_param = Some(value),
+                _ => {} // digits, period, algorithm, counter — accepted and ignored
+            }
+        }
+    }
+
+    let secret = secret.ok_or_else(|| "URI missing 'secret' parameter".to_string())?;
+    if secret.is_empty() {
+        return Err("Secret key cannot be empty".to_string());
+    }
+
+    // Validate secret is Base32 (subset check)
+    if secret.chars().any(|c| !matches!(c, 'A'..='Z' | '2'..='7' | '=')) {
+        return Err("Secret must be Base32 encoded (A-Z, 2-7, =)".to_string());
+    }
+
+    // Build credential name: prefer issuer param, else use issuer prefix in label
+    let cred_name = if let Some(issuer) = issuer_param {
+        // Label may be "Issuer:account" or just "account" when issuer= is present
+        let account = if let Some((_, acc)) = label.split_once(':') {
+            acc.trim().to_string()
+        } else {
+            label.trim().to_string()
+        };
+        if account.is_empty() {
+            issuer
+        } else {
+            format!("{}:{}", issuer, account)
+        }
+    } else {
+        // No issuer param — use label as-is
+        label.trim().to_string()
+    };
+
+    if cred_name.is_empty() {
+        return Err("Could not determine credential name from URI".to_string());
+    }
+
+    Ok((cred_name, secret, oath_type))
+}
+
+/// Minimal percent-decode: replaces `%XX` sequences with the decoded character.
+/// Only decodes printable ASCII; leaves non-ASCII as-is (YubiKey OATH names are ASCII).
+fn percent_decode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '%' {
+            let hi = chars.next();
+            let lo = chars.next();
+            if let (Some(h), Some(l)) = (hi, lo) {
+                if let (Some(hi_d), Some(lo_d)) = (h.to_digit(16), l.to_digit(16)) {
+                    let byte = ((hi_d << 4) | lo_d) as u8;
+                    if byte.is_ascii() {
+                        out.push(byte as char);
+                        continue;
+                    }
+                }
+            }
+            // Failed to decode — emit literal %
+            out.push('%');
+        } else if c == '+' {
+            out.push(' ');
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+// ============================================================================
 // DeleteConfirmScreen — wraps ConfirmScreen to delete a specific credential
 // ============================================================================
 
@@ -966,5 +1240,65 @@ mod tests {
         pilot.settle().await;
         drop(pilot);
         insta::assert_snapshot!(stable_snapshot(&app.backend()));
+    }
+
+    #[tokio::test]
+    async fn import_uri_screen_initial() {
+        let mut app = TestApp::new_styled(80, 24, "", || {
+            Box::new(ImportUriScreen::new())
+        });
+        app.pilot().settle().await;
+        insta::assert_snapshot!(app.backend());
+    }
+
+    // ---- parse_otpauth_uri unit tests ----
+
+    #[test]
+    fn parse_uri_totp_full() {
+        let uri = "otpauth://totp/GitHub:user%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=GitHub&algorithm=SHA1&digits=6&period=30";
+        let (name, secret, typ) = parse_otpauth_uri(uri).unwrap();
+        assert_eq!(name, "GitHub:user@example.com");
+        assert_eq!(secret, "JBSWY3DPEHPK3PXP");
+        assert_eq!(typ, OathType::Totp);
+    }
+
+    #[test]
+    fn parse_uri_hotp() {
+        let uri = "otpauth://hotp/Example?secret=JBSWY3DPEHPK3PXP";
+        let (name, _secret, typ) = parse_otpauth_uri(uri).unwrap();
+        assert_eq!(name, "Example");
+        assert_eq!(typ, OathType::Hotp);
+    }
+
+    #[test]
+    fn parse_uri_label_only_no_issuer_param() {
+        let uri = "otpauth://totp/Acme:alice?secret=JBSWY3DPEHPK3PXP";
+        let (name, _secret, _typ) = parse_otpauth_uri(uri).unwrap();
+        assert_eq!(name, "Acme:alice");
+    }
+
+    #[test]
+    fn parse_uri_missing_secret() {
+        let uri = "otpauth://totp/GitHub?issuer=GitHub";
+        assert!(parse_otpauth_uri(uri).is_err());
+    }
+
+    #[test]
+    fn parse_uri_bad_prefix() {
+        let uri = "otpauth2://totp/GitHub?secret=JBSWY3DPEHPK3PXP";
+        assert!(parse_otpauth_uri(uri).is_err());
+    }
+
+    #[test]
+    fn parse_uri_unknown_type() {
+        let uri = "otpauth://steam/GitHub?secret=JBSWY3DPEHPK3PXP";
+        assert!(parse_otpauth_uri(uri).is_err());
+    }
+
+    #[test]
+    fn parse_uri_lowercase_secret_uppercased() {
+        let uri = "otpauth://totp/X?secret=jbswy3dpehpk3pxp";
+        let (_, secret, _) = parse_otpauth_uri(uri).unwrap();
+        assert_eq!(secret, "JBSWY3DPEHPK3PXP");
     }
 }

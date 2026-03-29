@@ -1,0 +1,28 @@
+---
+source: src/tui/oath.rs
+expression: app.backend()
+---
+"                                Import OATH URI                                 "
+"                                                                                "
+"Paste an otpauth:// URI from an authenticator app or QR                         "
+"code scanner, then press Enter.                                                 "
+"                                                                                "
+"Example:                                                                        "
+"  otpauth://totp/GitHub:user@example.com?secret=BASE32SECRET                    "
+"                                                                                "
+"> _                                                                             "
+"                                                                                "
+"  Tab  Focus   Ctrl+P  Palette                                                  "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
