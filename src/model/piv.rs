@@ -222,8 +222,8 @@ fn parse_cert_info(der: &[u8]) -> Option<CertInfo> {
     let not_after  = cert.validity().not_after.to_datetime();
     let validity = Some(format!(
         "{} – {}",
-        not_before.date().to_string(),
-        not_after.date().to_string(),
+        not_before.date(),
+        not_after.date(),
     ));
 
     Some(CertInfo { algorithm, subject, issuer, validity })
