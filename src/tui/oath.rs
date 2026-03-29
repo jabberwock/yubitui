@@ -164,16 +164,6 @@ impl OathScreen {
         }
     }
 
-    fn spawn_fetch(&self, ctx: &AppContext) {
-        if let Some(id) = self.own_id.get() {
-            self.loading.set(true);
-            ctx.run_worker(id, async {
-                tokio::task::spawn_blocking(crate::model::oath::get_oath_state)
-                    .await
-                    .unwrap_or_else(|e| Err(anyhow::anyhow!("join error: {e}")))
-            });
-        }
-    }
 }
 
 impl Widget for OathScreen {
