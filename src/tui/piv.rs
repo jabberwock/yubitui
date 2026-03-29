@@ -180,31 +180,39 @@ impl Widget for PivScreen {
             Some(yk) => {
                 match &yk.piv {
                     Some(piv_state) => {
-                        // PIV slot list as DataTable
+                        // PIV slot list as DataTable — show algorithm when available
                         let columns = vec![
                             ColumnDef::new("").with_width(2),
                             ColumnDef::new("Status").with_width(7),
-                            ColumnDef::new("Slot").with_width(30),
-                            ColumnDef::new("Occupancy").with_width(9),
+                            ColumnDef::new("Slot").with_width(26),
+                            ColumnDef::new("Algorithm").with_width(12),
+                            ColumnDef::new("Subject").with_width(20),
                         ];
                         let mut table = DataTable::new(columns);
 
                         for (idx, (slot_id, slot_label)) in slot_defs.iter().enumerate() {
-                            let occupied = piv_state.slots.iter().any(|s| s.slot == *slot_id);
+                            let slot_info = piv_state.slots.iter().find(|s| s.slot == *slot_id);
+                            let occupied = slot_info.is_some();
                             let cursor = if idx == selected { ">" } else { " " };
                             let status = if occupied { "[OK]" } else { "[EMPTY]" };
-                            let occupancy = if occupied { "Occupied" } else { "Empty" };
+                            let algorithm = slot_info
+                                .and_then(|s| s.algorithm.as_deref())
+                                .unwrap_or("-");
+                            let subject = slot_info
+                                .and_then(|s| s.subject.as_deref())
+                                .unwrap_or("-");
                             table.add_row(vec![
                                 cursor.to_string(),
                                 status.to_string(),
                                 slot_label.to_string(),
-                                occupancy.to_string(),
+                                algorithm.to_string(),
+                                subject.to_string(),
                             ]);
                         }
 
                         widgets.push(Box::new(table));
                         widgets.push(Box::new(Label::new("")));
-                        widgets.push(Box::new(Button::new("[V] View Slot")));
+                        widgets.push(Box::new(Button::new("[V] View Cert")));
                         widgets.push(Box::new(Button::new("[D] Delete Slot")));
                         widgets.push(Box::new(Button::new("[R] Refresh")));
                     }
@@ -308,7 +316,43 @@ impl Widget for PivScreen {
             }
 
             "view_slot" => {
-                // View slot detail — full implementation in subsequent plans.
+                let selected = self.state.get_untracked().selected_slot;
+                let slot_str = PIV_SLOT_IDS[selected];
+
+                let slot_info = self
+                    .yubikey_state
+                    .as_ref()
+                    .and_then(|yk| yk.piv.as_ref())
+                    .and_then(|piv| piv.slots.iter().find(|s| s.slot == slot_str))
+                    .cloned();
+
+                let body = match slot_info {
+                    None => format!("Slot {} is empty — no certificate present.", slot_str),
+                    Some(info) => {
+                        let mut lines = Vec::new();
+                        lines.push(format!("Slot:      {}", slot_str.to_uppercase()));
+                        if let Some(subj) = &info.subject {
+                            lines.push(format!("Subject:   {}", subj));
+                        }
+                        if let Some(issuer) = &info.issuer {
+                            lines.push(format!("Issuer:    {}", issuer));
+                        }
+                        if let Some(alg) = &info.algorithm {
+                            lines.push(format!("Algorithm: {}", alg));
+                        }
+                        if let Some(val) = &info.validity {
+                            lines.push(format!("Valid:     {}", val));
+                        }
+                        if lines.len() == 1 {
+                            // Only slot header — cert was present but no parsed fields
+                            lines.push("Certificate present (no parsed details available).".to_string());
+                        }
+                        lines.join("\n")
+                    }
+                };
+
+                let title = format!("PIV Slot {} Certificate", slot_str.to_uppercase());
+                ctx.push_screen_deferred(Box::new(PopupScreen::new(title, body)));
             }
 
             "refresh" => {
@@ -618,6 +662,20 @@ mod tests {
             Box::new(PivScreen::new(None))
         });
         app.pilot().settle().await;
+        insta::assert_snapshot!(app.backend());
+    }
+
+    #[tokio::test]
+    async fn piv_view_cert_popup() {
+        let yk = mock_yubikey_states().into_iter().next();
+        let mut app = TestApp::new_styled(80, 24, "", move || {
+            Box::new(PivScreen::new(yk.clone()))
+        });
+        let mut pilot = app.pilot();
+        // Press 'v' to open the cert detail popup for slot 9a (pre-selected)
+        pilot.press(crossterm::event::KeyCode::Char('v')).await;
+        pilot.settle().await;
+        drop(pilot);
         insta::assert_snapshot!(app.backend());
     }
 }

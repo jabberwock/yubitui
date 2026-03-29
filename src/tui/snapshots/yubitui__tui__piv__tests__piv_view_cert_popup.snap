@@ -1,0 +1,28 @@
+---
+source: src/tui/piv.rs
+expression: app.backend()
+---
+"                            PIV Slot 9A Certificate                             "
+"Slot:      9A                                                                   "
+"Subject:   Mock PIV Auth                                                        "
+"Issuer:    Mock CA                                                              "
+"Algorithm: ECDSA-P256                                                           "
+"Valid:     2024-01-01 – 2027-01-01                                              "
+"                                                                                "
+"  Esc / Enter  Close                                                            "
+"  Esc  Close   Tab  Focus   Ctrl+P  Palette                                     "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "

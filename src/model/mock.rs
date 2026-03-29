@@ -76,8 +76,10 @@ pub fn mock_yubikey_states() -> Vec<YubiKeyState> {
             slots: vec![
                 piv::SlotInfo {
                     slot: "9a".to_string(),
-                    algorithm: Some("ECCP256".to_string()),
+                    algorithm: Some("ECDSA-P256".to_string()),
                     subject: Some("Mock PIV Auth".to_string()),
+                    issuer: Some("Mock CA".to_string()),
+                    validity: Some("2024-01-01 – 2027-01-01".to_string()),
                 },
             ],
         }),

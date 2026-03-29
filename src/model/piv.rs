@@ -9,10 +9,26 @@ pub struct PivState {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SlotInfo {
     pub slot: String,
-    #[allow(dead_code)]
+    /// Short algorithm name, e.g. "RSA-2048" or "ECDSA-P256".
     pub algorithm: Option<String>,
-    #[allow(dead_code)]
+    /// Subject common name (CN) from the X.509 certificate.
     pub subject: Option<String>,
+    /// Issuer common name (CN) from the X.509 certificate.
+    pub issuer: Option<String>,
+    /// Certificate validity as "YYYY-MM-DD – YYYY-MM-DD".
+    pub validity: Option<String>,
+}
+
+impl SlotInfo {
+    pub fn occupied(slot: impl Into<String>) -> Self {
+        Self {
+            slot: slot.into(),
+            algorithm: None,
+            subject: None,
+            issuer: None,
+            validity: None,
+        }
+    }
 }
 
 /// PIV application AID.
@@ -101,16 +117,146 @@ pub fn get_piv_state() -> Result<PivState> {
         };
         let sw = super::card::apdu_sw(resp);
         if sw == 0x9000 {
-            slots.push(SlotInfo {
-                slot: slot_name.to_string(),
-                algorithm: None,
-                subject: None,
-            });
+            // Strip trailing 2-byte SW word before parsing TLV.
+            let data = if resp.len() >= 2 { &resp[..resp.len() - 2] } else { resp };
+            let mut info = SlotInfo::occupied(*slot_name);
+            if let Some(der) = extract_tlv_value(data, 0x53).and_then(|d| extract_tlv_value(d, 0x70)) {
+                if let Some(cert_info) = parse_cert_info(der) {
+                    info.algorithm = cert_info.algorithm;
+                    info.subject   = cert_info.subject;
+                    info.issuer    = cert_info.issuer;
+                    info.validity  = cert_info.validity;
+                }
+            }
+            slots.push(info);
         }
         // SW 0x6A82 = empty slot (skip); other SWs = skip
     }
 
     Ok(PivState { slots })
+}
+
+// ============================================================================
+// BER-TLV and X.509 helpers
+// ============================================================================
+
+struct CertInfo {
+    algorithm: Option<String>,
+    subject: Option<String>,
+    issuer: Option<String>,
+    validity: Option<String>,
+}
+
+/// Walk a flat BER-TLV byte stream and return the value for the first matching `tag`.
+///
+/// Handles both 1-byte tags and multi-byte DER lengths (up to 4-byte length fields).
+/// Does NOT recurse into constructed TLVs — only searches at the top level.
+fn extract_tlv_value(data: &[u8], tag: u8) -> Option<&[u8]> {
+    let mut i = 0;
+    while i < data.len() {
+        let t = data[i];
+        i += 1;
+        if i >= data.len() { break; }
+
+        // Decode BER length
+        let len: usize = if data[i] & 0x80 == 0 {
+            let l = data[i] as usize;
+            i += 1;
+            l
+        } else {
+            let n = (data[i] & 0x7F) as usize;
+            i += 1;
+            if n == 0 || n > 4 || i + n > data.len() { break; }
+            let mut l: usize = 0;
+            for _ in 0..n {
+                l = (l << 8) | data[i] as usize;
+                i += 1;
+            }
+            l
+        };
+
+        if i + len > data.len() { break; }
+        if t == tag {
+            return Some(&data[i..i + len]);
+        }
+        i += len;
+    }
+    None
+}
+
+/// Parse an X.509 DER certificate and extract display strings for the TUI.
+fn parse_cert_info(der: &[u8]) -> Option<CertInfo> {
+    use x509_parser::prelude::*;
+
+    let (_, cert) = X509Certificate::from_der(der).ok()?;
+
+    let subject = dn_common_name(cert.subject());
+    let issuer  = dn_common_name(cert.issuer());
+
+    // Algorithm OID → human readable
+    let algorithm = oid_to_algorithm_name(cert.signature_algorithm.algorithm.to_id_string().as_str())
+        .or_else(|| {
+            // Fall back to algorithm in SubjectPublicKeyInfo
+            oid_to_algorithm_name(
+                cert.tbs_certificate
+                    .subject_pki
+                    .algorithm
+                    .algorithm
+                    .to_id_string()
+                    .as_str(),
+            )
+        })
+        .map(|s| s.to_string());
+
+    // Validity window
+    let not_before = cert.validity().not_before.to_datetime();
+    let not_after  = cert.validity().not_after.to_datetime();
+    let validity = Some(format!(
+        "{} – {}",
+        not_before.date().to_string(),
+        not_after.date().to_string(),
+    ));
+
+    Some(CertInfo { algorithm, subject, issuer, validity })
+}
+
+/// Extract the first CN value from an X.509 distinguished name, falling back to
+/// the full RFC4514 string if no CN attribute is present.
+fn dn_common_name(name: &x509_parser::x509::X509Name<'_>) -> Option<String> {
+    use x509_parser::prelude::*;
+
+    // Try CN attribute first
+    for rdn in name.iter() {
+        for attr in rdn.iter() {
+            if attr.attr_type() == &oid_registry::OID_X509_COMMON_NAME {
+                if let Ok(s) = attr.attr_value().as_str() {
+                    return Some(s.to_string());
+                }
+            }
+        }
+    }
+    // Fall back to full DN string if non-empty
+    let s = name.to_string();
+    if s.is_empty() { None } else { Some(s) }
+}
+
+/// Map well-known signature / key algorithm OID strings to short names.
+fn oid_to_algorithm_name(oid: &str) -> Option<&'static str> {
+    match oid {
+        // RSA
+        "1.2.840.113549.1.1.1"  => Some("RSA"),
+        "1.2.840.113549.1.1.11" => Some("RSA-SHA256"),
+        "1.2.840.113549.1.1.12" => Some("RSA-SHA384"),
+        "1.2.840.113549.1.1.13" => Some("RSA-SHA512"),
+        // EC / ECDSA
+        "1.2.840.10045.4.3.2"   => Some("ECDSA-P256"),
+        "1.2.840.10045.4.3.3"   => Some("ECDSA-P384"),
+        "1.2.840.10045.2.1"     => Some("EC"),
+        // Ed25519 / Ed448
+        "1.3.101.112"           => Some("Ed25519"),
+        "1.3.101.113"           => Some("Ed448"),
+        _ => None,
+    }
 }
 
 /// Parse PIV state from `ykman piv info` output.
@@ -128,11 +274,7 @@ pub fn parse_piv_info(output: &str) -> PivState {
             if let Some(slot_id) = line.split(':').next() {
                 let slot_name = slot_id.trim_start_matches("Slot ").to_string();
 
-                slots.push(SlotInfo {
-                    slot: slot_name,
-                    algorithm: None,
-                    subject: None,
-                });
+                slots.push(SlotInfo::occupied(slot_name));
             }
         }
     }

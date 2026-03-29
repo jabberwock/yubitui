@@ -96,11 +96,7 @@ mod tests {
 
     fn occupied_piv() -> PivState {
         PivState {
-            slots: vec![SlotInfo {
-                slot: "9a".to_string(),
-                algorithm: None,
-                subject: None,
-            }],
+            slots: vec![SlotInfo::occupied("9a")],
         }
     }
 
