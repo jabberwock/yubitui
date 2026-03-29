@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Phase complete — ready for verification
-stopped_at: Completed 12-yubikey-slot-delete-workflow-12-05-PLAN.md
-last_updated: "2026-03-29T18:48:08.969Z"
+stopped_at: Completed 13-ui-polish 13-02-PLAN.md
+last_updated: "2026-03-29T19:29:25.402Z"
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 34
-  completed_plans: 29
+  completed_plans: 30
 ---
 
 # Project State
@@ -96,6 +96,7 @@ Plan: 3 of 3
 - [Phase 12]: Refresh uses pop+push-fresh-screen pattern (same as delete confirm screens) rather than in-place mutation
 - [Phase 12-yubikey-slot-delete-workflow]: Use F5 for FIDO2 refresh since R is reserved for factory reset
 - [Phase 12-yubikey-slot-delete-workflow]: Use detect_all() in PIV post-delete for full YubiKeyState instead of partial PivState
+- [Phase 13-ui-polish]: DataTable::new() takes only Vec<ColumnDef>; rows added via add_row() not at construction
 
 ### Roadmap Evolution
 
@@ -112,6 +113,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-29T18:48:08.967Z
-Stopped at: Completed 12-yubikey-slot-delete-workflow-12-05-PLAN.md
+Last session: 2026-03-29T19:29:25.399Z
+Stopped at: Completed 13-ui-polish 13-02-PLAN.md
 Resume file: None

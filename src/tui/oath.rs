@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label};
+use textual_rs::{Widget, Footer, Header, Label, Button, DataTable, ColumnDef, ProgressBar};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::{EventPropagation, WidgetId};
 use textual_rs::event::keybinding::KeyBinding;
@@ -219,6 +219,8 @@ impl Widget for OathScreen {
                         "No YubiKey detected. Insert your YubiKey and press R to refresh.",
                     )));
                 }
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Button::new("Refresh (R)")));
             }
             Some(state) if state.password_required => {
                 widgets.push(Box::new(Label::new("")));
@@ -229,85 +231,84 @@ impl Widget for OathScreen {
                     "Password management is not yet supported (deferred to v2).",
                 )));
                 widgets.push(Box::new(Label::new(
-                    "Use 'ykman oath access change' to remove the password, then retry.",
+                    "Use the yubikey manager CLI to remove the password, then retry.",
                 )));
             }
             Some(state) if state.credentials.is_empty() => {
                 widgets.push(Box::new(Label::new("")));
                 widgets.push(Box::new(Label::new(
-                    "No OATH credentials stored. Press 'a' to add one.",
+                    "No OATH credentials stored.",
                 )));
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Button::new("Add Account (A)")));
             }
             Some(state) => {
                 let selected = self.state.get_untracked().selected_index;
 
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "  Name                              Code      Type  ",
-                )));
-                widgets.push(Box::new(Label::new(
-                    "  ──────────────────────────────  ────────  ──────",
-                )));
+
+                // Credential list as DataTable
+                let columns = vec![
+                    ColumnDef::new("").with_width(2),
+                    ColumnDef::new("Name").with_width(30),
+                    ColumnDef::new("Code").with_width(14),
+                    ColumnDef::new("Type").with_width(8),
+                ];
+                let mut table = DataTable::new(columns);
 
                 for (idx, cred) in state.credentials.iter().enumerate() {
-                    let marker = if idx == selected { ">" } else { " " };
+                    let cursor = if idx == selected { ">" } else { " " };
 
                     let display_name = cred.issuer.as_deref().unwrap_or(&cred.name);
-
-                    // Truncate display name to 30 chars for alignment
-                    let name_field = if display_name.len() > 30 {
-                        format!("{:.30}", display_name)
+                    let name_col = if display_name.len() > 30 {
+                        display_name[..30].to_string()
                     } else {
-                        format!("{:<30}", display_name)
+                        display_name.to_string()
                     };
 
-                    let code_field = match &cred.oath_type {
-                        OathType::Hotp => {
-                            // HOTP: show [press Enter] if no code yet, or the generated code
-                            match &cred.code {
-                                None => format!("{:>8}", "[Enter]"),
-                                Some(c) => format!("{:>8}", c),
-                            }
-                        }
-                        OathType::Totp => {
-                            match &cred.code {
-                                None => format!("{:>8}", "------"),
-                                Some(c) => format!("{:>8}", c),
-                            }
-                        }
+                    let code_col = match &cred.oath_type {
+                        OathType::Hotp => match &cred.code {
+                            None => "[Enter]".to_string(),
+                            Some(c) => c.clone(),
+                        },
+                        OathType::Totp => match &cred.code {
+                            None => "------".to_string(),
+                            Some(c) => c.clone(),
+                        },
                     };
 
-                    let type_badge = match &cred.oath_type {
+                    let type_col = match &cred.oath_type {
                         OathType::Totp => "[TOTP]",
                         OathType::Hotp => "[HOTP]",
                     };
 
-                    // For HOTP with no code, show [press Enter] in code column
-                    let display_code = if matches!(cred.oath_type, OathType::Hotp) && cred.code.is_none() {
-                        format!("{:>8}", "[press Enter]")
-                    } else {
-                        code_field
-                    };
-
-                    widgets.push(Box::new(Label::new(format!(
-                        "  {} {:<30}  {}  {}",
-                        marker, name_field, display_code, type_badge
-                    ))));
+                    table.add_row(vec![
+                        cursor.to_string(),
+                        name_col,
+                        code_col,
+                        type_col.to_string(),
+                    ]);
                 }
 
-                // Countdown bar for TOTP
-                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(table));
 
+                // TOTP countdown as ProgressBar
                 let now_secs = chrono::Utc::now().timestamp();
                 let secs_remaining = 30 - (now_secs % 30);
-                let filled = ((secs_remaining as f32 / 30.0) * 20.0).round() as usize;
-                let empty = 20usize.saturating_sub(filled);
-                let bar = format!("[{}{}]", "=".repeat(filled), " ".repeat(empty));
+                let progress = secs_remaining as f64 / 30.0;
 
+                widgets.push(Box::new(Label::new("")));
                 widgets.push(Box::new(Label::new(format!(
-                    "  TOTP refreshes in {}s  {}",
-                    secs_remaining, bar
+                    "TOTP refreshes in {}s",
+                    secs_remaining
                 ))));
+                widgets.push(Box::new(ProgressBar::new(progress)));
+
+                // Action Buttons
+                widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Button::new("Add Account (A)")));
+                widgets.push(Box::new(Button::new("Delete Account (D)")));
+                widgets.push(Box::new(Button::new("Refresh (R)")));
             }
         }
 
@@ -786,23 +787,28 @@ mod tests {
     use textual_rs::TestApp;
     use crate::model::oath::{OathCredential, OathAlgorithm};
 
-    /// Strip the time-varying TOTP countdown line from a snapshot string so that
-    /// snapshot tests are not flaky across 30-second TOTP windows.
+    /// Strip the time-varying TOTP countdown line (and following ProgressBar line) from a
+    /// snapshot string so that snapshot tests are not flaky across 30-second TOTP windows.
     fn stable_snapshot(s: &impl std::fmt::Display) -> String {
-        s.to_string()
-            .lines()
-            .map(|l| {
-                // Each line in app.backend() Display output is wrapped in quotes: "  TOTP refreshes..."
-                // Strip leading quote + spaces when checking content
-                if l.trim_start_matches('"').trim_start().starts_with("TOTP refreshes in") {
-                    "\"  TOTP refreshes in <countdown>  [<bar>]                                 \""
-                        .to_string()
-                } else {
-                    l.to_string()
-                }
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
+        let raw = s.to_string();
+        let mut result = Vec::new();
+        let mut skip_next = false;
+        for l in raw.lines() {
+            if skip_next {
+                // Replace the ProgressBar render line that follows the countdown label
+                result.push("\"<ProgressBar>                                                                   \"".to_string());
+                skip_next = false;
+                continue;
+            }
+            let content = l.trim_start_matches('"').trim_start();
+            if content.starts_with("TOTP refreshes in") {
+                result.push("\"TOTP refreshes in <countdown>                                                   \"".to_string());
+                skip_next = true;
+            } else {
+                result.push(l.to_string());
+            }
+        }
+        result.join("\n")
     }
 
     fn mock_oath_state() -> OathState {
