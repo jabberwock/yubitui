@@ -321,8 +321,16 @@ impl Widget for DashboardScreen {
                 ctx.push_screen_deferred(Box::new(crate::tui::otp::OtpScreen::new(otp_state)));
             }
             "refresh" => {
-                // Refresh is an app-level side effect — no-op in widget scope.
-                // In 08-06, the root screen will re-build DashboardScreen with fresh state.
+                // Re-detect YubiKey hardware state from PC/SC readers
+                let fresh_states = crate::model::YubiKeyState::detect_all().unwrap_or_default();
+                let mut fresh_app_state = self.app_state.clone();
+                fresh_app_state.yubikey_states = fresh_states;
+                // Pop current dashboard screen and push a fresh one with updated state
+                ctx.pop_screen_deferred();
+                ctx.push_screen_deferred(Box::new(DashboardScreen::new(
+                    fresh_app_state,
+                    self.diagnostics.clone(),
+                )));
             }
             "switch_key" => {
                 // Multi-key switching is an app-level side effect — no-op in widget scope.

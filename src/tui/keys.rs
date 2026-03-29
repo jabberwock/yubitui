@@ -570,7 +570,12 @@ impl Widget for KeysScreen {
                 ctx.push_screen_deferred(Box::new(PopupScreen::new("Attestation Certificate", body)));
             }
             "refresh" => {
-                // Refresh is an app-level side effect — no-op in widget scope.
+                // Re-detect YubiKey state from hardware and push fresh KeysScreen
+                let fresh_yk = crate::model::YubiKeyState::detect_all()
+                    .ok()
+                    .and_then(|mut v| if v.is_empty() { None } else { Some(v.remove(0)) });
+                ctx.pop_screen_deferred();
+                ctx.push_screen_deferred(Box::new(KeysScreen::new(fresh_yk)));
             }
             "back" => {
                 ctx.pop_screen_deferred();

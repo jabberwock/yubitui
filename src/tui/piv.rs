@@ -301,8 +301,12 @@ impl Widget for PivScreen {
             }
 
             "refresh" => {
-                // Refresh PIV state — wired in subsequent plans via async worker.
+                // Re-detect YubiKey state from hardware and push fresh PivScreen
+                let fresh_yk = crate::model::YubiKeyState::detect_all()
+                    .ok()
+                    .and_then(|mut v| if v.is_empty() { None } else { Some(v.remove(0)) });
                 ctx.pop_screen_deferred();
+                ctx.push_screen_deferred(Box::new(PivScreen::new(fresh_yk)));
             }
 
             _ => {}
