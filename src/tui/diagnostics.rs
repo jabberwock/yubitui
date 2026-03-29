@@ -1,4 +1,4 @@
-use textual_rs::{Widget, Footer, Header, Label};
+use textual_rs::{Widget, Footer, Header, Label, Button, DataTable, ColumnDef};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use textual_rs::reactive::Reactive;
@@ -58,82 +58,82 @@ impl Widget for DiagnosticsScreen {
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let d = &self.diagnostics;
 
-        // Build content lines from diagnostics data
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("System Diagnostics")),
         ];
 
-        // PC/SC Daemon section
-        let pcscd_icon = if d.pcscd.running { "[OK]" } else { "[!!]" };
-        let pcscd_status = if d.pcscd.running {
+        // Build DataTable with 4 diagnostic check rows
+        let columns = vec![
+            ColumnDef::new("Status").with_width(8),
+            ColumnDef::new("Component").with_width(25),
+            ColumnDef::new("Detail").with_width(40),
+        ];
+        let mut table = DataTable::new(columns);
+
+        // Row 1: PC/SC Daemon
+        let pcscd_badge = if d.pcscd.running { "[OK]" } else { "[!!]" };
+        let pcscd_detail = if d.pcscd.running {
             "Running".to_string()
         } else if cfg!(target_os = "macos") {
-            "Not running - Start with: brew services start pcsc-lite".to_string()
+            "brew services start pcsc-lite".to_string()
         } else if cfg!(target_os = "linux") {
-            "Not running - Start with: sudo systemctl start pcscd".to_string()
+            "sudo systemctl start pcscd".to_string()
         } else if cfg!(windows) {
-            "Not running - Start with: Start-Service SCardSvr (as admin)".to_string()
+            "Start-Service SCardSvr (admin)".to_string()
         } else {
             "Not running".to_string()
         };
-        widgets.push(Box::new(Label::new(format!(
-            "{} PC/SC Daemon (pcscd): {}",
-            pcscd_icon, pcscd_status
-        ))));
-        if let Some(ref version) = d.pcscd.version {
-            widgets.push(Box::new(Label::new(format!("   Version: {}", version))));
-        }
-        widgets.push(Box::new(Label::new("")));
+        table.add_row(vec![pcscd_badge.to_string(), "PC/SC Daemon".to_string(), pcscd_detail]);
 
-        // GPG Agent section
-        let gpg_icon = if d.gpg_agent.running { "[OK]" } else { "[!!]" };
-        let gpg_status = if d.gpg_agent.running {
+        // Row 2: GPG Agent
+        let gpg_badge = if d.gpg_agent.running { "[OK]" } else { "[!!]" };
+        let gpg_detail = if d.gpg_agent.running {
             "Running".to_string()
         } else {
-            "Not running - Start with: gpgconf --launch gpg-agent".to_string()
+            "gpgconf --launch gpg-agent".to_string()
         };
-        widgets.push(Box::new(Label::new(format!(
-            "{} GPG Agent: {}",
-            gpg_icon, gpg_status
-        ))));
-        if let Some(ref version) = d.gpg_agent.version {
-            widgets.push(Box::new(Label::new(format!("   Version: {}", version))));
-        }
-        if let Some(ref socket) = d.gpg_agent.socket_path {
-            widgets.push(Box::new(Label::new(format!("   Socket: {}", socket))));
-        }
-        widgets.push(Box::new(Label::new("")));
+        table.add_row(vec![gpg_badge.to_string(), "GPG Agent".to_string(), gpg_detail]);
 
-        // Scdaemon section
-        let scd_icon = if d.scdaemon.configured { "[OK]" } else { "[  ]" };
-        let scd_status = if d.scdaemon.configured {
+        // Row 3: Scdaemon
+        let scd_badge = if d.scdaemon.configured { "[OK]" } else { "[  ]" };
+        let scd_detail = if d.scdaemon.configured {
             "Configured".to_string()
         } else {
-            "Not configured - Create ~/.gnupg/scdaemon.conf".to_string()
+            "Create ~/.gnupg/scdaemon.conf".to_string()
         };
-        widgets.push(Box::new(Label::new(format!(
-            "{} Scdaemon: {}",
-            scd_icon, scd_status
-        ))));
-        if let Some(ref issues) = d.scdaemon.issues {
-            widgets.push(Box::new(Label::new(format!("   Issues: {}", issues))));
-        }
-        widgets.push(Box::new(Label::new("")));
+        table.add_row(vec![scd_badge.to_string(), "Scdaemon".to_string(), scd_detail]);
 
-        // SSH Agent section
-        let ssh_icon = if d.ssh_agent.configured { "[OK]" } else { "[  ]" };
-        let ssh_status = if d.ssh_agent.configured {
+        // Row 4: SSH Agent
+        let ssh_badge = if d.ssh_agent.configured { "[OK]" } else { "[  ]" };
+        let ssh_detail = if d.ssh_agent.configured {
             "Configured for GPG".to_string()
         } else {
-            "Not configured - Add enable-ssh-support to gpg-agent.conf".to_string()
+            "Add enable-ssh-support to gpg-agent.conf".to_string()
         };
-        widgets.push(Box::new(Label::new(format!(
-            "{} SSH Agent Integration: {}",
-            ssh_icon, ssh_status
-        ))));
-        if let Some(ref sock) = d.ssh_agent.auth_sock {
-            widgets.push(Box::new(Label::new(format!("   SSH_AUTH_SOCK: {}", sock))));
+        table.add_row(vec![ssh_badge.to_string(), "SSH Agent".to_string(), ssh_detail]);
+
+        widgets.push(Box::new(table));
+
+        // Supplemental detail lines (only shown when data exists)
+        if let Some(ref version) = d.pcscd.version {
+            widgets.push(Box::new(Label::new(format!("  PC/SC version: {}", version))));
         }
+        if let Some(ref version) = d.gpg_agent.version {
+            widgets.push(Box::new(Label::new(format!("  GPG Agent version: {}", version))));
+        }
+        if let Some(ref socket) = d.gpg_agent.socket_path {
+            widgets.push(Box::new(Label::new(format!("  GPG socket: {}", socket))));
+        }
+        if let Some(ref issues) = d.scdaemon.issues {
+            widgets.push(Box::new(Label::new(format!("  Scdaemon issues: {}", issues))));
+        }
+        if let Some(ref sock) = d.ssh_agent.auth_sock {
+            widgets.push(Box::new(Label::new(format!("  SSH_AUTH_SOCK: {}", sock))));
+        }
+
+        // Spacer + action button
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Button::new("Run Diagnostics (R)")));
 
         widgets.push(Box::new(Footer));
         widgets
