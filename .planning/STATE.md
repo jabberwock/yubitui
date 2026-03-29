@@ -2,29 +2,28 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
-status: All phases complete — ready for milestone completion
-stopped_at: Completed 13-ui-polish 13-05-PLAN.md — UAT 10/10 passed
-last_updated: "2026-03-29T20:55:00.000Z"
+status: v1.1 milestone archived — ready for v2.0 planning
+stopped_at: v1.1 complete — all 8 phases, 34 plans, 160 tests, UAT 10/10
+last_updated: "2026-03-29T21:30:00.000Z"
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 35
-  completed_plans: 35
+  total_phases: 8
+  completed_phases: 8
+  total_plans: 34
+  completed_plans: 34
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-26)
+See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Zero-friction YubiKey management — detect problems automatically, guide users through fixes
-**Current focus:** Phase 12 — yubikey-slot-delete-workflow
+**Current focus:** v2.0 planning — run `/gsd:new-milestone` to begin
 
 ## Current Position
 
-Phase: 12 (yubikey-slot-delete-workflow) — EXECUTING
-Plan: 3 of 3
+v1.1 complete. All phases archived. Run `/gsd:new-milestone` to start v2.0.
 
 ## Performance Metrics
 
