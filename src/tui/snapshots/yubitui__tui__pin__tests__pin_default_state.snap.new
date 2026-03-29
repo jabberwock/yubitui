@@ -1,9 +1,12 @@
 ---
 source: src/tui/pin.rs
+assertion_line: 547
 expression: app.backend()
 ---
 "                                 PIN Management                                 "
-"No YubiKey detected.                                                            "
+"User PIN: 3/3 retries [OK]                                                      "
+"Admin PIN: 3/3 retries [OK]                                                     "
+"Reset Code: Not set                                                             "
 "                                                                                "
 "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
 "┃                             [C] Change User PIN                              ┃"
@@ -18,8 +21,6 @@ expression: app.backend()
 "┃                           [U] Unblock PIN (Wizard)                           ┃"
 "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 "  Tab  Focus   Ctrl+P  Palette                                                  "
-"                                                                                "
-"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "

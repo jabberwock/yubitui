@@ -1,5 +1,6 @@
 ---
 source: src/tui/keys.rs
+assertion_line: 1557
 expression: app.backend()
 ---
 "                                 Key Management                                 "

@@ -1,5 +1,6 @@
 ---
 source: src/tui/keys.rs
+assertion_line: 1576
 expression: app.backend()
 ---
 "                             Import Key to YubiKey                              "
