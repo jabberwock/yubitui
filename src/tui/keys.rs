@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, WidgetId, Header, Label, Button, Footer};
+use textual_rs::{Widget, WidgetId, Header, Label, Button, DataTable, ColumnDef, Footer};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -353,77 +353,76 @@ impl Widget for KeysScreen {
 
         children.push(Box::new(Header::new("Key Management")));
 
-        // Key slot summary (sidebar role — status block)
+        // Key slot summary — DataTable with 3 OpenPGP slots
         if let Some(yk) = &self.yubikey_state {
             if let Some(ref openpgp) = yk.openpgp {
+                let columns = vec![
+                    ColumnDef::new("Slot").with_width(18),
+                    ColumnDef::new("Status").with_width(7),
+                    ColumnDef::new("Fingerprint").with_width(40),
+                ];
+                let mut table = DataTable::new(columns);
+
                 // Signature slot
-                if let Some(ref sig) = openpgp.signature_key {
-                    let fp = sig.fingerprint.get(..16).unwrap_or(&sig.fingerprint);
-                    children.push(Box::new(Label::new(format!(
-                        "Signature:      {} ...",
-                        fp
-                    ))));
+                let (sig_status, sig_fp) = if let Some(ref sig) = openpgp.signature_key {
+                    ("[SET]".to_string(), sig.fingerprint.get(..16).unwrap_or(&sig.fingerprint).to_string())
                 } else {
-                    children.push(Box::new(Label::new("Signature:      [Empty]")));
-                }
+                    ("[EMPTY]".to_string(), "—".to_string())
+                };
+                table.add_row(vec!["Signature".to_string(), sig_status, sig_fp]);
+
                 // Encryption slot
-                if let Some(ref enc) = openpgp.encryption_key {
-                    let fp = enc.fingerprint.get(..16).unwrap_or(&enc.fingerprint);
-                    children.push(Box::new(Label::new(format!(
-                        "Encryption:     {} ...",
-                        fp
-                    ))));
+                let (enc_status, enc_fp) = if let Some(ref enc) = openpgp.encryption_key {
+                    ("[SET]".to_string(), enc.fingerprint.get(..16).unwrap_or(&enc.fingerprint).to_string())
                 } else {
-                    children.push(Box::new(Label::new("Encryption:     [Empty]")));
-                }
+                    ("[EMPTY]".to_string(), "—".to_string())
+                };
+                table.add_row(vec!["Encryption".to_string(), enc_status, enc_fp]);
+
                 // Authentication slot
-                if let Some(ref auth) = openpgp.authentication_key {
-                    let fp = auth.fingerprint.get(..16).unwrap_or(&auth.fingerprint);
-                    children.push(Box::new(Label::new(format!(
-                        "Authentication: {} ...",
-                        fp
-                    ))));
+                let (aut_status, aut_fp) = if let Some(ref auth) = openpgp.authentication_key {
+                    ("[SET]".to_string(), auth.fingerprint.get(..16).unwrap_or(&auth.fingerprint).to_string())
                 } else {
-                    children.push(Box::new(Label::new(
-                        "Authentication: [Empty] (required for SSH)",
-                    )));
+                    ("[EMPTY]".to_string(), "—".to_string())
+                };
+                table.add_row(vec!["Authentication".to_string(), aut_status, aut_fp]);
+
+                children.push(Box::new(table));
+
+                // Touch policies — secondary info, keep as indented Labels with bracket notation
+                if let Some(ref tp) = yk.touch_policies {
+                    let has_sig = openpgp.signature_key.is_some();
+                    let has_enc = openpgp.encryption_key.is_some();
+                    let has_aut = openpgp.authentication_key.is_some();
+                    children.push(Box::new(Label::new("")));
+                    children.push(Box::new(Label::new("Touch Policies:")));
+                    children.push(Box::new(Label::new(format!(
+                        "  Signature:      [{}]",
+                        if has_sig { format!("{}", tp.signature) } else { "—".to_string() }
+                    ))));
+                    children.push(Box::new(Label::new(format!(
+                        "  Encryption:     [{}]",
+                        if has_enc { format!("{}", tp.encryption) } else { "—".to_string() }
+                    ))));
+                    children.push(Box::new(Label::new(format!(
+                        "  Authentication: [{}]",
+                        if has_aut { format!("{}", tp.authentication) } else { "—".to_string() }
+                    ))));
+                    children.push(Box::new(Label::new(format!(
+                        "  Attestation:    [{}]",
+                        tp.attestation
+                    ))));
                 }
             } else {
-                children.push(Box::new(Label::new("No keys configured")));
+                children.push(Box::new(Label::new("No keys configured.")));
                 children.push(Box::new(Label::new(
                     "Generate or import keys using the buttons below.",
                 )));
             }
-
-            // Touch policies
-            if let Some(ref tp) = yk.touch_policies {
-                let has_sig = yk.openpgp.as_ref().is_some_and(|o| o.signature_key.is_some());
-                let has_enc = yk.openpgp.as_ref().is_some_and(|o| o.encryption_key.is_some());
-                let has_aut =
-                    yk.openpgp.as_ref().is_some_and(|o| o.authentication_key.is_some());
-                children.push(Box::new(Label::new("")));
-                children.push(Box::new(Label::new("Touch Policies:")));
-                children.push(Box::new(Label::new(format!(
-                    "  Signature:      {}",
-                    if has_sig { format!("{}", tp.signature) } else { "—".to_string() }
-                ))));
-                children.push(Box::new(Label::new(format!(
-                    "  Encryption:     {}",
-                    if has_enc { format!("{}", tp.encryption) } else { "—".to_string() }
-                ))));
-                children.push(Box::new(Label::new(format!(
-                    "  Authentication: {}",
-                    if has_aut { format!("{}", tp.authentication) } else { "—".to_string() }
-                ))));
-                children.push(Box::new(Label::new(format!(
-                    "  Attestation:    {}",
-                    tp.attestation
-                ))));
-            }
         } else {
-            children.push(Box::new(Label::new("No keys configured")));
+            children.push(Box::new(Label::new("No YubiKey detected.")));
             children.push(Box::new(Label::new(
-                "Generate or import keys using the buttons below.",
+                "Insert your YubiKey and press R to refresh.",
             )));
         }
 
@@ -438,15 +437,19 @@ impl Widget for KeysScreen {
 
         children.push(Box::new(Label::new("")));
 
-        // Action labels (keybindings in KEYS_BINDINGS drive navigation)
-        children.push(Box::new(Label::new("  g  Generate Key on Card")));
-        children.push(Box::new(Label::new("  i  Import Existing Key")));
-        children.push(Box::new(Label::new("  d  Delete Key Slot")));
-        children.push(Box::new(Label::new("  v  View Full Key Details")));
-        children.push(Box::new(Label::new("  e  Export SSH Public Key")));
-        children.push(Box::new(Label::new("  k  Key Attributes")));
-        children.push(Box::new(Label::new("  t  Touch Policy")));
-        children.push(Box::new(Label::new("  a  Attestation")));
+        // Action buttons
+        if self.yubikey_state.is_none() {
+            children.push(Box::new(Button::new("[R] Refresh")));
+        } else {
+            children.push(Box::new(Button::new("[G] Generate Key on Card")));
+            children.push(Box::new(Button::new("[I] Import Existing Key")));
+            children.push(Box::new(Button::new("[D] Delete Key Slot")));
+            children.push(Box::new(Button::new("[V] View Full Key Details")));
+            children.push(Box::new(Button::new("[E] Export SSH Public Key")));
+            children.push(Box::new(Button::new("[K] Key Attributes")));
+            children.push(Box::new(Button::new("[T] Touch Policy")));
+            children.push(Box::new(Button::new("[A] Attestation")));
+        }
 
         children.push(Box::new(Footer));
         children
