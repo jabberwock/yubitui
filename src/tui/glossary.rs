@@ -110,7 +110,9 @@ mod tests {
 
     #[tokio::test]
     async fn glossary_screen() {
-        let mut app = TestApp::new_styled(80, 24, "", || Box::new(GlossaryScreen::new()));
+        // Use the same CSS as app.rs so Markdown fills remaining vertical space.
+        let css = "GlossaryScreen Markdown { flex-grow: 1; }";
+        let mut app = TestApp::new_styled(80, 24, css, || Box::new(GlossaryScreen::new()));
         app.pilot().settle().await;
         insta::assert_display_snapshot!(app.backend());
     }

@@ -126,7 +126,9 @@ mod tests {
 
     #[tokio::test]
     async fn help_screen() {
-        let mut app = TestApp::new_styled(80, 24, "", || Box::new(HelpScreen::new()));
+        // Use the same CSS as app.rs so Markdown fills remaining vertical space.
+        let css = "HelpScreen Markdown { flex-grow: 1; }";
+        let mut app = TestApp::new_styled(80, 24, css, || Box::new(HelpScreen::new()));
         app.pilot().settle().await;
         insta::assert_display_snapshot!(app.backend());
     }
