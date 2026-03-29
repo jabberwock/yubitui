@@ -374,6 +374,10 @@ impl Widget for MgmtKeyThenDeleteScreen {
         "MgmtKeyThenDeleteScreen"
     }
 
+    fn can_focus(&self) -> bool {
+        true
+    }
+
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let input = self.input.borrow().clone();
         let error = self.error.borrow().clone();

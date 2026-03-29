@@ -769,6 +769,10 @@ impl Widget for PinAuthScreen {
         "PinAuthScreen"
     }
 
+    fn can_focus(&self) -> bool {
+        true
+    }
+
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let error = self.error_message.borrow().clone();
         let masked = "*".repeat(self.pin_input.borrow().len());
