@@ -197,3 +197,13 @@ Plans:
 - Application enable/disable toggle (enterprise niche — deferred to v2)
 - Backup/restore workflows (deferred to v2)
 - Reactive ratatui rendering engine (app.rs componentization — future milestone)
+
+### Phase 13: UI Polish
+
+**Goal:** Consistent card/panel layout, visual hierarchy, and design quality across all screens to match PIN Management standard
+**Requirements**: TBD
+**Depends on:** Phase 12
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 13 to break down)

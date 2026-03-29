@@ -97,6 +97,7 @@ Plan: 3 of 3
 ### Roadmap Evolution
 
 - Phase 12 added: yubikey slot delete workflow — individual OpenPGP/PIV slot deletion without factory reset
+- Phase 13 added: UI polish — consistent card/panel layout, visual hierarchy, and design quality across all screens to match PIN Management standard
 
 ### Pending Todos
 
