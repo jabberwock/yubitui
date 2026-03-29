@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label, WidgetId};
+use textual_rs::{Widget, Footer, Header, Label, WidgetId, Button, ButtonVariant, DataTable, ColumnDef};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
@@ -220,10 +220,11 @@ impl Widget for Fido2Screen {
                 };
                 widgets.push(Box::new(Label::new(format!("Algorithms: {}", alg_str))));
 
+                // PIN status with bracket badges
                 let pin_status = if state.pin_is_set {
-                    format!("PIN: Set ({} retries remaining)", state.pin_retry_count)
+                    format!("PIN: [SET] ({} retries remaining)", state.pin_retry_count)
                 } else {
-                    "PIN: Not set".to_string()
+                    "PIN: [NOT SET]".to_string()
                 };
                 widgets.push(Box::new(Label::new(pin_status)));
                 widgets.push(Box::new(Label::new("")));
@@ -249,20 +250,53 @@ impl Widget for Fido2Screen {
                             widgets.push(Box::new(Label::new("No passkeys stored on this device.")));
                         }
                         Some(creds) => {
-                            widgets.push(Box::new(Label::new(format!("Passkeys ({})", creds.len()))));
+                            // Passkey list as DataTable
+                            let columns = vec![
+                                ColumnDef::new("").with_width(2),
+                                ColumnDef::new("Relying Party").with_width(32),
+                                ColumnDef::new("User").with_width(30),
+                            ];
+                            let mut table = DataTable::new(columns);
                             for (idx, cred) in creds.iter().enumerate() {
-                                let marker = if idx == selected_index { ">" } else { " " };
-                                widgets.push(Box::new(Label::new(format!(
-                                    "  {} {:<30}  {}",
-                                    marker, cred.rp_id, cred.user_name
-                                ))));
+                                let cursor = if idx == selected_index { ">" } else { " " };
+                                table.add_row(vec![
+                                    cursor.to_string(),
+                                    cred.rp_id.clone(),
+                                    cred.user_name.clone(),
+                                ]);
                             }
+                            widgets.push(Box::new(table));
                         }
                         None => {
                             // Already handled above — cannot reach here
                         }
                     }
                 }
+
+                // --- Action Buttons ---
+                widgets.push(Box::new(Label::new("")));
+
+                // Set PIN vs Change PIN based on state
+                if state.pin_is_set {
+                    widgets.push(Box::new(Button::new("Change PIN (S)")));
+                } else {
+                    widgets.push(Box::new(Button::new("Set PIN (S)")));
+                }
+
+                // Unlock Credentials only when locked (credentials is None) and PIN is set
+                if state.pin_is_set && state.credentials.is_none() {
+                    widgets.push(Box::new(Button::new("Unlock Credentials (P)")));
+                }
+
+                // Delete Credential only when credentials are loaded and non-empty
+                if let Some(creds) = &state.credentials {
+                    if !creds.is_empty() {
+                        widgets.push(Box::new(Button::new("Delete Credential (D)")));
+                    }
+                }
+
+                // Reset FIDO2 — always shown, uses Error variant for visual warning
+                widgets.push(Box::new(Button::new("Reset FIDO2 (R)").with_variant(ButtonVariant::Error)));
             }
         }
 
