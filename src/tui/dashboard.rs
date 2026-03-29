@@ -1,4 +1,4 @@
-use textual_rs::{Widget, Header, Label, Footer};
+use textual_rs::{Widget, Header, Label, Footer, Button};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
@@ -190,21 +190,21 @@ impl Widget for DashboardScreen {
             ))));
 
             let pin_user_status = if pin.user_pin_blocked {
-                "BLOCKED"
+                "[BLOCKED]"
             } else if pin.user_pin_retries <= 1 {
-                "LOW"
+                "[DANGER]"
             } else {
-                "OK"
+                "[OK]"
             };
             let pin_admin_status = if pin.admin_pin_blocked {
-                "BLOCKED"
+                "[BLOCKED]"
             } else if pin.admin_pin_retries <= 1 {
-                "LOW"
+                "[DANGER]"
             } else {
-                "OK"
+                "[OK]"
             };
             children.push(Box::new(Label::new(format!(
-                "PIN: {}/3 retries [{}]  Admin: {}/3 retries [{}]",
+                "PIN: {}/3 retries {}  Admin: {}/3 retries {}",
                 pin.user_pin_retries,
                 pin_user_status,
                 pin.admin_pin_retries,
@@ -213,22 +213,22 @@ impl Widget for DashboardScreen {
 
             if let Some(ref openpgp) = yk.openpgp {
                 let sig_status = if openpgp.signature_key.is_some() {
-                    "Set"
+                    "[SET]"
                 } else {
-                    "Empty"
+                    "[EMPTY]"
                 };
                 let enc_status = if openpgp.encryption_key.is_some() {
-                    "Set"
+                    "[SET]"
                 } else {
-                    "Empty"
+                    "[EMPTY]"
                 };
                 let aut_status = if openpgp.authentication_key.is_some() {
-                    "Set"
+                    "[SET]"
                 } else {
-                    "Empty"
+                    "[EMPTY]"
                 };
                 children.push(Box::new(Label::new(format!(
-                    "Keys: Sign={} Encrypt={} Auth={}",
+                    "Keys: Sign {}  Encrypt {}  Auth {}",
                     sig_status, enc_status, aut_status
                 ))));
             }
@@ -239,21 +239,21 @@ impl Widget for DashboardScreen {
             children.push(Box::new(Label::new(
                 "Insert your YubiKey and press R to refresh. Check the USB connection or run Diagnostics.",
             )));
+            children.push(Box::new(Button::new("Refresh (R)")));
         }
 
         children.push(Box::new(Label::new("")));
 
-        // Navigation items — Labels to keep layout compact at 80x24.
-        // Number key bindings handle all navigation; mouse click not required.
-        children.push(Box::new(Label::new("  [1] Open Keys")));
-        children.push(Box::new(Label::new("  [2] Diagnostics")));
-        children.push(Box::new(Label::new("  [3] PIN Management")));
-        children.push(Box::new(Label::new("  [4] SSH Setup")));
-        children.push(Box::new(Label::new("  [5] PIV Certificates")));
-        children.push(Box::new(Label::new("  [6] Help")));
-        children.push(Box::new(Label::new("  [7] OATH / Authenticator")));
-        children.push(Box::new(Label::new("  [8] FIDO2 / Security Key")));
-        children.push(Box::new(Label::new("  [9] OTP Slots")));
+        // Navigation items — Buttons for all 9 destinations.
+        children.push(Box::new(Button::new("[1] OpenPGP Keys")));
+        children.push(Box::new(Button::new("[2] Diagnostics")));
+        children.push(Box::new(Button::new("[3] PIN Management")));
+        children.push(Box::new(Button::new("[4] SSH Setup")));
+        children.push(Box::new(Button::new("[5] PIV Certificates")));
+        children.push(Box::new(Button::new("[6] Help")));
+        children.push(Box::new(Button::new("[7] OATH / Authenticator")));
+        children.push(Box::new(Button::new("[8] FIDO2 / Security Key")));
+        children.push(Box::new(Button::new("[9] OTP Slots")));
 
         children.push(Box::new(Footer));
         children
