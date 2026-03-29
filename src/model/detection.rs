@@ -165,6 +165,11 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
             }
         };
 
+        // Drop the exclusive card connection before PIV/OTP detection.
+        // Both get_piv_state() and get_otp_slot_status() open their own exclusive
+        // connections — they fail silently if the OpenPGP connection is still held.
+        drop(card);
+
         // Get PIV state (best-effort, no error on failure)
         let piv = super::piv::get_piv_state().ok();
 
