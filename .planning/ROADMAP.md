@@ -39,10 +39,10 @@ See full details: `.planning/milestones/v1.1-ROADMAP.md`
 
 ### 📋 v1.2 Guided Workflows & Advanced Operations (Phases 14–17)
 
-- [ ] **Phase 14: OATH Import & Password Management** - OATH URI import plus full password set/change/remove lifecycle
-- [ ] **Phase 15: PIV Management Key** - Management key change workflow with factory-default detection and warning
-- [ ] **Phase 16: Provisioning Wizards** - Initial YubiKey setup and SSH-with-touch-policy wizards with device state surfacing
-- [ ] **Phase 17: Dashboard Navigation Affordance** - 1–9 key discovery hints so users find all screens without docs
+- [x] **Phase 14: OATH Import & Password Management** - OATH URI import plus full password set/change/remove lifecycle
+- [x] **Phase 15: PIV Management Key** - Management key change workflow with factory-default detection and warning
+- [x] **Phase 16: Provisioning Wizards** - Initial YubiKey setup and SSH-with-touch-policy wizards with device state surfacing
+- [x] **Phase 17: Dashboard Navigation Affordance** - 1–9 key discovery hints so users find all screens without docs
 
 ## Phase Details
 
@@ -108,7 +108,7 @@ See full details: `.planning/milestones/v1.1-ROADMAP.md`
 | 11. OTP Slots + Education + Onboarding | v1.1 | 3/3 | Complete | 2026-03-28 |
 | 12. YubiKey Slot Delete Workflow | v1.1 | 5/5 | Complete | 2026-03-29 |
 | 13. UI Polish | v1.1 | 5/5 | Complete | 2026-03-29 |
-| 14. OATH Import & Password Management | v1.2 | 0/? | Not started | - |
-| 15. PIV Management Key | v1.2 | 0/? | Not started | - |
-| 16. Provisioning Wizards | v1.2 | 0/? | Not started | - |
-| 17. Dashboard Navigation Affordance | v1.2 | 0/? | Not started | - |
+| 14. OATH Import & Password Management | v1.2 | 4/4 | Complete | 2026-03-29 |
+| 15. PIV Management Key | v1.2 | 3/3 | Complete | 2026-03-29 |
+| 16. Provisioning Wizards | v1.2 | 4/4 | Complete | 2026-03-29 |
+| 17. Dashboard Navigation Affordance | v1.2 | 1/1 | Complete | 2026-03-29 |

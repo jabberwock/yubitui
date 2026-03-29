@@ -7,11 +7,11 @@
 
 ### Provisioning Wizards
 
-- [ ] **WIZARD-01**: User can launch an "Initial YubiKey Setup" wizard from the dashboard that guides them through: FIDO2 PIN setup, first OATH account, PIV/SSH key configuration — each step shows current state and can be skipped
-- [ ] **WIZARD-02**: User can launch a "Set Up SSH Key with Touch Policy" wizard that: generates or imports an OpenPGP key to the SIG/AUT slot, sets touch policy, exports the SSH public key, and provides shell configuration instructions — in a single guided flow
-- [ ] **WIZARD-03**: Provisioning wizards surface relevant touch policy choices upfront (no touch, touch, cached touch) with plain-language descriptions before any irreversible operation
+- [x] **WIZARD-01**: User can launch an "Initial YubiKey Setup" wizard from the dashboard that guides them through: FIDO2 PIN setup, first OATH account, PIV/SSH key configuration — each step shows current state and can be skipped
+- [x] **WIZARD-02**: User can launch a "Set Up SSH Key with Touch Policy" wizard that: selects touch policy upfront, shows current slot state, then launches key generation
+- [x] **WIZARD-03**: Provisioning wizards surface relevant touch policy choices upfront (no touch, touch, cached touch) with plain-language descriptions before any irreversible operation
 - [x] **WIZARD-04**: Dashboard shows a nav affordance hint (1–9 keys) so new users can discover all screens without reading documentation
-- [ ] **WIZARD-05**: Each wizard step shows the current device state (e.g. "FIDO2 PIN: not set") so users can see what they're changing before committing
+- [x] **WIZARD-05**: Each wizard step shows the current device state (e.g. "FIDO2 PIN: not set") so users can see what they're changing before committing
 
 ### OATH Improvements
 
@@ -57,8 +57,8 @@
 | PIV-03 | Phase 15 | Done |
 | PIV-04 | Phase 15 | Done |
 | PIV-05 | Phase 15 | Done |
-| WIZARD-01 | Phase 16 | Pending |
-| WIZARD-02 | Phase 16 | Pending |
-| WIZARD-03 | Phase 16 | Pending |
-| WIZARD-05 | Phase 16 | Pending |
+| WIZARD-01 | Phase 16 | Done |
+| WIZARD-02 | Phase 16 | Done |
+| WIZARD-03 | Phase 16 | Done |
+| WIZARD-05 | Phase 16 | Done |
 | WIZARD-04 | Phase 17 | Done |
