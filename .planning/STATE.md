@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Accessible to New Users
 status: Phase complete — ready for verification
-stopped_at: Completed 12-04-PLAN.md — refresh wired in dashboard/keys/piv
-last_updated: "2026-03-29T18:47:18.658Z"
+stopped_at: Completed 12-yubikey-slot-delete-workflow-12-05-PLAN.md
+last_updated: "2026-03-29T18:48:08.969Z"
 progress:
   total_phases: 9
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 34
-  completed_plans: 28
+  completed_plans: 29
 ---
 
 # Project State
@@ -94,6 +94,8 @@ Plan: 3 of 3
 - [Phase 12]: DeletePivConfirmScreen pushes PivScreen(None) after delete — full YubiKeyState not available in modal context; user refreshes with R
 - [Phase 12]: KeysScreen compose() must include 'd Delete Key Slot' label to match KEYS_BINDINGS show=true declaration
 - [Phase 12]: Refresh uses pop+push-fresh-screen pattern (same as delete confirm screens) rather than in-place mutation
+- [Phase 12-yubikey-slot-delete-workflow]: Use F5 for FIDO2 refresh since R is reserved for factory reset
+- [Phase 12-yubikey-slot-delete-workflow]: Use detect_all() in PIV post-delete for full YubiKeyState instead of partial PivState
 
 ### Roadmap Evolution
 
@@ -110,6 +112,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-29T18:47:18.656Z
-Stopped at: Completed 12-04-PLAN.md — refresh wired in dashboard/keys/piv
+Last session: 2026-03-29T18:48:08.967Z
+Stopped at: Completed 12-yubikey-slot-delete-workflow-12-05-PLAN.md
 Resume file: None

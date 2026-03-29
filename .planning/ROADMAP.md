@@ -156,7 +156,7 @@ Plans:
 - [x] 12-02-PLAN.md — PIV certificate/key deletion (des crate, 3DES mgmt key auth, firmware gate, TUI flow)
 - [x] 12-03-PLAN.md — Snapshot tests, cargo test 100%, human verification of both delete flows
 - [x] 12-04-PLAN.md — Gap closure: wire refresh on Dashboard, Keys, PIV screens to re-detect hardware
-- [ ] 12-05-PLAN.md — Gap closure: wire OATH/FIDO2 on-demand refresh + fix PIV post-delete state
+- [x] 12-05-PLAN.md — Gap closure: wire OATH/FIDO2 on-demand refresh + fix PIV post-delete state
 **UI hint**: yes
 
 ## Progress
@@ -174,7 +174,7 @@ Plans:
 | 9. OATH/TOTP Screen | v1.1 | 4/4 | Complete | 2026-03-27 |
 | 10. FIDO2 Screen | v1.1 | 4/4 | Complete    | 2026-03-28 |
 | 11. OTP Slots + Education + Onboarding | v1.1 | 3/3 | Complete | 2026-03-28 |
-| 12. YubiKey Slot Delete Workflow | v1.1 | 4/5 | In Progress|  |
+| 12. YubiKey Slot Delete Workflow | v1.1 | 5/5 | Complete   | 2026-03-29 |
 | 13. UI Polish | v1.1 | 0/5 | Planned |  |
 
 ## Backlog
@@ -183,7 +183,7 @@ Plans:
 
 **Goal:** Outcome-oriented provisioning flows that span applets (e.g. "Set up SSH key with touch policy", "Initial YubiKey setup"). User thinks in terms of goals, not slots. Build from existing keygen wizard pattern. Include: touch policy surfaced upfront, nav affordance hint (1-9 keys), onboarding flow for fresh YubiKey.
 **Requirements:** TBD
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
