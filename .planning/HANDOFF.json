@@ -1,34 +1,49 @@
 {
   "version": "1.0",
-  "timestamp": "2026-03-28T03:33:05.763Z",
-  "phase": "10",
-  "phase_name": "FIDO2 Screen",
-  "phase_dir": ".planning/phases/10-fido2-screen",
-  "plan": 0,
-  "task": 0,
-  "total_tasks": 7,
+  "timestamp": "2026-03-29T07:36:28.621Z",
+  "phase": "12",
+  "phase_name": "YubiKey Slot Delete Workflow",
+  "phase_dir": ".planning/phases/12-yubikey-slot-delete-workflow",
+  "plan": 3,
+  "task": 2,
+  "total_tasks": 2,
   "status": "paused",
   "completed_tasks": [
-    {"id": "research", "name": "Phase 10 research (ctap-hid-fido2 spike)", "status": "done", "commit": "3e691cb"},
-    {"id": "planning", "name": "Phase 10 planning (4 plans, 4 waves)", "status": "done", "commit": "96495f0"}
+    {
+      "id": 1,
+      "name": "Run cargo test and fix snapshot/test regressions",
+      "status": "done",
+      "commit": "f93804f1"
+    }
   ],
   "remaining_tasks": [
-    {"id": 1, "name": "10-01: FIDO2 model types + ctap-hid-fido2 dep + mock fixture", "status": "not_started"},
-    {"id": 2, "name": "10-02: Fido2Screen widget + 4 sub-screens", "status": "not_started"},
-    {"id": 3, "name": "10-03: Raw HID authenticatorReset + ResetGuidanceScreen", "status": "not_started"},
-    {"id": 4, "name": "10-04: Dashboard nav wiring + Pilot snapshot tests + human verify", "status": "not_started"}
+    {
+      "id": 2,
+      "name": "Human verify: OpenPGP and PIV delete flows end-to-end",
+      "status": "not_started"
+    }
   ],
   "blockers": [],
   "human_actions_pending": [
-    {"action": "Manual verification of FIDO2 screen with real YubiKey", "context": "Plan 10-04 has autonomous: false — requires human testing", "blocking": false}
+    {
+      "action": "Verify OpenPGP delete flow: Keys screen -> select occupied slot -> press D -> enter Admin PIN -> confirm -> verify success + slot shows empty",
+      "context": "Final gate for Phase 12 completion. All automated tests pass (160/160). Human sign-off required.",
+      "blocking": true
+    },
+    {
+      "action": "Verify PIV delete flow: PIV screen -> select occupied slot -> press D -> enter mgmt key (or Enter for default) -> confirm -> verify firmware-aware message + slot shows empty",
+      "context": "Also verify edge cases: D on empty slot shows error; wrong PIN shows retry count; firmware < 5.7 shows note about key material.",
+      "blocking": true
+    }
   ],
   "decisions": [
-    {"decision": "ctap-hid-fido2 v3.5.9 for CTAP2 operations", "rationale": "Verified API coverage for all needed ops", "phase": "10"},
-    {"decision": "Hand-rolled authenticatorReset via raw CTAPHID_CBOR 0x07", "rationale": "crate does not expose reset — confirmed by source inspection", "phase": "10"},
-    {"decision": "Single Fido2Screen widget, no push_screen for sub-views", "rationale": "Per CONTEXT.md D-06 design decision", "phase": "10"},
-    {"decision": "firmware_version as Option<String> pre-formatted at parse time", "rationale": "Keeps TUI layer simple", "phase": "10"}
+    {
+      "decision": "KeysScreen compose() must manually list 'd Delete Key Slot' action label",
+      "rationale": "KEYS_BINDINGS show:true only renders to Footer widget strip, not the action label list in compose(). Label was missing and was added.",
+      "phase": "12"
+    }
   ],
-  "uncommitted_files": [".gitignore", ".planning/REQUIREMENTS.md", "CLAUDE.md", "Cargo.lock"],
-  "next_action": "Run /gsd:execute-phase 10 (after /clear for fresh context)",
-  "context_notes": "Phase 10 planning complete. Research resolved the MEDIUM-confidence flag on CTAP2 credential enumeration — now HIGH confidence. Only novel piece is authenticatorReset which needs raw HID. @textual-rs is running phase 10 platform verification in parallel — check for run_worker_with_progress API changes before Plan 10-03."
+  "uncommitted_files": [],
+  "next_action": "Run `cargo run` (with YubiKey) or `cargo run -- --mock` and perform human verification per 12-03-PLAN.md Task 2 checklist. Type 'approved' or describe issues.",
+  "context_notes": "Phase 12 is 99% done. All 160 cargo tests pass, snapshots updated, clippy clean, no ratatui in model layer. Only the live/mock human verification of both delete flows remains before marking phase complete and updating ROADMAP.md. @mac called end of session 2026-03-29 — resume with human verify next session."
 }
