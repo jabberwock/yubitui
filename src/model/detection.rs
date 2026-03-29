@@ -15,6 +15,16 @@ use super::{FormFactor, Model, Version, YubiKeyInfo, YubiKeyState};
 /// Returns a Vec with one YubiKeyState per reader with a valid OpenPGP app.
 /// Returns an empty vec if no YubiKey is found (no error).
 pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
+    // Kill scdaemon BEFORE establishing context. On Linux, scdaemon may be configured
+    // with direct CCID access (disable-ccid commented out in scdaemon.conf), in which
+    // case it holds the USB/CCID interface via libusb and pcscd has no readers registered.
+    // list_readers() would return empty if we don't release scdaemon first.
+    card::kill_scdaemon();
+    // 50ms grace period — scdaemon process termination is async; the OS may not
+    // release the exclusive card lock until the process fully exits. Without this
+    // sleep, list_readers() returns SCARD_E_NO_READERS_AVAILABLE on Linux.
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
     let ctx = Context::establish(Scope::User).map_err(|e| anyhow::anyhow!("PC/SC error: {e}"))?;
 
     let mut readers_buf = [0u8; 2048];
@@ -29,16 +39,6 @@ pub fn detect_all_yubikey_states() -> Result<Vec<YubiKeyState>> {
     }
 
     let mut states = Vec::new();
-
-    // Always use exclusive mode — shared mode causes GET DATA 0xC5 (fingerprints)
-    // to return SW 0x6B00 when scdaemon is co-holding the card channel, even after
-    // re-selecting the OpenPGP application. Kill scdaemon once before the loop and
-    // always restart it after so gpg operations continue to work.
-    card::kill_scdaemon();
-    // 50ms grace period — scdaemon process termination is async; the OS may not
-    // release the exclusive card lock until the process fully exits. Without this
-    // sleep, ctx.connect() can return SW 0x6B00 "card busy" on Linux.
-    std::thread::sleep(std::time::Duration::from_millis(50));
 
     for reader in readers {
         let card = match ctx.connect(reader, ShareMode::Exclusive, Protocols::T0 | Protocols::T1) {

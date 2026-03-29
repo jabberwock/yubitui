@@ -152,6 +152,7 @@ impl Widget for ConfirmScreen {
         let mut children: Vec<Box<dyn Widget>> = vec![
             Box::new(textual_rs::Header::new(&header_text)),
         ];
+        // Split message on \n so each line gets its own Label row.
         for line in self.message.split('\n') {
             children.push(Box::new(Label::new(line)));
         }

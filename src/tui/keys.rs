@@ -1276,9 +1276,122 @@ impl Widget for TouchPolicyScreen {
                 }
             }
             "select_slot" => {
-                // Push PIN input for admin PIN to confirm
+                // Push value selection screen before the PIN screen
+                let slot_idx = *self.slot_index.borrow();
+                ctx.push_screen_deferred(Box::new(TouchPolicyValueScreen::new(slot_idx)));
+            }
+            "back" => ctx.pop_screen_deferred(),
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ── TouchPolicyValueScreen ─────────────────────────────────────────────────────
+
+static TOUCH_POLICY_VALUE_BINDINGS: &[KeyBinding] = &[
+    KeyBinding {
+        key: KeyCode::Up,
+        modifiers: KeyModifiers::NONE,
+        action: "value_up",
+        description: "Up  Prev",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Down,
+        modifiers: KeyModifiers::NONE,
+        action: "value_down",
+        description: "Down  Next",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Enter,
+        modifiers: KeyModifiers::NONE,
+        action: "select_value",
+        description: "Enter  Select",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Esc,
+        modifiers: KeyModifiers::NONE,
+        action: "back",
+        description: "Esc  Back",
+        show: true,
+    },
+];
+
+const TOUCH_POLICY_VALUES: &[(&str, &str)] = &[
+    ("Off",          "No touch required"),
+    ("On",           "Touch required for every operation"),
+    ("Fixed",        "Touch required; cannot be changed without admin PIN"),
+    ("Cached",       "Touch required; cached for 15 seconds"),
+    ("CachedFixed",  "Cached touch; cannot be changed without admin PIN"),
+];
+
+pub struct TouchPolicyValueScreen {
+    slot_index: usize,
+    value_index: RefCell<usize>,
+}
+
+impl TouchPolicyValueScreen {
+    pub fn new(slot_index: usize) -> Self {
+        Self {
+            slot_index,
+            value_index: RefCell::new(1), // default to "On"
+        }
+    }
+}
+
+impl Widget for TouchPolicyValueScreen {
+    fn widget_type_name(&self) -> &'static str {
+        "TouchPolicyValueScreen"
+    }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let slot_names = ["Signature", "Encryption", "Authentication", "Attestation"];
+        let slot_name = slot_names.get(self.slot_index).copied().unwrap_or("Unknown");
+        let title = format!("Set Touch Policy — {} Slot", slot_name);
+
+        let mut children: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new(&title)),
+            Box::new(Label::new("Select touch policy:")),
+            Box::new(Label::new("")),
+        ];
+
+        let sel = *self.value_index.borrow();
+        for (i, (name, desc)) in TOUCH_POLICY_VALUES.iter().enumerate() {
+            let marker = if i == sel { "> " } else { "  " };
+            children.push(Box::new(Label::new(format!("{}{:<14}  {}", marker, name, desc))));
+        }
+
+        children.push(Box::new(Footer));
+        children
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        TOUCH_POLICY_VALUE_BINDINGS
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "value_up" => {
+                let mut idx = self.value_index.borrow_mut();
+                if *idx > 0 { *idx -= 1; }
+            }
+            "value_down" => {
+                let mut idx = self.value_index.borrow_mut();
+                if *idx < TOUCH_POLICY_VALUES.len() - 1 { *idx += 1; }
+            }
+            "select_value" => {
                 use crate::tui::widgets::pin_input::PinInputWidget;
-                ctx.push_screen_deferred(Box::new(PinInputWidget::new("Set Touch Policy — Admin PIN", &["Admin PIN"])));
+                let slot_names = ["Signature", "Encryption", "Authentication", "Attestation"];
+                let slot = slot_names.get(self.slot_index).copied().unwrap_or("Unknown");
+                let (value_name, _) = TOUCH_POLICY_VALUES[*self.value_index.borrow()];
+                let title = format!("Set Touch Policy — {} → {} — Admin PIN", slot, value_name);
+                ctx.push_screen_deferred(Box::new(PinInputWidget::new(&title, &["Admin PIN"])));
             }
             "back" => ctx.pop_screen_deferred(),
             _ => {}
