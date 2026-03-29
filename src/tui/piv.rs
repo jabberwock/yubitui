@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label};
+use textual_rs::{Widget, Footer, Header, Label, WidgetId};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
@@ -339,6 +339,7 @@ pub struct MgmtKeyThenDeleteScreen {
     firmware: crate::model::Version,
     input: RefCell<String>,
     error: RefCell<Option<String>>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl MgmtKeyThenDeleteScreen {
@@ -348,6 +349,7 @@ impl MgmtKeyThenDeleteScreen {
             firmware,
             input: RefCell::new(String::new()),
             error: RefCell::new(None),
+            own_id: Cell::new(None),
         }
     }
 }
@@ -373,6 +375,9 @@ impl Widget for MgmtKeyThenDeleteScreen {
     fn widget_type_name(&self) -> &'static str {
         "MgmtKeyThenDeleteScreen"
     }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
 
     fn can_focus(&self) -> bool {
         true
@@ -420,6 +425,7 @@ impl Widget for MgmtKeyThenDeleteScreen {
                 }
                 KeyCode::Backspace => {
                     self.input.borrow_mut().pop();
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 KeyCode::Char(c) => {
@@ -430,6 +436,7 @@ impl Widget for MgmtKeyThenDeleteScreen {
                             self.input.borrow_mut().push(c);
                         }
                     }
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 _ => {}

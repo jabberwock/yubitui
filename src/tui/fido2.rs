@@ -736,6 +736,7 @@ impl Widget for PinChangeScreen {
 pub struct PinAuthScreen {
     pin_input: RefCell<String>,
     error_message: RefCell<Option<String>>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl PinAuthScreen {
@@ -743,6 +744,7 @@ impl PinAuthScreen {
         Self {
             pin_input: RefCell::new(String::new()),
             error_message: RefCell::new(None),
+            own_id: Cell::new(None),
         }
     }
 }
@@ -768,6 +770,9 @@ impl Widget for PinAuthScreen {
     fn widget_type_name(&self) -> &'static str {
         "PinAuthScreen"
     }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
 
     fn can_focus(&self) -> bool {
         true
@@ -807,6 +812,7 @@ impl Widget for PinAuthScreen {
                 }
                 KeyCode::Backspace => {
                     self.pin_input.borrow_mut().pop();
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 KeyCode::Enter => {
@@ -815,6 +821,7 @@ impl Widget for PinAuthScreen {
                 }
                 KeyCode::Char(c) => {
                     self.pin_input.borrow_mut().push(c);
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return EventPropagation::Stop;
                 }
                 _ => {}
