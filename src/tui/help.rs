@@ -10,41 +10,51 @@ const HELP_MARKDOWN: &str = "\
 
 ## Global Keybindings
 
-| Key | Action |
-|-----|--------|
-| 1-9 | Switch screen (Keys / Diagnostics / PIN / SSH / PIV / Help / OATH / FIDO2 / OTP) |
-| r | Refresh YubiKey status and diagnostics |
-| ? | Toggle help / glossary |
-| q / Esc | Quit (from Dashboard) or go back |
-| m / Enter | Open navigation menu (Dashboard) |
+- `1-9` Switch screen (Keys / Diagnostics / PIN / SSH / PIV / Help / OATH / FIDO2 / OTP)
+- `r` Refresh YubiKey status and diagnostics
+- `?` Toggle help / glossary
+- `q` / `Esc` Quit (from Dashboard) or go back
+- `m` / `Enter` Open navigation menu (Dashboard)
 
 ## Key Management (Screen 1)
 
-| Key | Action |
-|-----|--------|
-| v | View full card status |
-| i | Import existing key to card |
-| g | Generate new key on card |
-| e | Export SSH public key |
-| Up/Down | Select key (in import view) |
-| Enter | Execute selected operation |
+- `v` View full card status
+- `i` Import existing key to card
+- `g` Generate new key on card
+- `e` Export SSH public key
+- `t` Set touch policy for a slot
+- `Up` / `Down` Navigate slots
+- `Enter` Execute selected operation
 
 ## PIN Management (Screen 3)
 
-| Key | Action |
-|-----|--------|
-| c | Change user PIN |
-| a | Change admin PIN |
-| r | Set reset code |
-| u | Unblock user PIN |
+- `c` Change user PIN
+- `a` Change admin PIN
+- `r` Set reset code
+- `u` Unblock user PIN with reset code
 
-## SSH Wizard (Screen 4)
+## SSH Setup (Screen 4)
 
-| Key | Action |
-|-----|--------|
-| 1-5 | Select wizard step |
-| r | Refresh SSH status |
-| Enter | Execute selected step |
+- `1-5` Select wizard step
+- `r` Refresh SSH status
+- `Enter` Execute selected step
+
+## OATH / Authenticator (Screen 7)
+
+- `a` Add new TOTP / HOTP account
+- `Del` Delete selected account
+- `Enter` Show current OTP code
+
+## FIDO2 / Security Key (Screen 8)
+
+- `s` Set FIDO2 PIN
+- `r` Reset FIDO2 applet (destructive)
+
+## OTP Slots (Screen 9)
+
+- `1` / `2` Select OTP slot
+- `p` Program selected slot
+- `d` Delete / reset selected slot
 ";
 
 /// Help screen — displays all keybindings grouped by context.

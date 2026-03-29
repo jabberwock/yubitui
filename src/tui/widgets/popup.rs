@@ -209,8 +209,7 @@ impl Widget for ConfirmScreen {
 }
 
 // ---------------------------------------------------------------------------
-// Legacy ratatui free functions — used by unmigrated screens (keys.rs, dashboard.rs).
-// These will be removed when those screens are migrated in plans 08-05 and 08-06.
+// Legacy ratatui free functions — no active callers; kept for reference only.
 // ---------------------------------------------------------------------------
 
 use ratatui::{
@@ -219,6 +218,7 @@ use ratatui::{
 };
 
 /// Compute a centered rect from the given area using percentage width and fixed height.
+#[allow(dead_code)]
 fn centered_area_legacy(
     area: ratatui::layout::Rect,
     width_pct: u16,
