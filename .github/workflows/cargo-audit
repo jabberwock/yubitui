@@ -1,0 +1,23 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust audit
+        uses: actions-rs/audit-check@35b7b53b1e25b55642157ac01b4adceb5b9ebef3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
