@@ -52,6 +52,8 @@ WizardMenuScreen, InitialSetupWizardScreen, SshTouchPolicyWizardScreen
 
 HelpScreen Markdown { flex-grow: 1; }
 GlossaryScreen Markdown { flex-grow: 1; }
+
+Button { min-height: 3; }
 ";
 
     let mut app = App::new(move || {

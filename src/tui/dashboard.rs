@@ -249,11 +249,8 @@ impl Widget for DashboardScreen {
             children.push(Box::new(Button::new("Refresh (R)")));
         }
 
-        children.push(Box::new(Label::new("")));
-
         // WIZARD-04: nav affordance hint so new users discover all screens
         children.push(Box::new(Label::new("Press 1–9 to jump to any screen:")));
-        children.push(Box::new(Label::new("")));
 
         // Navigation items — Buttons for all 9 destinations.
         children.push(Box::new(Button::new("[1] OpenPGP Keys")));
@@ -265,7 +262,6 @@ impl Widget for DashboardScreen {
         children.push(Box::new(Button::new("[7] OATH / Authenticator")));
         children.push(Box::new(Button::new("[8] FIDO2 / Security Key")));
         children.push(Box::new(Button::new("[9] OTP Slots")));
-        children.push(Box::new(Label::new("")));
         children.push(Box::new(Button::new("[W] Setup Wizards")));
 
         children.push(Box::new(Footer));
