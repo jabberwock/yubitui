@@ -21,11 +21,20 @@ Zero-friction YubiKey management: detect problems automatically, guide users thr
 **Must be cross-platform: Linux, macOS, Windows. No exceptions.**
 All diagnostics, hints, file paths, and operations must be platform-aware.
 
-## Current State (as of 2026-03-29 — v1.1 shipped)
+## Current State (as of 2026-03-29 — v1.2 shipped)
 
-**v1.1 shipped.** All 9 v1.1 phases complete, 35 plans executed.
+**v1.2 shipped.** All 4 v1.2 phases complete, 185 tests passing.
 
-### Shipped in v1.1 (Phases 6–13)
+### Shipped in v1.2 (Phases 14–17)
+
+- OATH URI import: two-step preview flow (paste → confirm), `ParsedOtpAuth` struct, secret masking, algorithm parsing (SHA1/256/512)
+- OATH application password: set/change/remove lifecycle via HMAC challenge-response (SW 0x6982 gated)
+- PIV management key: factory-default warning badge, change workflow (3DES + AES on 5.7+), M key from PIV screen
+- Provisioning wizards: "Initial YubiKey Setup" and "SSH with Touch Policy" (W key from dashboard, 849 LOC `wizard.rs`)
+- Dashboard navigation affordance: 1–9 key hints in footer; new users discover all screens without docs
+
+<details>
+<summary>Shipped in v1.1 (Phases 6–13)</summary>
 
 - Model/View architectural split: `src/model/` zero ratatui, `src/tui/` all rendering, CI lint boundary enforced
 - Full textual-rs migration: all screens as components with rule-of-thirds layout, Footer keybindings, Button widgets, configurable themes
@@ -39,6 +48,8 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 - DataTable, Button, ProgressBar, Markdown widgets on every screen; consistent status badges
 - Post-delete and on-demand refresh on all screens (R key)
 - 161 unit/snapshot tests — all hardware paths mockable
+
+</details>
 
 ## Requirements
 
@@ -72,13 +83,16 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 - ✓ PIV cert/key deletion with management key auth — v1.1 Phase 12
 - ✓ Consistent DataTable/Button/Badge UI across all screens — v1.1 Phase 13
 
-### Active
+### Validated in v1.2
 
-- ✓ PIV cert view (x509-parser, slot DataTable shows Algorithm+Subject, V opens popup) — pre-v1.2 commit
-- [ ] Outcome-oriented provisioning wizards (SSH+touch, initial YubiKey setup) — v1.2
-- [ ] OATH URI import (otpauth://) — v1.2
-- [ ] OATH application password set/change — v1.2
-- [ ] PIV management key change — v1.2
+- ✓ OATH URI import (otpauth://) with two-step preview — v1.2 Phase 14
+- ✓ OATH application password set/change/remove — v1.2 Phase 14
+- ✓ PIV management key change + factory-default warning — v1.2 Phase 15
+- ✓ Provisioning wizards (Initial Setup + SSH with Touch Policy) — v1.2 Phase 16
+- ✓ Dashboard 1–9 nav affordance — v1.2 Phase 17
+
+### Active / Deferred
+
 - [ ] OTP slot write (configure Yubico OTP, static password, HMAC-SHA1) — high risk, deferred
 - [ ] Backup/restore workflows — deferred to v2
 
@@ -108,24 +122,22 @@ All diagnostics, hints, file paths, and operations must be platform-aware.
 | Factory-default detection: no FIDO2 PIN + 0 OATH creds + default PIV mgmt key | Heuristic with no extra PC/SC calls | ✓ Validated — detects new YubiKeys reliably |
 | PinInputWidget fields as direct children (not Vertical-wrapped) | Vertical{height:1fr} collapses to 0 in screen-stack | ✓ Fixed in f2bc499 |
 
-## Current Milestone: v1.2 Guided Workflows & Advanced Operations
+## Next Milestone
 
-**Goal:** Elevate yubitui from feature-complete to goal-oriented — provisioning wizards that span applets, OATH credential import via URI, OATH password protection management, and PIV management key change.
+v1.2 is complete. Run `/gsd:new-milestone` to define v1.3 goals, research, and requirements.
 
-**Target features:**
-- Outcome-oriented provisioning wizards ("Set up SSH key with touch policy", "Initial YubiKey setup")
-- OATH account import via otpauth:// URI paste
-- OATH application password set/change (HMAC challenge/response auth)
-- PIV management key change (3DES → AES or rotation)
-- PIV X.509 cert view (already shipped pre-milestone in feat: PIV cert view)
+Candidates (from deferred backlog):
+- OTP slot write (configure Yubico OTP, static password, HMAC-SHA1) — blocked on HID frame protocol docs
+- Tauri GUI layer (`src/model/` already serde-serializable, zero ratatui imports)
+- textual-rs 0.3.12 adoption when released (fixes mouse click on Button widgets)
+- Multi-YubiKey session management improvements
 
 ## Context
 
 **Stack:** Rust, textual-rs 0.3.11 (crates.io), pcsc crate, hidapi, des 0.9.0-rc.3, x509-parser, chrono, GitHub Actions
-**LOC:** ~14,000+ Rust (163+ tests)
-**Shipped:** v1.0 on 2026-03-26, v1.1 on 2026-03-29
+**LOC:** ~19,000+ Rust (185 tests)
+**Shipped:** v1.0 on 2026-03-26, v1.1 on 2026-03-29, v1.2 on 2026-03-29
 **CI:** Linux/macOS/Windows matrix, clippy -D warnings enforced, tag-triggered releases
-**Next:** v1.2 — provisioning wizards, OATH improvements, PIV management key
 
 ## Tauri Future
 
@@ -136,4 +148,4 @@ Business logic is in `src/model/` with zero ratatui/textual-rs imports. All mode
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-29 — v1.2 milestone started (Guided Workflows & Advanced Operations)*
+*Last updated: 2026-03-29 — v1.2 shipped (Guided Workflows & Advanced Operations)*
