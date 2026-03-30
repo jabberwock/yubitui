@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, WidgetId, Header, Label, Button, DataTable, ColumnDef, Footer};
+use textual_rs::{Widget, WidgetId, Header, Label, Button, ButtonVariant, DataTable, ColumnDef, Footer, Markdown};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -365,64 +365,62 @@ impl Widget for KeysScreen {
 
                 // Signature slot
                 let (sig_status, sig_fp) = if let Some(ref sig) = openpgp.signature_key {
-                    ("[SET]".to_string(), sig.fingerprint.get(..16).unwrap_or(&sig.fingerprint).to_string())
+                    ("✓ Set".to_string(), sig.fingerprint.get(..16).unwrap_or(&sig.fingerprint).to_string())
                 } else {
-                    ("[EMPTY]".to_string(), "—".to_string())
+                    ("○ Empty".to_string(), "—".to_string())
                 };
                 table.add_row(vec!["Signature".to_string(), sig_status, sig_fp]);
 
                 // Encryption slot
                 let (enc_status, enc_fp) = if let Some(ref enc) = openpgp.encryption_key {
-                    ("[SET]".to_string(), enc.fingerprint.get(..16).unwrap_or(&enc.fingerprint).to_string())
+                    ("✓ Active".to_string(), enc.fingerprint.get(..16).unwrap_or(&enc.fingerprint).to_string())
                 } else {
-                    ("[EMPTY]".to_string(), "—".to_string())
+                    ("○ Empty".to_string(), "—".to_string())
                 };
                 table.add_row(vec!["Encryption".to_string(), enc_status, enc_fp]);
 
                 // Authentication slot
                 let (aut_status, aut_fp) = if let Some(ref auth) = openpgp.authentication_key {
-                    ("[SET]".to_string(), auth.fingerprint.get(..16).unwrap_or(&auth.fingerprint).to_string())
+                    ("✓ Active".to_string(), auth.fingerprint.get(..16).unwrap_or(&auth.fingerprint).to_string())
                 } else {
-                    ("[EMPTY]".to_string(), "—".to_string())
+                    ("○ Empty".to_string(), "—".to_string())
                 };
                 table.add_row(vec!["Authentication".to_string(), aut_status, aut_fp]);
 
                 children.push(Box::new(table));
 
-                // Touch policies — secondary info, keep as indented Labels with bracket notation
+                // Touch policies — secondary info
                 if let Some(ref tp) = yk.touch_policies {
                     let has_sig = openpgp.signature_key.is_some();
                     let has_enc = openpgp.encryption_key.is_some();
                     let has_aut = openpgp.authentication_key.is_some();
                     children.push(Box::new(Label::new("")));
-                    children.push(Box::new(Label::new("Touch Policies:")));
+                    children.push(Box::new(Label::new("Touch Policies")));
                     children.push(Box::new(Label::new(format!(
-                        "  Signature:      [{}]",
+                        "  Signature:      {}",
                         if has_sig { format!("{}", tp.signature) } else { "—".to_string() }
                     ))));
                     children.push(Box::new(Label::new(format!(
-                        "  Encryption:     [{}]",
+                        "  Encryption:     {}",
                         if has_enc { format!("{}", tp.encryption) } else { "—".to_string() }
                     ))));
                     children.push(Box::new(Label::new(format!(
-                        "  Authentication: [{}]",
+                        "  Authentication: {}",
                         if has_aut { format!("{}", tp.authentication) } else { "—".to_string() }
                     ))));
                     children.push(Box::new(Label::new(format!(
-                        "  Attestation:    [{}]",
+                        "  Attestation:    {}",
                         tp.attestation
                     ))));
                 }
             } else {
-                children.push(Box::new(Label::new("No keys configured.")));
-                children.push(Box::new(Label::new(
-                    "Generate or import keys using the buttons below.",
+                children.push(Box::new(Markdown::new(
+                    "## No Keys Configured\n\nNo OpenPGP keys are stored on this YubiKey yet.\n\nUse **Generate Key on Card** to create new keys, or **Import Existing Key** to transfer keys from your computer.",
                 )));
             }
         } else {
-            children.push(Box::new(Label::new("No YubiKey detected.")));
-            children.push(Box::new(Label::new(
-                "Insert your YubiKey and press R to refresh.",
+            children.push(Box::new(Markdown::new(
+                "## No YubiKey Detected\n\nInsert your YubiKey and press **R** to refresh.",
             )));
         }
 
@@ -439,16 +437,16 @@ impl Widget for KeysScreen {
 
         // Action buttons
         if self.yubikey_state.is_none() {
-            children.push(Box::new(Button::new("[R] Refresh")));
+            children.push(Box::new(Button::new("Refresh")));
         } else {
-            children.push(Box::new(Button::new("[G] Generate Key on Card")));
-            children.push(Box::new(Button::new("[I] Import Existing Key")));
-            children.push(Box::new(Button::new("[D] Delete Key Slot")));
-            children.push(Box::new(Button::new("[V] View Full Key Details")));
-            children.push(Box::new(Button::new("[E] Export SSH Public Key")));
-            children.push(Box::new(Button::new("[K] Key Attributes")));
-            children.push(Box::new(Button::new("[T] Touch Policy")));
-            children.push(Box::new(Button::new("[A] Attestation")));
+            children.push(Box::new(Button::new("Generate Key on Card")));
+            children.push(Box::new(Button::new("Import Existing Key")));
+            children.push(Box::new(Button::new("Delete Key Slot").with_variant(ButtonVariant::Warning)));
+            children.push(Box::new(Button::new("View Full Key Details")));
+            children.push(Box::new(Button::new("Export SSH Public Key")));
+            children.push(Box::new(Button::new("Key Attributes")));
+            children.push(Box::new(Button::new("Touch Policy")));
+            children.push(Box::new(Button::new("Attestation")));
         }
 
         children.push(Box::new(Footer));

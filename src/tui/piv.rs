@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label, Button, DataTable, ColumnDef, WidgetId};
+use textual_rs::{Widget, Footer, Header, Label, Button, ButtonVariant, DataTable, ColumnDef, WidgetId, Markdown};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
@@ -201,7 +201,7 @@ impl Widget for PivScreen {
                             let slot_info = piv_state.slots.iter().find(|s| s.slot == *slot_id);
                             let occupied = slot_info.is_some();
                             let cursor = if idx == selected { ">" } else { " " };
-                            let status = if occupied { "[OK]" } else { "[EMPTY]" };
+                            let status = if occupied { "✓ Set" } else { "○ Empty" };
                             let algorithm = slot_info
                                 .and_then(|s| s.algorithm.as_deref())
                                 .unwrap_or("-");
@@ -223,30 +223,29 @@ impl Widget for PivScreen {
                         if piv_state.mgmt_key_is_default {
                             widgets.push(Box::new(Label::new("")));
                             widgets.push(Box::new(Label::new(
-                                "[!] Management key is factory default — change it to secure your PIV applet.",
+                                "⚠ Management key is factory default — change it to secure your PIV applet.",
                             )));
                         }
 
                         widgets.push(Box::new(Label::new("")));
-                        widgets.push(Box::new(Button::new("[V] View Cert")));
-                        widgets.push(Box::new(Button::new("[D] Delete Slot")));
-                        widgets.push(Box::new(Button::new("[M] Change Management Key")));
-                        widgets.push(Box::new(Button::new("[R] Refresh")));
+                        widgets.push(Box::new(Button::new("View Certificate")));
+                        widgets.push(Box::new(Button::new("Delete Slot").with_variant(ButtonVariant::Warning)));
+                        widgets.push(Box::new(Button::new("Change Management Key")));
+                        widgets.push(Box::new(Button::new("Refresh")));
                     }
                     None => {
-                        widgets.push(Box::new(Label::new(
-                            "PIV data unavailable for this YubiKey.",
+                        widgets.push(Box::new(Markdown::new(
+                            "## PIV Data Unavailable\n\nCould not read PIV data from this YubiKey.\n\nTry pressing **R** to refresh.",
                         )));
                     }
                 }
             }
             None => {
-                widgets.push(Box::new(Label::new("No YubiKey detected.")));
-                widgets.push(Box::new(Label::new(
-                    "Insert your YubiKey and press R to refresh.",
+                widgets.push(Box::new(Markdown::new(
+                    "## No YubiKey Detected\n\nInsert your YubiKey and press **R** to refresh.",
                 )));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Button::new("[R] Refresh")));
+                widgets.push(Box::new(Button::new("Refresh")));
             }
         }
 

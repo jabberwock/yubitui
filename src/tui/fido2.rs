@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label, WidgetId, Button, ButtonVariant, DataTable, ColumnDef};
+use textual_rs::{Widget, Footer, Header, Label, WidgetId, Button, ButtonVariant, DataTable, ColumnDef, Markdown};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
@@ -194,12 +194,12 @@ impl Widget for Fido2Screen {
             None => {
                 widgets.push(Box::new(Label::new("")));
                 if self.key_present {
-                    widgets.push(Box::new(Label::new(
-                        "FIDO2 data not loaded. Press Esc to return.",
+                    widgets.push(Box::new(Markdown::new(
+                        "## FIDO2 Data Not Loaded\n\nPress **Esc** to return to the dashboard.",
                     )));
                 } else {
-                    widgets.push(Box::new(Label::new(
-                        "No YubiKey detected. Insert your YubiKey and press Esc to return.",
+                    widgets.push(Box::new(Markdown::new(
+                        "## No YubiKey Detected\n\nInsert your YubiKey and press **Esc** to return.",
                     )));
                 }
             }
@@ -220,11 +220,11 @@ impl Widget for Fido2Screen {
                 };
                 widgets.push(Box::new(Label::new(format!("Algorithms: {}", alg_str))));
 
-                // PIN status with bracket badges
+                // PIN status
                 let pin_status = if state.pin_is_set {
-                    format!("PIN: [SET] ({} retries remaining)", state.pin_retry_count)
+                    format!("PIN: ✓ Set  ({} retries remaining)", state.pin_retry_count)
                 } else {
-                    "PIN: [NOT SET]".to_string()
+                    "PIN: ○ Not set".to_string()
                 };
                 widgets.push(Box::new(Label::new(pin_status)));
                 widgets.push(Box::new(Label::new("")));
@@ -232,22 +232,22 @@ impl Widget for Fido2Screen {
                 // --- Passkeys section ---
                 if !state.pin_is_set {
                     // D-04: No PIN configured — prompt to set one
-                    widgets.push(Box::new(Label::new(
-                        "No PIN configured -- press S to set one.",
+                    widgets.push(Box::new(Markdown::new(
+                        "**No PIN configured.** Set a PIN to enable passkey storage and WebAuthn login.",
                     )));
                 } else if state.credentials.is_none() {
                     // D-05: Credentials locked — need PIN auth
-                    widgets.push(Box::new(Label::new(
-                        "Credentials locked -- press P to authenticate",
+                    widgets.push(Box::new(Markdown::new(
+                        "**Passkeys locked.** Press **P** to enter your PIN and view stored passkeys.",
                     )));
                 } else if !state.supports_cred_mgmt {
-                    widgets.push(Box::new(Label::new(
-                        "Passkey management requires CTAP 2.1 (not supported by this device)",
+                    widgets.push(Box::new(Markdown::new(
+                        "Passkey management requires **CTAP 2.1**, which this device does not support.",
                     )));
                 } else {
                     match &state.credentials {
                         Some(creds) if creds.is_empty() => {
-                            widgets.push(Box::new(Label::new("No passkeys stored on this device.")));
+                            widgets.push(Box::new(Markdown::new("**No passkeys stored** on this device.")));
                         }
                         Some(creds) => {
                             // Passkey list as DataTable
@@ -278,25 +278,25 @@ impl Widget for Fido2Screen {
 
                 // Set PIN vs Change PIN based on state
                 if state.pin_is_set {
-                    widgets.push(Box::new(Button::new("Change PIN (S)")));
+                    widgets.push(Box::new(Button::new("Change PIN")));
                 } else {
-                    widgets.push(Box::new(Button::new("Set PIN (S)")));
+                    widgets.push(Box::new(Button::new("Set PIN")));
                 }
 
                 // Unlock Credentials only when locked (credentials is None) and PIN is set
                 if state.pin_is_set && state.credentials.is_none() {
-                    widgets.push(Box::new(Button::new("Unlock Credentials (P)")));
+                    widgets.push(Box::new(Button::new("Unlock Credentials")));
                 }
 
                 // Delete Credential only when credentials are loaded and non-empty
                 if let Some(creds) = &state.credentials {
                     if !creds.is_empty() {
-                        widgets.push(Box::new(Button::new("Delete Credential (D)")));
+                        widgets.push(Box::new(Button::new("Delete Credential").with_variant(ButtonVariant::Warning)));
                     }
                 }
 
                 // Reset FIDO2 — always shown, uses Error variant for visual warning
-                widgets.push(Box::new(Button::new("Reset FIDO2 (R)").with_variant(ButtonVariant::Error)));
+                widgets.push(Box::new(Button::new("Reset FIDO2").with_variant(ButtonVariant::Error)));
             }
         }
 

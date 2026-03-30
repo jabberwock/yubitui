@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label, Button, DataTable, ColumnDef, ProgressBar};
+use textual_rs::{Widget, Footer, Header, Label, Button, ButtonVariant, DataTable, ColumnDef, ProgressBar, Markdown};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::{EventPropagation, WidgetId};
 use textual_rs::event::keybinding::KeyBinding;
@@ -225,35 +225,30 @@ impl Widget for OathScreen {
                 if self.loading.get() {
                     widgets.push(Box::new(Label::new("Loading OATH credentials...")));
                 } else if self.key_present {
-                    widgets.push(Box::new(Label::new(
-                        "OATH credentials not loaded. Press R to load.",
+                    widgets.push(Box::new(Markdown::new(
+                        "## OATH Credentials Not Loaded\n\nPress **R** to load credentials from your YubiKey.",
                     )));
                 } else {
-                    widgets.push(Box::new(Label::new(
-                        "No YubiKey detected. Insert your YubiKey and press R to refresh.",
+                    widgets.push(Box::new(Markdown::new(
+                        "## No YubiKey Detected\n\nInsert your YubiKey and press **R** to refresh.",
                     )));
                 }
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Button::new("Refresh (R)")));
+                widgets.push(Box::new(Button::new("Refresh")));
             }
             Some(state) if state.password_required => {
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "OATH applet is password-protected.",
-                )));
-                widgets.push(Box::new(Label::new(
-                    "Press P to enter the password and unlock credentials.",
+                widgets.push(Box::new(Markdown::new(
+                    "## Password Required\n\nThis YubiKey's OATH applet is protected by a password.\n\nPress **P** to enter the password and unlock your credentials.",
                 )));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Button::new("[P] Unlock with Password")));
+                widgets.push(Box::new(Button::new("Unlock with Password")));
             }
             Some(state) if state.credentials.is_empty() => {
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "No OATH credentials stored.",
+                widgets.push(Box::new(Markdown::new(
+                    "## No Accounts Stored\n\nYour YubiKey has no OATH credentials yet.\n\nAdd an account to store TOTP or HOTP codes securely on hardware.",
                 )));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Button::new("Add Account (A)")));
+                widgets.push(Box::new(Button::new("Add Account")));
             }
             Some(state) => {
                 let selected = self.state.get_untracked().selected_index;
@@ -291,8 +286,8 @@ impl Widget for OathScreen {
                     };
 
                     let type_col = match &cred.oath_type {
-                        OathType::Totp => "[TOTP]",
-                        OathType::Hotp => "[HOTP]",
+                        OathType::Totp => "TOTP",
+                        OathType::Hotp => "HOTP",
                     };
 
                     table.add_row(vec![
@@ -319,9 +314,9 @@ impl Widget for OathScreen {
 
                 // Action Buttons
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Button::new("Add Account (A)")));
-                widgets.push(Box::new(Button::new("Delete Account (D)")));
-                widgets.push(Box::new(Button::new("Refresh (R)")));
+                widgets.push(Box::new(Button::new("Add Account")));
+                widgets.push(Box::new(Button::new("Delete Account").with_variant(ButtonVariant::Warning)));
+                widgets.push(Box::new(Button::new("Refresh")));
             }
         }
 
@@ -1368,9 +1363,9 @@ impl Widget for OathPasswordMgmtScreen {
             Box::new(Label::new("")),
             Box::new(Label::new("Manage the OATH applet application password.")),
             Box::new(Label::new("")),
-            Box::new(Button::new("[S] Set new password")),
-            Box::new(Button::new("[C] Change existing password")),
-            Box::new(Button::new("[X] Remove password")),
+            Box::new(Button::new("Set New Password")),
+            Box::new(Button::new("Change Password")),
+            Box::new(Button::new("Remove Password").with_variant(ButtonVariant::Warning)),
             Box::new(Label::new("")),
             Box::new(Footer),
         ]
