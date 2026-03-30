@@ -71,9 +71,9 @@ impl Widget for DiagnosticsScreen {
         let mut table = DataTable::new(columns);
 
         // Row 1: PC/SC Daemon
-        let pcscd_badge = if d.pcscd.running { "[OK]" } else { "[!!]" };
+        let pcscd_badge = if d.pcscd.running { "Running" } else { "Error" };
         let pcscd_detail = if d.pcscd.running {
-            "Running".to_string()
+            "Smart card service active".to_string()
         } else if cfg!(target_os = "macos") {
             "brew services start pcsc-lite".to_string()
         } else if cfg!(target_os = "linux") {
@@ -86,25 +86,25 @@ impl Widget for DiagnosticsScreen {
         table.add_row(vec![pcscd_badge.to_string(), "PC/SC Daemon".to_string(), pcscd_detail]);
 
         // Row 2: GPG Agent
-        let gpg_badge = if d.gpg_agent.running { "[OK]" } else { "[!!]" };
+        let gpg_badge = if d.gpg_agent.running { "Running" } else { "Error" };
         let gpg_detail = if d.gpg_agent.running {
-            "Running".to_string()
+            "Agent active".to_string()
         } else {
             "gpgconf --launch gpg-agent".to_string()
         };
         table.add_row(vec![gpg_badge.to_string(), "GPG Agent".to_string(), gpg_detail]);
 
         // Row 3: Scdaemon
-        let scd_badge = if d.scdaemon.configured { "[OK]" } else { "[  ]" };
+        let scd_badge = if d.scdaemon.configured { "Configured" } else { "Not set" };
         let scd_detail = if d.scdaemon.configured {
-            "Configured".to_string()
+            "scdaemon.conf present".to_string()
         } else {
             "Create ~/.gnupg/scdaemon.conf".to_string()
         };
         table.add_row(vec![scd_badge.to_string(), "Scdaemon".to_string(), scd_detail]);
 
         // Row 4: SSH Agent
-        let ssh_badge = if d.ssh_agent.configured { "[OK]" } else { "[  ]" };
+        let ssh_badge = if d.ssh_agent.configured { "Configured" } else { "Not set" };
         let ssh_detail = if d.ssh_agent.configured {
             "Configured for GPG".to_string()
         } else {

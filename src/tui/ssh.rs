@@ -1,4 +1,4 @@
-use textual_rs::{Widget, Footer, Header, Label};
+use textual_rs::{Widget, Footer, Header, Label, Button};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use textual_rs::reactive::Reactive;
@@ -112,23 +112,23 @@ impl Widget for SshWizardScreen {
                 widgets.push(Box::new(Label::new("")));
 
                 let ssh_status = if state.ssh_enabled {
-                    "[OK] SSH support enabled in gpg-agent.conf".to_string()
+                    "Done — SSH support enabled in gpg-agent.conf".to_string()
                 } else {
-                    "[  ] SSH support enabled in gpg-agent.conf".to_string()
+                    "Not yet — SSH support in gpg-agent.conf".to_string()
                 };
                 widgets.push(Box::new(Label::new(ssh_status)));
 
                 let shell_status = if state.shell_configured {
-                    "[OK] SSH_AUTH_SOCK configured in shell".to_string()
+                    "Done — SSH_AUTH_SOCK configured in shell".to_string()
                 } else {
-                    "[  ] SSH_AUTH_SOCK configured in shell".to_string()
+                    "Not yet — SSH_AUTH_SOCK configured in shell".to_string()
                 };
                 widgets.push(Box::new(Label::new(shell_status)));
 
                 let agent_status = if state.agent_running {
-                    "[OK] GPG agent running".to_string()
+                    "Running — GPG agent active".to_string()
                 } else {
-                    "[ !] GPG agent running".to_string()
+                    "Needs attention — GPG agent not running".to_string()
                 };
                 widgets.push(Box::new(Label::new(agent_status)));
 
@@ -141,15 +141,11 @@ impl Widget for SshWizardScreen {
 
                 // Main action area
                 widgets.push(Box::new(Label::new("Actions:")));
-                widgets.push(Box::new(Label::new(
-                    "[1] Enable SSH support in gpg-agent.conf",
-                )));
-                widgets.push(Box::new(Label::new(
-                    "[2] Configure SSH_AUTH_SOCK in shell",
-                )));
-                widgets.push(Box::new(Label::new("[3] Restart GPG agent")));
-                widgets.push(Box::new(Label::new("[4] Export SSH public key")));
-                widgets.push(Box::new(Label::new("[5] Test SSH connection")));
+                widgets.push(Box::new(Button::new("1 — Enable SSH support in gpg-agent.conf")));
+                widgets.push(Box::new(Button::new("2 — Configure SSH_AUTH_SOCK in shell")));
+                widgets.push(Box::new(Button::new("3 — Restart GPG agent")));
+                widgets.push(Box::new(Button::new("4 — Export SSH public key")));
+                widgets.push(Box::new(Button::new("5 — Test SSH connection")));
             }
 
             SshScreen::EnableSSH => {

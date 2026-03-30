@@ -8,7 +8,7 @@ expression: app.backend()
 "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
 "┃Status     │ Slot                      │ Configuration                        ┃"
 "┃━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━            ┃"
-"┃[OK]       │ Slot 1 (short touch)      │ Configured                           ┃"
+"┃Configured │ Slot 1 (short touch)      │ Configured                           ┃"
 "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 "                                                                                "
 "Note: Credential type (Yubico OTP, HMAC-SHA1, static password)                  "

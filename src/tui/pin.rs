@@ -196,14 +196,18 @@ impl Widget for PinManagementScreen {
                 "Not set"
             };
 
-            children.push(Box::new(Label::new(format!(
-                "User PIN: {}/3 retries [{}]",
-                pin.user_pin_retries, user_status
-            ))));
-            children.push(Box::new(Label::new(format!(
-                "Admin PIN: {}/3 retries [{}]",
-                pin.admin_pin_retries, admin_status
-            ))));
+            let user_label = match user_status {
+                "BLOCKED" => "User PIN: Blocked — use Admin PIN to unblock".to_string(),
+                "DANGER" => format!("User PIN: Warning — only {}/3 attempts remaining", pin.user_pin_retries),
+                _ => format!("User PIN: Working ({}/3 attempts remaining)", pin.user_pin_retries),
+            };
+            let admin_label = match admin_status {
+                "BLOCKED" => "Admin PIN: Blocked — factory reset required".to_string(),
+                "DANGER" => format!("Admin PIN: Warning — only {}/3 attempts remaining", pin.admin_pin_retries),
+                _ => format!("Admin PIN: Working ({}/3 attempts remaining)", pin.admin_pin_retries),
+            };
+            children.push(Box::new(Label::new(user_label)));
+            children.push(Box::new(Label::new(admin_label)));
             children.push(Box::new(Label::new(format!(
                 "Reset Code: {}",
                 reset_status
@@ -224,10 +228,10 @@ impl Widget for PinManagementScreen {
         children.push(Box::new(Label::new("")));
 
         // Action buttons — label includes keyboard shortcut for discoverability
-        children.push(Box::new(Button::new("[C] Change User PIN")));
-        children.push(Box::new(Button::new("[A] Change Admin PIN")));
-        children.push(Box::new(Button::new("[R] Set Reset Code")));
-        children.push(Box::new(Button::new("[U] Unblock PIN (Wizard)")));
+        children.push(Box::new(Button::new("Change User PIN")));
+        children.push(Box::new(Button::new("Change Admin PIN")));
+        children.push(Box::new(Button::new("Set Reset Code")));
+        children.push(Box::new(Button::new("Unblock PIN (Wizard)")));
 
         children.push(Box::new(Footer));
         children
