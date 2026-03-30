@@ -6,7 +6,7 @@ expression: app.backend()
 "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
 "┃Status   │ Component                 │ Detail                                 ┃"
 "┃━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃"
-"┃Running  │ PC/SC Daemon              │ Smart card service active              ┃"
+"┃✓ OK     │ PC/SC Daemon              │ Running                                ┃"
 "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 "  PC/SC version: mock                                                           "
 "  GPG Agent version: mock                                                       "

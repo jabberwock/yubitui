@@ -56,8 +56,8 @@ impl Widget for OtpScreen {
                 widgets.push(Box::new(Label::new("")));
 
                 let slot1_status = match &state.slot1 {
-                    OtpSlotStatus::Occupied => "Configured",
-                    OtpSlotStatus::Empty => "Empty",
+                    OtpSlotStatus::Occupied => "✓ Set",
+                    OtpSlotStatus::Empty => "○ Empty",
                 };
                 let slot1_config = match &state.slot1 {
                     OtpSlotStatus::Occupied => {
@@ -71,8 +71,8 @@ impl Widget for OtpScreen {
                 };
 
                 let slot2_status = match &state.slot2 {
-                    OtpSlotStatus::Occupied => "Configured",
-                    OtpSlotStatus::Empty => "Empty",
+                    OtpSlotStatus::Occupied => "✓ Set",
+                    OtpSlotStatus::Empty => "○ Empty",
                 };
                 let slot2_config = match &state.slot2 {
                     OtpSlotStatus::Occupied => {
