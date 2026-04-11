@@ -1,4 +1,4 @@
-use textual_rs::{Widget, Header, Label, Footer, Button};
+use textual_rs::{Widget, Header, Label, Footer, Button, ButtonVariant, Horizontal, Vertical};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
@@ -28,17 +28,8 @@ pub enum DashboardAction {
 
 /// Dashboard — root screen.
 ///
-/// Sidebar-style status block at the top, then navigation buttons for all 6 screens.
-///
-/// Follows textual-rs Widget pattern (D-01, D-06, D-07):
-/// - Header("yubitui -- YubiKey Management")
-/// - Device status Labels
-/// - 6 navigation Buttons (all navigable elements per D-06)
-/// - Footer with keybindings always visible (D-07, D-15)
-/// - No hardcoded Color:: values
-///
-/// Ctrl+T theme cycling is handled globally by the textual-rs App runner.
-/// 'q' quits via ctx.quit(); Esc has no dashboard-level binding (no screen to pop).
+/// Device status card at the top, 3x3 navigation grid below.
+/// Uses Horizontal/Vertical layout containers and CSS classes for visual structure.
 pub struct DashboardScreen {
     app_state: AppState,
     diagnostics: Diagnostics,
@@ -176,93 +167,100 @@ impl Widget for DashboardScreen {
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let mut children: Vec<Box<dyn Widget>> = Vec::new();
 
-        children.push(Box::new(Header::new("yubitui -- YubiKey Management")));
+        children.push(Box::new(Header::new("yubitui")));
 
-        // Device status block (sidebar role — top status display)
+        // ── Device status card ──────────────────────────────────────────
         if let Some(yk) = self.app_state.yubikey_state() {
             let pin = &yk.pin_status;
 
+            let mut status_lines: Vec<Box<dyn Widget>> = Vec::new();
+
             // Multi-key indicator
             if self.app_state.yubikey_count() > 1 {
-                children.push(Box::new(Label::new(format!(
+                status_lines.push(Box::new(Label::new(format!(
                     "Key {}/{} (Tab to switch)",
                     self.app_state.selected_yubikey_idx + 1,
                     self.app_state.yubikey_count()
                 ))));
             }
 
-            children.push(Box::new(Label::new(format!(
-                "Device: {} {} | Firmware: {} | Serial: {}",
+            status_lines.push(Box::new(Label::new(format!(
+                "{} {} | FW {} | SN {}",
                 yk.info.model, yk.info.form_factor, yk.info.version, yk.info.serial
             ))));
 
-            let pin_user_status = if pin.user_pin_blocked {
-                "[BLOCKED]"
+            // PIN status row
+            let pin_user = if pin.user_pin_blocked {
+                "BLOCKED"
             } else if pin.user_pin_retries <= 1 {
-                "[DANGER]"
+                "LOW"
             } else {
-                "[OK]"
+                "OK"
             };
-            let pin_admin_status = if pin.admin_pin_blocked {
-                "[BLOCKED]"
+            let pin_admin = if pin.admin_pin_blocked {
+                "BLOCKED"
             } else if pin.admin_pin_retries <= 1 {
-                "[DANGER]"
+                "LOW"
             } else {
-                "[OK]"
+                "OK"
             };
-            children.push(Box::new(Label::new(format!(
-                "PIN: {}/3 retries {}  Admin: {}/3 retries {}",
-                pin.user_pin_retries,
-                pin_user_status,
-                pin.admin_pin_retries,
-                pin_admin_status
+            status_lines.push(Box::new(Label::new(format!(
+                "PIN {}/3 [{}]  Admin {}/3 [{}]",
+                pin.user_pin_retries, pin_user,
+                pin.admin_pin_retries, pin_admin
             ))));
 
+            // Key slot status
             if let Some(ref openpgp) = yk.openpgp {
-                let sig_status = if openpgp.signature_key.is_some() {
-                    "[SET]"
-                } else {
-                    "[EMPTY]"
-                };
-                let enc_status = if openpgp.encryption_key.is_some() {
-                    "[SET]"
-                } else {
-                    "[EMPTY]"
-                };
-                let aut_status = if openpgp.authentication_key.is_some() {
-                    "[SET]"
-                } else {
-                    "[EMPTY]"
-                };
-                children.push(Box::new(Label::new(format!(
-                    "Keys: Sign {}  Encrypt {}  Auth {}",
-                    sig_status, enc_status, aut_status
+                let sig = if openpgp.signature_key.is_some() { "SET" } else { "---" };
+                let enc = if openpgp.encryption_key.is_some() { "SET" } else { "---" };
+                let aut = if openpgp.authentication_key.is_some() { "SET" } else { "---" };
+                status_lines.push(Box::new(Label::new(format!(
+                    "Keys: Sign [{}]  Encrypt [{}]  Auth [{}]",
+                    sig, enc, aut
                 ))));
             }
 
-            children.push(Box::new(Label::new("Device ready")));
+            children.push(Box::new(
+                Vertical::with_children(status_lines).with_class("status-card")
+            ));
         } else {
-            children.push(Box::new(Label::new("No YubiKey Detected")));
-            children.push(Box::new(Label::new(
-                "Insert your YubiKey and press R to refresh. Check the USB connection or run Diagnostics.",
-            )));
-            children.push(Box::new(Button::new("Refresh (R)")));
+            // No YubiKey detected
+            let no_key: Vec<Box<dyn Widget>> = vec![
+                Box::new(Label::new("No YubiKey detected")),
+                Box::new(Label::new("Insert your YubiKey and press R to refresh")),
+            ];
+            children.push(Box::new(
+                Vertical::with_children(no_key).with_class("status-card-error")
+            ));
         }
 
-        // WIZARD-04: nav affordance hint so new users discover all screens
-        children.push(Box::new(Label::new("Press 1–9 to jump to any screen:")));
+        // ── Navigation grid (3 rows of 3 buttons) ─────────────────────
+        children.push(Box::new(Label::new(""))); // spacer
 
-        // Navigation items — Buttons for all 9 destinations.
-        children.push(Box::new(Button::new("[1] OpenPGP Keys")));
-        children.push(Box::new(Button::new("[2] Diagnostics")));
-        children.push(Box::new(Button::new("[3] PIN Management")));
-        children.push(Box::new(Button::new("[4] SSH Setup")));
-        children.push(Box::new(Button::new("[5] PIV Certificates")));
-        children.push(Box::new(Button::new("[6] Help")));
-        children.push(Box::new(Button::new("[7] OATH / Authenticator")));
-        children.push(Box::new(Button::new("[8] FIDO2 / Security Key")));
-        children.push(Box::new(Button::new("[9] OTP Slots")));
-        children.push(Box::new(Button::new("[W] Setup Wizards")));
+        // Row 1: Core features
+        children.push(Box::new(Horizontal::with_children(vec![
+            Box::new(Button::new("[1] Keys").with_variant(ButtonVariant::Primary).with_action("nav_1")),
+            Box::new(Button::new("[2] Diagnostics").with_action("nav_2")),
+            Box::new(Button::new("[3] PIN").with_action("nav_3")),
+        ]).with_class("nav-row")));
+
+        // Row 2: Setup & certificates
+        children.push(Box::new(Horizontal::with_children(vec![
+            Box::new(Button::new("[4] SSH Setup").with_action("nav_4")),
+            Box::new(Button::new("[5] PIV Certs").with_action("nav_5")),
+            Box::new(Button::new("[6] Help").with_action("nav_6")),
+        ]).with_class("nav-row")));
+
+        // Row 3: Protocols
+        children.push(Box::new(Horizontal::with_children(vec![
+            Box::new(Button::new("[7] OATH").with_action("nav_7")),
+            Box::new(Button::new("[8] FIDO2").with_action("nav_8")),
+            Box::new(Button::new("[9] OTP").with_action("nav_9")),
+        ]).with_class("nav-row")));
+
+        // Wizards button (standalone, full-width)
+        children.push(Box::new(Button::new("[W] Setup Wizards").with_variant(ButtonVariant::Success).with_action("wizards")));
 
         children.push(Box::new(Footer));
         children
@@ -315,7 +313,6 @@ impl Widget for DashboardScreen {
                 ctx.push_screen_deferred(Box::new(crate::tui::glossary::GlossaryScreen::new()));
             }
             "nav_7" => {
-                // OATH state is fetched on-demand (not during initial detection).
                 let key_present = self.app_state.yubikey_state().is_some();
                 let oath_state = crate::model::oath::get_oath_state().ok();
                 let screen = if key_present {
@@ -326,7 +323,6 @@ impl Widget for DashboardScreen {
                 ctx.push_screen_deferred(Box::new(screen));
             }
             "nav_8" => {
-                // FIDO2 state is fetched on-demand via HID (not PC/SC).
                 let key_present = self.app_state.yubikey_state().is_some();
                 let fido2_result = crate::model::fido2::get_fido2_info();
                 if let Err(ref e) = fido2_result {
@@ -351,11 +347,9 @@ impl Widget for DashboardScreen {
                 ctx.push_screen_deferred(Box::new(screen));
             }
             "refresh" => {
-                // Re-detect YubiKey hardware state from PC/SC readers
                 let fresh_states = crate::model::YubiKeyState::detect_all().unwrap_or_default();
                 let mut fresh_app_state = self.app_state.clone();
                 fresh_app_state.yubikey_states = fresh_states;
-                // Pop current dashboard screen and push a fresh one with updated state
                 ctx.pop_screen_deferred();
                 ctx.push_screen_deferred(Box::new(DashboardScreen::new(
                     fresh_app_state,
@@ -363,10 +357,9 @@ impl Widget for DashboardScreen {
                 )));
             }
             "switch_key" => {
-                // Multi-key switching is an app-level side effect — no-op in widget scope.
+                // Multi-key switching is an app-level side effect.
             }
             "open_menu" => {
-                // Push Help as context menu placeholder — full context menu in 08-06.
                 ctx.push_screen_deferred(Box::new(crate::tui::help::HelpScreen::new()));
             }
             "wizards" => {
@@ -407,7 +400,7 @@ mod tests {
     async fn dashboard_default_populated() {
         let app_state = make_app_state_with_key();
         let diagnostics = Diagnostics::default();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(DashboardScreen::new(app_state.clone(), diagnostics.clone()))
         });
         app.pilot().settle().await;
@@ -416,7 +409,7 @@ mod tests {
 
     #[tokio::test]
     async fn dashboard_no_yubikey() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(DashboardScreen::new(AppState::default(), Diagnostics::default()))
         });
         app.pilot().settle().await;
@@ -427,7 +420,7 @@ mod tests {
     async fn dashboard_context_menu_open() {
         let app_state = make_app_state_with_key();
         let diagnostics = Diagnostics::default();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(DashboardScreen::new(app_state.clone(), diagnostics.clone()))
         });
         let mut pilot = app.pilot();

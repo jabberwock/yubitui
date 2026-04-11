@@ -1,4 +1,4 @@
-use textual_rs::{Widget, Footer, Header, Label, Button, DataTable, ColumnDef};
+use textual_rs::{Widget, Footer, Header, Label, Button, Horizontal, Vertical};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use textual_rs::reactive::Reactive;
@@ -39,6 +39,7 @@ pub struct DiagnosticsScreen {
     pub diagnostics: Diagnostics,
     #[allow(dead_code)]
     pub state: Reactive<DiagnosticsTuiState>,
+    own_id: std::cell::Cell<Option<textual_rs::WidgetId>>,
 }
 
 impl DiagnosticsScreen {
@@ -46,6 +47,7 @@ impl DiagnosticsScreen {
         DiagnosticsScreen {
             diagnostics,
             state: Reactive::new(DiagnosticsTuiState::default()),
+            own_id: std::cell::Cell::new(None),
         }
     }
 }
@@ -60,80 +62,83 @@ impl Widget for DiagnosticsScreen {
 
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("System Diagnostics")),
+            Box::new(Label::new("")),
         ];
 
-        // Build DataTable with 4 diagnostic check rows
-        let columns = vec![
-            ColumnDef::new("Status").with_width(8),
-            ColumnDef::new("Component").with_width(25),
-            ColumnDef::new("Detail").with_width(40),
-        ];
-        let mut table = DataTable::new(columns);
-
-        // Row 1: PC/SC Daemon
-        let pcscd_badge = if d.pcscd.running { "✓ OK" } else { "✗ Down" };
+        // ── Row 1: PC/SC + GPG Agent ────────────────────────────────
+        let pcscd_class = if d.pcscd.running { "diag-card-ok" } else { "diag-card-error" };
+        let pcscd_status = if d.pcscd.running { "✓ Running" } else { "✗ Down" };
         let pcscd_detail = if d.pcscd.running {
-            "Running".to_string()
+            d.pcscd.version.as_deref().unwrap_or("").to_string()
         } else if cfg!(target_os = "macos") {
             "brew services start pcsc-lite".to_string()
         } else if cfg!(target_os = "linux") {
             "sudo systemctl start pcscd".to_string()
-        } else if cfg!(windows) {
-            "Start-Service SCardSvr (admin)".to_string()
         } else {
             "Not running".to_string()
         };
-        table.add_row(vec![pcscd_badge.to_string(), "PC/SC Daemon".to_string(), pcscd_detail]);
 
-        // Row 2: GPG Agent
-        let gpg_badge = if d.gpg_agent.running { "✓ OK" } else { "✗ Down" };
+        let gpg_class = if d.gpg_agent.running { "diag-card-ok" } else { "diag-card-error" };
+        let gpg_status = if d.gpg_agent.running { "✓ Running" } else { "✗ Down" };
         let gpg_detail = if d.gpg_agent.running {
-            "Running".to_string()
+            d.gpg_agent.version.as_deref().unwrap_or("").to_string()
         } else {
             "gpgconf --launch gpg-agent".to_string()
         };
-        table.add_row(vec![gpg_badge.to_string(), "GPG Agent".to_string(), gpg_detail]);
 
-        // Row 3: Scdaemon
-        let scd_badge = if d.scdaemon.configured { "✓ OK" } else { "○ No" };
+        widgets.push(Box::new(Horizontal::with_children(vec![
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("PC/SC Daemon").with_class("section-title")),
+                Box::new(Label::new(pcscd_status)),
+                Box::new(Label::new(pcscd_detail)),
+            ]).with_class("diag-card").with_class(pcscd_class)),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("GPG Agent").with_class("section-title")),
+                Box::new(Label::new(gpg_status)),
+                Box::new(Label::new(gpg_detail)),
+            ]).with_class("diag-card").with_class(gpg_class)),
+        ]).with_class("status-row")));
+
+        // ── Row 2: Scdaemon + SSH Agent ─────────────────────────────
+        let scd_class = if d.scdaemon.configured { "diag-card-ok" } else { "diag-card-warn" };
+        let scd_status = if d.scdaemon.configured { "✓ Configured" } else { "○ Not configured" };
         let scd_detail = if d.scdaemon.configured {
-            "Configured".to_string()
+            String::new()
         } else {
             "Create ~/.gnupg/scdaemon.conf".to_string()
         };
-        table.add_row(vec![scd_badge.to_string(), "Scdaemon".to_string(), scd_detail]);
 
-        // Row 4: SSH Agent
-        let ssh_badge = if d.ssh_agent.configured { "✓ OK" } else { "○ No" };
+        let ssh_class = if d.ssh_agent.configured { "diag-card-ok" } else { "diag-card-warn" };
+        let ssh_status = if d.ssh_agent.configured { "✓ GPG-enabled" } else { "○ Not configured" };
         let ssh_detail = if d.ssh_agent.configured {
-            "Configured for GPG".to_string()
+            d.ssh_agent.auth_sock.as_deref().unwrap_or("").to_string()
         } else {
             "Add enable-ssh-support to gpg-agent.conf".to_string()
         };
-        table.add_row(vec![ssh_badge.to_string(), "SSH Agent".to_string(), ssh_detail]);
 
-        widgets.push(Box::new(table));
+        widgets.push(Box::new(Horizontal::with_children(vec![
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("Scdaemon").with_class("section-title")),
+                Box::new(Label::new(scd_status)),
+                Box::new(Label::new(scd_detail)),
+            ]).with_class("diag-card").with_class(scd_class)),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("SSH Agent").with_class("section-title")),
+                Box::new(Label::new(ssh_status)),
+                Box::new(Label::new(ssh_detail)),
+            ]).with_class("diag-card").with_class(ssh_class)),
+        ]).with_class("status-row")));
 
-        // Supplemental detail lines (only shown when data exists)
-        if let Some(ref version) = d.pcscd.version {
-            widgets.push(Box::new(Label::new(format!("  PC/SC version: {}", version))));
-        }
-        if let Some(ref version) = d.gpg_agent.version {
-            widgets.push(Box::new(Label::new(format!("  GPG Agent version: {}", version))));
-        }
+        // Supplemental details
         if let Some(ref socket) = d.gpg_agent.socket_path {
-            widgets.push(Box::new(Label::new(format!("  GPG socket: {}", socket))));
+            widgets.push(Box::new(Label::new(format!("GPG socket: {}", socket))));
         }
         if let Some(ref issues) = d.scdaemon.issues {
-            widgets.push(Box::new(Label::new(format!("  Scdaemon issues: {}", issues))));
-        }
-        if let Some(ref sock) = d.ssh_agent.auth_sock {
-            widgets.push(Box::new(Label::new(format!("  SSH_AUTH_SOCK: {}", sock))));
+            widgets.push(Box::new(Label::new(format!("Scdaemon issues: {}", issues))));
         }
 
-        // Spacer + action button
         widgets.push(Box::new(Label::new("")));
-        widgets.push(Box::new(Button::new("Run Diagnostics (R)")));
+        widgets.push(Box::new(Button::new("Run Diagnostics (R)").with_action("run_diagnostics")));
 
         widgets.push(Box::new(Footer));
         widgets
@@ -203,7 +208,7 @@ mod tests {
 
     #[tokio::test]
     async fn diagnostics_default() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(DiagnosticsScreen::new(Diagnostics::default()))
         });
         app.pilot().settle().await;

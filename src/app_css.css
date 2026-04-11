@@ -1,0 +1,43 @@
+/* ── All screens: solid themed background ─────────────────────── */
+DashboardScreen, OnboardingScreen,
+KeysScreen, KeyGenWizardScreen, KeyGenPinScreen, ImportKeyScreen, KeyDetailScreen, TouchPolicyScreen, TouchPolicyPinScreen,
+DiagnosticsScreen, PinManagementScreen, UnblockWizardScreen, FactoryResetScreen,
+SshWizardScreen, PivScreen, HelpScreen, GlossaryScreen,
+OathScreen, AddAccountScreen, ImportUriScreen, DeleteConfirmScreen,
+OathUnlockScreen, OathPasswordMgmtScreen,
+OathSetPasswordScreen, OathChangePasswordScreen, OathRemovePasswordScreen,
+Fido2Screen, PinSetScreen, PinChangeScreen, PinAuthScreen,
+DeleteCredentialScreen, ResetGuidanceScreen, ResetConfirmScreen,
+OtpScreen, OtpConfigScreen, PopupScreen, ConfirmScreen,
+ChangeMgmtKeyScreen, NewMgmtKeyScreen,
+WizardMenuScreen, InitialSetupWizardScreen, SshTouchPolicyWizardScreen
+{ background: $background; }
+
+/* ── Layout containers ────────────────────────────────────────── */
+.nav-row { layout-direction: horizontal; height: 3; }
+.nav-row Button { flex-grow: 1; margin: 0 0 0 1; }
+.status-row { layout-direction: horizontal; height: 5; }
+
+/* ── Status cards: bordered panels ────────────────────────────── */
+.status-card { border: tall $surface; padding: 0 1; margin: 0 0 1 0; }
+.status-card-ok { border: tall $success; }
+.status-card-warn { border: tall $warning; }
+.status-card-error { border: tall $error; }
+.diag-card { border: inner $surface; padding: 0 1; height: 5; flex-grow: 1; margin: 0 1 0 0; }
+.diag-card-ok { color: $success; }
+.diag-card-warn { color: $warning; }
+.diag-card-error { color: $error; }
+
+/* ── Section titles ───────────────────────────────────────────── */
+.section-title { color: $primary; min-height: 1; }
+
+/* ── Button bars ──────────────────────────────────────────────── */
+.button-bar { layout-direction: horizontal; height: 3; }
+.button-bar Button { margin: 0 1 0 0; }
+
+/* ── Markdown screens ─────────────────────────────────────────── */
+HelpScreen Markdown { flex-grow: 1; }
+GlossaryScreen Markdown { flex-grow: 1; }
+
+/* ── Button sizing ────────────────────────────────────────────── */
+Button { min-height: 3; }

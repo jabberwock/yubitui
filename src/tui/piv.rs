@@ -228,10 +228,10 @@ impl Widget for PivScreen {
                         }
 
                         widgets.push(Box::new(Label::new("")));
-                        widgets.push(Box::new(Button::new("View Certificate")));
-                        widgets.push(Box::new(Button::new("Delete Slot").with_variant(ButtonVariant::Warning)));
-                        widgets.push(Box::new(Button::new("Change Management Key")));
-                        widgets.push(Box::new(Button::new("Refresh")));
+                        widgets.push(Box::new(Button::new("View Certificate").with_action("view_slot")));
+                        widgets.push(Box::new(Button::new("Delete Slot").with_variant(ButtonVariant::Warning).with_action("delete_slot")));
+                        widgets.push(Box::new(Button::new("Change Management Key").with_action("change_mgmt_key")));
+                        widgets.push(Box::new(Button::new("Refresh").with_action("refresh")));
                     }
                     None => {
                         widgets.push(Box::new(Markdown::new(
@@ -245,7 +245,7 @@ impl Widget for PivScreen {
                     "## No YubiKey Detected\n\nInsert your YubiKey and press **R** to refresh.",
                 )));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Button::new("Refresh")));
+                widgets.push(Box::new(Button::new("Refresh").with_action("refresh")));
             }
         }
 
@@ -534,6 +534,7 @@ impl Widget for MgmtKeyThenDeleteScreen {
                         "Management key must be 48 hex characters (24 bytes). Got {} chars.",
                         input.len()
                     ));
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return;
                 } else {
                     // Parse 48 hex chars -> 24 bytes
@@ -803,6 +804,7 @@ impl Widget for ChangeMgmtKeyScreen {
                         "Key must be 48 hex characters (24 bytes). Got {}.",
                         input.len()
                     ));
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return;
                 } else {
                     let mut bytes = [0u8; 24];
@@ -984,7 +986,7 @@ mod tests {
     #[tokio::test]
     async fn piv_default_state() {
         let yk = mock_yubikey_states().into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(PivScreen::new(yk.clone()))
         });
         app.pilot().settle().await;
@@ -993,7 +995,7 @@ mod tests {
 
     #[tokio::test]
     async fn piv_no_yubikey() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(PivScreen::new(None))
         });
         app.pilot().settle().await;
@@ -1002,7 +1004,7 @@ mod tests {
 
     #[tokio::test]
     async fn piv_change_mgmt_key_screen() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(ChangeMgmtKeyScreen::new(true))
         });
         app.pilot().settle().await;
@@ -1012,7 +1014,7 @@ mod tests {
     #[tokio::test]
     async fn piv_new_mgmt_key_screen() {
         let current = *crate::model::piv_delete::PIV_DEFAULT_MGMT_KEY_3DES;
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(NewMgmtKeyScreen::new(current))
         });
         app.pilot().settle().await;
@@ -1022,7 +1024,7 @@ mod tests {
     #[tokio::test]
     async fn piv_view_cert_popup() {
         let yk = mock_yubikey_states().into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(PivScreen::new(yk.clone()))
         });
         let mut pilot = app.pilot();

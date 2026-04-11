@@ -76,10 +76,10 @@ impl Widget for WizardMenuScreen {
             Box::new(Label::new("")),
             Box::new(Label::new("Choose a guided setup flow:")),
             Box::new(Label::new("")),
-            Box::new(Button::new("[1] Initial YubiKey Setup")),
+            Box::new(Button::new("[1] Initial YubiKey Setup").with_action("initial_setup")),
             Box::new(Label::new("    Set FIDO2 PIN, add first OATH account, configure PIV/SSH key.")),
             Box::new(Label::new("")),
-            Box::new(Button::new("[2] SSH Key with Touch Policy")),
+            Box::new(Button::new("[2] SSH Key with Touch Policy").with_action("ssh_wizard")),
             Box::new(Label::new("    Choose touch policy, generate OpenPGP key, export SSH public key.")),
             Box::new(Label::new("")),
             Box::new(Footer),
@@ -794,7 +794,7 @@ mod tests {
     #[tokio::test]
     async fn wizard_menu_screen() {
         let yk = mock_yubikey_states().into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(WizardMenuScreen::new(yk.clone()))
         });
         app.pilot().settle().await;
@@ -804,7 +804,7 @@ mod tests {
     #[tokio::test]
     async fn initial_setup_wizard_step_welcome() {
         let yk = mock_yubikey_states().into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(InitialSetupWizardScreen::new(yk.clone()))
         });
         app.pilot().settle().await;
@@ -814,7 +814,7 @@ mod tests {
     #[tokio::test]
     async fn initial_setup_wizard_step_fido2() {
         let yk = mock_yubikey_states().into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(InitialSetupWizardScreen::new(yk.clone()))
         });
         let mut pilot = app.pilot();
@@ -827,7 +827,7 @@ mod tests {
     #[tokio::test]
     async fn ssh_touch_policy_wizard_step_policy() {
         let yk = mock_yubikey_states().into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(SshTouchPolicyWizardScreen::new(yk.clone()))
         });
         app.pilot().settle().await;
@@ -837,7 +837,7 @@ mod tests {
     #[tokio::test]
     async fn ssh_touch_policy_wizard_step_slot() {
         let yk = mock_yubikey_states().into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(SshTouchPolicyWizardScreen::new(yk.clone()))
         });
         let mut pilot = app.pilot();

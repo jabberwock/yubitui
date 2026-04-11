@@ -1,4 +1,4 @@
-use textual_rs::{Widget, Header, Label, Footer};
+use textual_rs::{Widget, Header, Label, Footer, Checkbox};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -47,48 +47,46 @@ impl Widget for OnboardingScreen {
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Welcome to yubitui")),
             Box::new(Label::new("")),
-            Box::new(Label::new("Your YubiKey appears to be in factory-default state.")),
-            Box::new(Label::new("Here's what you can configure:")),
+            Box::new(Label::new("Your YubiKey appears to be factory-default. Here's what you can set up:")),
             Box::new(Label::new("")),
         ];
 
         // FIDO2 PIN
         let fido2_set = self.yk.fido2.as_ref().map(|f| f.pin_is_set).unwrap_or(false);
-        if fido2_set {
-            widgets.push(Box::new(Label::new("  [x] FIDO2 PIN is set")));
+        widgets.push(Box::new(Checkbox::new(if fido2_set {
+            "FIDO2 PIN is set"
         } else {
-            widgets.push(Box::new(Label::new("  [ ] Set a FIDO2 PIN — required for passkey (WebAuthn) login")));
-        }
+            "Set a FIDO2 PIN — required for passkey login"
+        }, fido2_set)));
 
         // OATH
         let has_oath = self.yk.oath.as_ref().map(|o| !o.credentials.is_empty()).unwrap_or(false);
-        if has_oath {
-            widgets.push(Box::new(Label::new("  [x] OATH accounts configured")));
+        widgets.push(Box::new(Checkbox::new(if has_oath {
+            "OATH accounts configured"
         } else {
-            widgets.push(Box::new(Label::new("  [ ] Add OATH accounts — store TOTP/HOTP codes on hardware")));
-        }
+            "Add OATH accounts — TOTP/HOTP codes on hardware"
+        }, has_oath)));
 
         // PIV
         let has_piv = self.yk.piv.as_ref().map(|p| !p.slots.is_empty()).unwrap_or(false);
-        if has_piv {
-            widgets.push(Box::new(Label::new("  [x] PIV certificates present")));
+        widgets.push(Box::new(Checkbox::new(if has_piv {
+            "PIV certificates present"
         } else {
-            widgets.push(Box::new(Label::new("  [ ] Configure PIV — smart card certificates for login/VPN")));
-        }
+            "Configure PIV — smart card certificates for login/VPN"
+        }, has_piv)));
 
         // OpenPGP
         let has_openpgp = self.yk.openpgp.as_ref().map(|o| {
             o.signature_key.is_some() || o.encryption_key.is_some() || o.authentication_key.is_some()
         }).unwrap_or(false);
-        if has_openpgp {
-            widgets.push(Box::new(Label::new("  [x] OpenPGP keys configured")));
+        widgets.push(Box::new(Checkbox::new(if has_openpgp {
+            "OpenPGP keys configured"
         } else {
-            widgets.push(Box::new(Label::new("  [ ] Set up OpenPGP keys — git signing, email encryption, SSH")));
-        }
+            "Set up OpenPGP — git signing, email encryption, SSH"
+        }, has_openpgp)));
 
         widgets.push(Box::new(Label::new("")));
-        widgets.push(Box::new(Label::new("Use the numbered keys from the dashboard to access each feature.")));
-        widgets.push(Box::new(Label::new("Press ? on any screen for a protocol explanation.")));
+        widgets.push(Box::new(Label::new("Press Enter to continue to the dashboard.")));
         widgets.push(Box::new(Footer));
         widgets
     }
@@ -182,7 +180,7 @@ mod tests {
     #[tokio::test]
     async fn onboarding_factory_default() {
         let yk = factory_default_yk();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(OnboardingScreen::new(yk.clone()))
         });
         app.pilot().settle().await;

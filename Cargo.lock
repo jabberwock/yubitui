@@ -2759,9 +2759,7 @@ dependencies = [
 
 [[package]]
 name = "textual-rs"
-version = "0.3.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bdd1f2162405ba92259e0a1a1eb506cf6e7ddc5c08f493ea9ab3ede9f8be936"
+version = "0.3.16"
 dependencies = [
  "any_spawner",
  "anyhow",
@@ -2785,9 +2783,7 @@ dependencies = [
 
 [[package]]
 name = "textual-rs-macros"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bde961b5105aaf0385fc45859b6b5c732e81e6e0440cd533b4cc240639dce2f5"
+version = "0.3.16"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label, WidgetId, Button, ButtonVariant, DataTable, ColumnDef, Markdown};
+use textual_rs::{Widget, Footer, Header, Label, WidgetId, Button, ButtonVariant, DataTable, ColumnDef, Markdown, Vertical, Horizontal};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
@@ -208,25 +208,29 @@ impl Widget for Fido2Screen {
 
                 // --- Info section (always visible, no PIN required per D-03) ---
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(format!(
-                    "Firmware: {}",
-                    state.firmware_version.as_deref().unwrap_or("Unknown")
-                ))));
 
                 let alg_str = if state.algorithms.is_empty() {
                     "None reported".to_string()
                 } else {
                     state.algorithms.join(", ")
                 };
-                widgets.push(Box::new(Label::new(format!("Algorithms: {}", alg_str))));
 
-                // PIN status
                 let pin_status = if state.pin_is_set {
                     format!("PIN: ✓ Set  ({} retries remaining)", state.pin_retry_count)
                 } else {
                     "PIN: ○ Not set".to_string()
                 };
-                widgets.push(Box::new(Label::new(pin_status)));
+
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new(format!(
+                            "Firmware: {}",
+                            state.firmware_version.as_deref().unwrap_or("Unknown")
+                        ))),
+                        Box::new(Label::new(format!("Algorithms: {}", alg_str))),
+                        Box::new(Label::new(pin_status)),
+                    ]).with_class("status-card")
+                ));
                 widgets.push(Box::new(Label::new("")));
 
                 // --- Passkeys section ---
@@ -276,27 +280,29 @@ impl Widget for Fido2Screen {
                 // --- Action Buttons ---
                 widgets.push(Box::new(Label::new("")));
 
-                // Set PIN vs Change PIN based on state
+                // Row 1: PIN + Unlock
+                let mut row1: Vec<Box<dyn Widget>> = Vec::new();
                 if state.pin_is_set {
-                    widgets.push(Box::new(Button::new("Change PIN")));
+                    row1.push(Box::new(Button::new("Change PIN").with_action("set_pin")));
                 } else {
-                    widgets.push(Box::new(Button::new("Set PIN")));
+                    row1.push(Box::new(Button::new("Set PIN").with_action("set_pin")));
                 }
-
-                // Unlock Credentials only when locked (credentials is None) and PIN is set
                 if state.pin_is_set && state.credentials.is_none() {
-                    widgets.push(Box::new(Button::new("Unlock Credentials")));
+                    row1.push(Box::new(Button::new("Unlock Credentials").with_action("authenticate_pin")));
+                }
+                if !row1.is_empty() {
+                    widgets.push(Box::new(Horizontal::with_children(row1).with_class("button-bar")));
                 }
 
-                // Delete Credential only when credentials are loaded and non-empty
+                // Row 2: Delete + Reset (destructive actions)
+                let mut row2: Vec<Box<dyn Widget>> = Vec::new();
                 if let Some(creds) = &state.credentials {
                     if !creds.is_empty() {
-                        widgets.push(Box::new(Button::new("Delete Credential").with_variant(ButtonVariant::Warning)));
+                        row2.push(Box::new(Button::new("Delete Credential").with_variant(ButtonVariant::Warning).with_action("delete_credential")));
                     }
                 }
-
-                // Reset FIDO2 — always shown, uses Error variant for visual warning
-                widgets.push(Box::new(Button::new("Reset FIDO2").with_variant(ButtonVariant::Error)));
+                row2.push(Box::new(Button::new("Reset FIDO2").with_variant(ButtonVariant::Error).with_action("reset")));
+                widgets.push(Box::new(Horizontal::with_children(row2).with_class("button-bar")));
             }
         }
 
@@ -422,6 +428,7 @@ pub struct PinSetScreen {
     confirm_pin: RefCell<String>,
     step: RefCell<PinSetStep>,
     error_message: RefCell<Option<String>>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl PinSetScreen {
@@ -431,7 +438,11 @@ impl PinSetScreen {
             confirm_pin: RefCell::new(String::new()),
             step: RefCell::new(PinSetStep::default()),
             error_message: RefCell::new(None),
+            own_id: Cell::new(None),
         }
+    }
+    fn recompose(&self, ctx: &AppContext) {
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
     }
 }
 
@@ -457,6 +468,9 @@ impl Widget for PinSetScreen {
         "PinSetScreen"
     }
 
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
+
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let step = *self.step.borrow();
         let error = self.error_message.borrow().clone();
@@ -468,14 +482,24 @@ impl Widget for PinSetScreen {
 
         match step {
             PinSetStep::EnterNew => {
-                widgets.push(Box::new(Label::new("Enter new PIN (min 4 characters):")));
-                let masked = "*".repeat(self.new_pin.borrow().len());
-                widgets.push(Box::new(Label::new(format!("> {}_", masked))));
+                widgets.push(Box::new(Label::new("Step 1 of 2").with_class("section-title")));
+                let masked = "●".repeat(self.new_pin.borrow().len());
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new("Enter new PIN (min 4 characters):")),
+                        Box::new(Label::new(format!("> {}_", masked))),
+                    ]).with_class("status-card")
+                ));
             }
             PinSetStep::ConfirmNew => {
-                widgets.push(Box::new(Label::new("Confirm new PIN:")));
-                let masked = "*".repeat(self.confirm_pin.borrow().len());
-                widgets.push(Box::new(Label::new(format!("> {}_", masked))));
+                widgets.push(Box::new(Label::new("Step 2 of 2").with_class("section-title")));
+                let masked = "●".repeat(self.confirm_pin.borrow().len());
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new("Confirm new PIN:")),
+                        Box::new(Label::new(format!("> {}_", masked))),
+                    ]).with_class("status-card")
+                ));
             }
         }
 
@@ -503,13 +527,10 @@ impl Widget for PinSetScreen {
                 KeyCode::Backspace => {
                     let step = *self.step.borrow();
                     match step {
-                        PinSetStep::EnterNew => {
-                            self.new_pin.borrow_mut().pop();
-                        }
-                        PinSetStep::ConfirmNew => {
-                            self.confirm_pin.borrow_mut().pop();
-                        }
+                        PinSetStep::EnterNew => { self.new_pin.borrow_mut().pop(); }
+                        PinSetStep::ConfirmNew => { self.confirm_pin.borrow_mut().pop(); }
                     }
+                    self.recompose(ctx);
                     return EventPropagation::Stop;
                 }
                 KeyCode::Enter => {
@@ -519,13 +540,10 @@ impl Widget for PinSetScreen {
                 KeyCode::Char(c) => {
                     let step = *self.step.borrow();
                     match step {
-                        PinSetStep::EnterNew => {
-                            self.new_pin.borrow_mut().push(c);
-                        }
-                        PinSetStep::ConfirmNew => {
-                            self.confirm_pin.borrow_mut().push(c);
-                        }
+                        PinSetStep::EnterNew => { self.new_pin.borrow_mut().push(c); }
+                        PinSetStep::ConfirmNew => { self.confirm_pin.borrow_mut().push(c); }
                     }
+                    self.recompose(ctx);
                     return EventPropagation::Stop;
                 }
                 _ => {}
@@ -545,10 +563,12 @@ impl Widget for PinSetScreen {
                         if pin.len() < 4 {
                             *self.error_message.borrow_mut() =
                                 Some("PIN must be at least 4 characters".to_string());
+                            self.recompose(ctx);
                             return;
                         }
                         *self.error_message.borrow_mut() = None;
                         *self.step.borrow_mut() = PinSetStep::ConfirmNew;
+                        self.recompose(ctx);
                     }
                     PinSetStep::ConfirmNew => {
                         let new_pin = self.new_pin.borrow().clone();
@@ -557,6 +577,7 @@ impl Widget for PinSetScreen {
                             *self.error_message.borrow_mut() =
                                 Some("PINs do not match. Try again.".to_string());
                             self.confirm_pin.borrow_mut().clear();
+                            self.recompose(ctx);
                             return;
                         }
                         match crate::model::fido2::set_pin(&new_pin) {
@@ -568,6 +589,7 @@ impl Widget for PinSetScreen {
                             }
                             Err(e) => {
                                 *self.error_message.borrow_mut() = Some(e.to_string());
+                                self.recompose(ctx);
                             }
                         }
                     }
@@ -601,6 +623,7 @@ pub struct PinChangeScreen {
     confirm_pin: RefCell<String>,
     step: RefCell<PinChangeStep>,
     error_message: RefCell<Option<String>>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl PinChangeScreen {
@@ -611,7 +634,11 @@ impl PinChangeScreen {
             confirm_pin: RefCell::new(String::new()),
             step: RefCell::new(PinChangeStep::default()),
             error_message: RefCell::new(None),
+            own_id: Cell::new(None),
         }
+    }
+    fn recompose(&self, ctx: &AppContext) {
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
     }
 }
 
@@ -633,6 +660,8 @@ static PIN_CHANGE_BINDINGS: &[KeyBinding] = &[
 ];
 
 impl Widget for PinChangeScreen {
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
     fn widget_type_name(&self) -> &'static str {
         "PinChangeScreen"
     }
@@ -648,19 +677,34 @@ impl Widget for PinChangeScreen {
 
         match step {
             PinChangeStep::EnterCurrent => {
-                widgets.push(Box::new(Label::new("Enter current PIN:")));
-                let masked = "*".repeat(self.current_pin.borrow().len());
-                widgets.push(Box::new(Label::new(format!("> {}_", masked))));
+                widgets.push(Box::new(Label::new("Step 1 of 3").with_class("section-title")));
+                let masked = "●".repeat(self.current_pin.borrow().len());
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new("Enter current PIN:")),
+                        Box::new(Label::new(format!("> {}_", masked))),
+                    ]).with_class("status-card")
+                ));
             }
             PinChangeStep::EnterNew => {
-                widgets.push(Box::new(Label::new("Enter new PIN (min 4 characters):")));
-                let masked = "*".repeat(self.new_pin.borrow().len());
-                widgets.push(Box::new(Label::new(format!("> {}_", masked))));
+                widgets.push(Box::new(Label::new("Step 2 of 3").with_class("section-title")));
+                let masked = "●".repeat(self.new_pin.borrow().len());
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new("Enter new PIN (min 4 characters):")),
+                        Box::new(Label::new(format!("> {}_", masked))),
+                    ]).with_class("status-card")
+                ));
             }
             PinChangeStep::ConfirmNew => {
-                widgets.push(Box::new(Label::new("Confirm new PIN:")));
-                let masked = "*".repeat(self.confirm_pin.borrow().len());
-                widgets.push(Box::new(Label::new(format!("> {}_", masked))));
+                widgets.push(Box::new(Label::new("Step 3 of 3").with_class("section-title")));
+                let masked = "●".repeat(self.confirm_pin.borrow().len());
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new("Confirm new PIN:")),
+                        Box::new(Label::new(format!("> {}_", masked))),
+                    ]).with_class("status-card")
+                ));
             }
         }
 
@@ -688,16 +732,11 @@ impl Widget for PinChangeScreen {
                 KeyCode::Backspace => {
                     let step = *self.step.borrow();
                     match step {
-                        PinChangeStep::EnterCurrent => {
-                            self.current_pin.borrow_mut().pop();
-                        }
-                        PinChangeStep::EnterNew => {
-                            self.new_pin.borrow_mut().pop();
-                        }
-                        PinChangeStep::ConfirmNew => {
-                            self.confirm_pin.borrow_mut().pop();
-                        }
+                        PinChangeStep::EnterCurrent => { self.current_pin.borrow_mut().pop(); }
+                        PinChangeStep::EnterNew => { self.new_pin.borrow_mut().pop(); }
+                        PinChangeStep::ConfirmNew => { self.confirm_pin.borrow_mut().pop(); }
                     }
+                    self.recompose(ctx);
                     return EventPropagation::Stop;
                 }
                 KeyCode::Enter => {
@@ -707,16 +746,11 @@ impl Widget for PinChangeScreen {
                 KeyCode::Char(c) => {
                     let step = *self.step.borrow();
                     match step {
-                        PinChangeStep::EnterCurrent => {
-                            self.current_pin.borrow_mut().push(c);
-                        }
-                        PinChangeStep::EnterNew => {
-                            self.new_pin.borrow_mut().push(c);
-                        }
-                        PinChangeStep::ConfirmNew => {
-                            self.confirm_pin.borrow_mut().push(c);
-                        }
+                        PinChangeStep::EnterCurrent => { self.current_pin.borrow_mut().push(c); }
+                        PinChangeStep::EnterNew => { self.new_pin.borrow_mut().push(c); }
+                        PinChangeStep::ConfirmNew => { self.confirm_pin.borrow_mut().push(c); }
                     }
+                    self.recompose(ctx);
                     return EventPropagation::Stop;
                 }
                 _ => {}
@@ -734,16 +768,19 @@ impl Widget for PinChangeScreen {
                     PinChangeStep::EnterCurrent => {
                         *self.error_message.borrow_mut() = None;
                         *self.step.borrow_mut() = PinChangeStep::EnterNew;
+                        self.recompose(ctx);
                     }
                     PinChangeStep::EnterNew => {
                         let pin = self.new_pin.borrow().clone();
                         if pin.len() < 4 {
                             *self.error_message.borrow_mut() =
                                 Some("PIN must be at least 4 characters".to_string());
+                            self.recompose(ctx);
                             return;
                         }
                         *self.error_message.borrow_mut() = None;
                         *self.step.borrow_mut() = PinChangeStep::ConfirmNew;
+                        self.recompose(ctx);
                     }
                     PinChangeStep::ConfirmNew => {
                         let current = self.current_pin.borrow().clone();
@@ -753,6 +790,7 @@ impl Widget for PinChangeScreen {
                             *self.error_message.borrow_mut() =
                                 Some("PINs do not match. Try again.".to_string());
                             self.confirm_pin.borrow_mut().clear();
+                            self.recompose(ctx);
                             return;
                         }
                         match crate::model::fido2::change_pin(&current, &new_pin) {
@@ -764,6 +802,7 @@ impl Widget for PinChangeScreen {
                             }
                             Err(e) => {
                                 *self.error_message.borrow_mut() = Some(e.to_string());
+                                self.recompose(ctx);
                             }
                         }
                     }
@@ -833,13 +872,17 @@ impl Widget for PinAuthScreen {
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let error = self.error_message.borrow().clone();
-        let masked = "*".repeat(self.pin_input.borrow().len());
+        let masked = "●".repeat(self.pin_input.borrow().len());
 
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Authenticate FIDO2 PIN")),
             Box::new(Label::new("")),
-            Box::new(Label::new("Enter FIDO2 PIN:")),
-            Box::new(Label::new(format!("> {}_", masked))),
+            Box::new(
+                Vertical::with_children(vec![
+                    Box::new(Label::new("Enter FIDO2 PIN:")),
+                    Box::new(Label::new(format!("> {}_", masked))),
+                ]).with_class("status-card")
+            ),
         ];
 
         if let Some(err) = error {
@@ -909,6 +952,7 @@ impl Widget for PinAuthScreen {
                     Err(e) => {
                         *self.error_message.borrow_mut() = Some(format!("Invalid PIN: {}", e));
                         self.pin_input.borrow_mut().clear();
+                        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     }
                 }
             }
@@ -1145,28 +1189,26 @@ impl Widget for ResetGuidanceScreen {
 
         match &phase {
             ResetPhase::WaitingForUnplug => {
-                widgets.push(Box::new(Label::new(
-                    "FIDO2 protocol requires the device to receive the reset command",
-                )));
-                widgets.push(Box::new(Label::new(
-                    "within 10 seconds of being plugged in.",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("Step 1: Unplug your YubiKey now.")));
-                widgets.push(Box::new(Label::new("Step 2: Wait for the countdown to start.")));
-                widgets.push(Box::new(Label::new("Step 3: Replug your YubiKey when prompted.")));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Press Enter when your YubiKey is unplugged, or Esc to cancel.",
-                )));
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new(
+                            "FIDO2 protocol requires the device to receive the reset command",
+                        )),
+                        Box::new(Label::new(
+                            "within 10 seconds of being plugged in.",
+                        )),
+                        Box::new(Label::new("")),
+                        Box::new(Label::new("Step 1: Unplug your YubiKey now.")),
+                        Box::new(Label::new("Step 2: Wait for the countdown to start.")),
+                        Box::new(Label::new("Step 3: Replug your YubiKey when prompted.")),
+                        Box::new(Label::new("")),
+                        Box::new(Label::new(
+                            "Press Enter when your YubiKey is unplugged, or Esc to cancel.",
+                        )),
+                    ]).with_class("status-card")
+                ));
             }
             ResetPhase::WaitingForReplug(secs) => {
-                widgets.push(Box::new(Label::new(
-                    "FIDO2 protocol requires reset within 10s of power-on (USB insertion).",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(">> Plug in your YubiKey NOW <<")));
-                widgets.push(Box::new(Label::new("")));
                 // Countdown bar: 20 chars wide, filled proportional to time remaining
                 let filled = ((*secs as f32 / 10.0) * 20.0).round() as usize;
                 let empty = 20usize.saturating_sub(filled);
@@ -1176,41 +1218,67 @@ impl Widget for ResetGuidanceScreen {
                     "#".repeat(filled),
                     " ".repeat(empty)
                 );
-                widgets.push(Box::new(Label::new(bar)));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("Waiting for device...")));
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new(
+                            "FIDO2 protocol requires reset within 10s of power-on (USB insertion).",
+                        )),
+                        Box::new(Label::new("")),
+                        Box::new(Label::new(">> Plug in your YubiKey NOW <<")),
+                        Box::new(Label::new("")),
+                        Box::new(Label::new(bar)),
+                        Box::new(Label::new("")),
+                        Box::new(Label::new("Waiting for device...")),
+                    ]).with_class("status-card")
+                ));
             }
             ResetPhase::Resetting => {
-                widgets.push(Box::new(Label::new(
-                    "Device detected! Sending reset command...",
-                )));
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new(
+                            "Device detected! Sending reset command...",
+                        )),
+                    ]).with_class("status-card")
+                ));
             }
             ResetPhase::Success => {
-                widgets.push(Box::new(Label::new(
-                    "FIDO2 applet has been reset to factory defaults.",
-                )));
-                widgets.push(Box::new(Label::new(
-                    "All passkeys and the FIDO2 PIN have been removed.",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("Press Enter or Esc to return.")));
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new(
+                            "FIDO2 applet has been reset to factory defaults.",
+                        )),
+                        Box::new(Label::new(
+                            "All passkeys and the FIDO2 PIN have been removed.",
+                        )),
+                        Box::new(Label::new("")),
+                        Box::new(Label::new("Press Enter or Esc to return.")),
+                    ]).with_class("status-card")
+                ));
             }
             ResetPhase::Expired => {
-                widgets.push(Box::new(Label::new(
-                    "Window expired -- the 10-second timing window has passed.",
-                )));
-                widgets.push(Box::new(Label::new(
-                    "The device was not replugged in time.",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Press Enter to try again, or Esc to cancel.",
-                )));
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new(
+                            "Window expired -- the 10-second timing window has passed.",
+                        )),
+                        Box::new(Label::new(
+                            "The device was not replugged in time.",
+                        )),
+                        Box::new(Label::new("")),
+                        Box::new(Label::new(
+                            "Press Enter to try again, or Esc to cancel.",
+                        )),
+                    ]).with_class("status-card-error")
+                ));
             }
             ResetPhase::Error(msg) => {
-                widgets.push(Box::new(Label::new(format!("Reset failed: {}", msg))));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("Press Esc to return.")));
+                widgets.push(Box::new(
+                    Vertical::with_children(vec![
+                        Box::new(Label::new(format!("Reset failed: {}", msg))),
+                        Box::new(Label::new("")),
+                        Box::new(Label::new("Press Esc to return.")),
+                    ]).with_class("status-card-error")
+                ));
             }
         }
 
@@ -1359,7 +1427,7 @@ mod tests {
     #[tokio::test]
     async fn fido2_default_state() {
         let state = Some(mock_fido2_state());
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(Fido2Screen::new(state.clone()))
         });
         app.pilot().settle().await;
@@ -1368,7 +1436,7 @@ mod tests {
 
     #[tokio::test]
     async fn fido2_no_yubikey() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(Fido2Screen::new(None))
         });
         app.pilot().settle().await;
@@ -1381,7 +1449,7 @@ mod tests {
         state.pin_is_set = false;
         state.credentials = Some(vec![]);
         let state = Some(state);
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(Fido2Screen::new(state.clone()))
         });
         app.pilot().settle().await;
@@ -1393,7 +1461,7 @@ mod tests {
         let mut state = mock_fido2_state();
         state.credentials = None; // locked
         let state = Some(state);
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(Fido2Screen::new(state.clone()))
         });
         app.pilot().settle().await;
@@ -1403,7 +1471,7 @@ mod tests {
     #[tokio::test]
     async fn fido2_navigate_down() {
         let state = Some(mock_fido2_state());
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(Fido2Screen::new(state.clone()))
         });
         let mut pilot = app.pilot();
@@ -1416,7 +1484,7 @@ mod tests {
 
     #[tokio::test]
     async fn fido2_reset_confirm_screen() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(ResetConfirmScreen::new())
         });
         app.pilot().settle().await;
@@ -1425,7 +1493,7 @@ mod tests {
 
     #[tokio::test]
     async fn fido2_reset_guidance_waiting() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(ResetGuidanceScreen::new())
         });
         app.pilot().settle().await;
@@ -1436,7 +1504,7 @@ mod tests {
     async fn fido2_from_mock() {
         let states = crate::model::mock::mock_yubikey_states();
         let fido2_state = states.first().and_then(|yk| yk.fido2.clone());
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(Fido2Screen::new(fido2_state.clone()))
         });
         app.pilot().settle().await;

@@ -234,21 +234,21 @@ impl Widget for OathScreen {
                     )));
                 }
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Button::new("Refresh")));
+                widgets.push(Box::new(Button::new("Refresh").with_action("refresh")));
             }
             Some(state) if state.password_required => {
                 widgets.push(Box::new(Markdown::new(
                     "## Password Required\n\nThis YubiKey's OATH applet is protected by a password.\n\nPress **P** to enter the password and unlock your credentials.",
                 )));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Button::new("Unlock with Password")));
+                widgets.push(Box::new(Button::new("Unlock with Password").with_action("password_mgmt")));
             }
             Some(state) if state.credentials.is_empty() => {
                 widgets.push(Box::new(Markdown::new(
                     "## No Accounts Stored\n\nYour YubiKey has no OATH credentials yet.\n\nAdd an account to store TOTP or HOTP codes securely on hardware.",
                 )));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Button::new("Add Account")));
+                widgets.push(Box::new(Button::new("Add Account").with_action("add_account")));
             }
             Some(state) => {
                 let selected = self.state.get_untracked().selected_index;
@@ -314,9 +314,9 @@ impl Widget for OathScreen {
 
                 // Action Buttons
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Button::new("Add Account")));
-                widgets.push(Box::new(Button::new("Delete Account").with_variant(ButtonVariant::Warning)));
-                widgets.push(Box::new(Button::new("Refresh")));
+                widgets.push(Box::new(Button::new("Add Account").with_action("add_account")));
+                widgets.push(Box::new(Button::new("Delete Account").with_variant(ButtonVariant::Warning).with_action("delete_account")));
+                widgets.push(Box::new(Button::new("Refresh").with_action("refresh")));
             }
         }
 
@@ -549,6 +549,7 @@ impl AddAccountScreen {
                 }
             }
         }
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
     }
 }
 
@@ -618,7 +619,7 @@ impl Widget for AddAccountScreen {
             }
             AddAccountStep::Secret => {
                 widgets.push(Box::new(Label::new("Enter Base32 secret key:")));
-                let masked = "*".repeat(input.len());
+                let masked = "●".repeat(input.len());
                 widgets.push(Box::new(Label::new(format!("> {}_", masked))));
             }
             AddAccountStep::TypeSelect => {
@@ -642,7 +643,7 @@ impl Widget for AddAccountScreen {
                 widgets.push(Box::new(Label::new(format!("  Type:            {}", state.oath_type))));
                 widgets.push(Box::new(Label::new(format!(
                     "  Secret:          {}",
-                    "*".repeat(state.secret_b32.len())
+                    "●".repeat(state.secret_b32.len())
                 ))));
                 widgets.push(Box::new(Label::new("")));
                 widgets.push(Box::new(Label::new("Press Enter to save, Esc to cancel.")));
@@ -819,9 +820,9 @@ impl ImportUriScreen {
     /// Mask a Base32 secret: show first 4 chars then asterisks.
     fn mask_secret(secret: &str) -> String {
         if secret.len() <= 4 {
-            return "*".repeat(secret.len());
+            return "●".repeat(secret.len());
         }
-        format!("{}{}",  &secret[..4], "*".repeat(secret.len() - 4))
+        format!("{}{}",  &secret[..4], "●".repeat(secret.len() - 4))
     }
 }
 
@@ -1258,7 +1259,7 @@ impl Widget for OathUnlockScreen {
     fn on_unmount(&self, _: textual_rs::WidgetId) { self.own_id.set(None); }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
-        let masked = "*".repeat(self.input.borrow().len());
+        let masked = "●".repeat(self.input.borrow().len());
         let error = self.error.borrow().clone();
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("OATH Password")),
@@ -1363,9 +1364,9 @@ impl Widget for OathPasswordMgmtScreen {
             Box::new(Label::new("")),
             Box::new(Label::new("Manage the OATH applet application password.")),
             Box::new(Label::new("")),
-            Box::new(Button::new("Set New Password")),
-            Box::new(Button::new("Change Password")),
-            Box::new(Button::new("Remove Password").with_variant(ButtonVariant::Warning)),
+            Box::new(Button::new("Set New Password").with_action("set_password")),
+            Box::new(Button::new("Change Password").with_action("change_password")),
+            Box::new(Button::new("Remove Password").with_variant(ButtonVariant::Warning).with_action("remove_password")),
             Box::new(Label::new("")),
             Box::new(Footer),
         ]
@@ -1451,8 +1452,8 @@ impl Widget for OathSetPasswordScreen {
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let f = self.active_field.get();
-        let m1 = "*".repeat(self.new_pw.borrow().len());
-        let m2 = "*".repeat(self.confirm_pw.borrow().len());
+        let m1 = "●".repeat(self.new_pw.borrow().len());
+        let m2 = "●".repeat(self.confirm_pw.borrow().len());
         let err = self.error.borrow().clone();
         let mut w: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Set OATH Password")),
@@ -1597,9 +1598,9 @@ impl Widget for OathChangePasswordScreen {
         let f = self.active_field.get();
         let labels = ["Current password:", "New password:", "Confirm new password:"];
         let values = [
-            "*".repeat(self.current_pw.borrow().len()),
-            "*".repeat(self.new_pw.borrow().len()),
-            "*".repeat(self.confirm_pw.borrow().len()),
+            "●".repeat(self.current_pw.borrow().len()),
+            "●".repeat(self.new_pw.borrow().len()),
+            "●".repeat(self.confirm_pw.borrow().len()),
         ];
         let err = self.error.borrow().clone();
 
@@ -1734,7 +1735,7 @@ impl Widget for OathRemovePasswordScreen {
     fn on_unmount(&self, _: textual_rs::WidgetId) { self.own_id.set(None); }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
-        let masked = "*".repeat(self.current_pw.borrow().len());
+        let masked = "●".repeat(self.current_pw.borrow().len());
         let err = self.error.borrow().clone();
         let mut w: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Remove OATH Password")),
@@ -1853,7 +1854,7 @@ mod tests {
     #[tokio::test]
     async fn oath_screen_with_credentials() {
         let oath = Some(mock_oath_state());
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(OathScreen::new(oath.clone()))
         });
         app.pilot().settle().await;
@@ -1862,7 +1863,7 @@ mod tests {
 
     #[tokio::test]
     async fn oath_screen_no_yubikey() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(OathScreen::new(None))
         });
         app.pilot().settle().await;
@@ -1875,7 +1876,7 @@ mod tests {
             credentials: vec![],
             password_required: false,
         });
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(OathScreen::new(oath.clone()))
         });
         app.pilot().settle().await;
@@ -1888,7 +1889,7 @@ mod tests {
             credentials: vec![],
             password_required: true,
         });
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(OathScreen::new(oath.clone()))
         });
         app.pilot().settle().await;
@@ -1897,7 +1898,7 @@ mod tests {
 
     #[tokio::test]
     async fn add_account_screen_initial() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(AddAccountScreen::new())
         });
         app.pilot().settle().await;
@@ -1907,7 +1908,7 @@ mod tests {
     #[tokio::test]
     async fn add_account_screen_step_navigation() {
         use crossterm::event::KeyCode;
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(AddAccountScreen::new())
         });
         let mut pilot = app.pilot();
@@ -1930,7 +1931,7 @@ mod tests {
     async fn oath_default_state() {
         let states = crate::model::mock::mock_yubikey_states();
         let oath_state = states.first().and_then(|yk| yk.oath.clone());
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(OathScreen::new(oath_state.clone()))
         });
         app.pilot().settle().await;
@@ -1943,7 +1944,7 @@ mod tests {
             credentials: vec![],
             password_required: false,
         });
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(OathScreen::new(oath_state.clone()))
         });
         app.pilot().settle().await;
@@ -1956,7 +1957,7 @@ mod tests {
             credentials: vec![],
             password_required: true,
         });
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(OathScreen::new(oath_state.clone()))
         });
         app.pilot().settle().await;
@@ -1968,7 +1969,7 @@ mod tests {
         use crossterm::event::KeyCode;
         let states = crate::model::mock::mock_yubikey_states();
         let oath_state = states.first().and_then(|yk| yk.oath.clone());
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(OathScreen::new(oath_state.clone()))
         });
         let mut pilot = app.pilot();
@@ -1981,7 +1982,7 @@ mod tests {
 
     #[tokio::test]
     async fn import_uri_screen_initial() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(ImportUriScreen::new())
         });
         app.pilot().settle().await;
@@ -2058,35 +2059,35 @@ mod tests {
 
     #[tokio::test]
     async fn oath_unlock_screen() {
-        let mut app = TestApp::new_styled(80, 24, "", || Box::new(OathUnlockScreen::new()));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || Box::new(OathUnlockScreen::new()));
         app.pilot().settle().await;
         insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
     async fn oath_password_mgmt_screen() {
-        let mut app = TestApp::new_styled(80, 24, "", || Box::new(OathPasswordMgmtScreen::new()));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || Box::new(OathPasswordMgmtScreen::new()));
         app.pilot().settle().await;
         insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
     async fn oath_set_password_screen() {
-        let mut app = TestApp::new_styled(80, 24, "", || Box::new(OathSetPasswordScreen::new()));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || Box::new(OathSetPasswordScreen::new()));
         app.pilot().settle().await;
         insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
     async fn oath_change_password_screen() {
-        let mut app = TestApp::new_styled(80, 24, "", || Box::new(OathChangePasswordScreen::new()));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || Box::new(OathChangePasswordScreen::new()));
         app.pilot().settle().await;
         insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
     async fn oath_remove_password_screen() {
-        let mut app = TestApp::new_styled(80, 24, "", || Box::new(OathRemovePasswordScreen::new()));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || Box::new(OathRemovePasswordScreen::new()));
         app.pilot().settle().await;
         insta::assert_snapshot!(app.backend());
     }

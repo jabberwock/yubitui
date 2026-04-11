@@ -328,6 +328,7 @@ static KEYS_BINDINGS: &[KeyBinding] = &[
 pub struct KeysScreen {
     yubikey_state: Option<YubiKeyState>,
     state: RefCell<KeyState>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl KeysScreen {
@@ -335,7 +336,11 @@ impl KeysScreen {
         Self {
             yubikey_state,
             state: RefCell::new(KeyState::default()),
+            own_id: Cell::new(None),
         }
+    }
+    fn recompose(&self, ctx: &AppContext) {
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
     }
 }
 
@@ -343,6 +348,9 @@ impl Widget for KeysScreen {
     fn widget_type_name(&self) -> &'static str {
         "KeysScreen"
     }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
 
     fn can_focus(&self) -> bool {
         true
@@ -437,16 +445,16 @@ impl Widget for KeysScreen {
 
         // Action buttons
         if self.yubikey_state.is_none() {
-            children.push(Box::new(Button::new("Refresh")));
+            children.push(Box::new(Button::new("Refresh").with_action("refresh")));
         } else {
-            children.push(Box::new(Button::new("Generate Key on Card")));
-            children.push(Box::new(Button::new("Import Existing Key")));
-            children.push(Box::new(Button::new("Delete Key Slot").with_variant(ButtonVariant::Warning)));
-            children.push(Box::new(Button::new("View Full Key Details")));
-            children.push(Box::new(Button::new("Export SSH Public Key")));
-            children.push(Box::new(Button::new("Key Attributes")));
-            children.push(Box::new(Button::new("Touch Policy")));
-            children.push(Box::new(Button::new("Attestation")));
+            children.push(Box::new(Button::new("Generate Key on Card").with_action("generate_key")));
+            children.push(Box::new(Button::new("Import Existing Key").with_action("import_key")));
+            children.push(Box::new(Button::new("Delete Key Slot").with_variant(ButtonVariant::Warning).with_action("delete_key")));
+            children.push(Box::new(Button::new("View Full Key Details").with_action("view_status")));
+            children.push(Box::new(Button::new("Export SSH Public Key").with_action("export_ssh")));
+            children.push(Box::new(Button::new("Key Attributes").with_action("key_attributes")));
+            children.push(Box::new(Button::new("Touch Policy").with_action("touch_policy")));
+            children.push(Box::new(Button::new("Attestation").with_action("attestation")));
         }
 
         children.push(Box::new(Footer));
@@ -788,14 +796,7 @@ impl Widget for KeyGenWizardScreen {
                 )));
             }
             KeyGenStep::Result => {
-                children.push(Box::new(Header::new("Generate Key")));
-                children.push(Box::new(Label::new("")));
-                children.push(Box::new(Label::new(
-                    "Key generation requires Admin PIN entry.",
-                )));
-                children.push(Box::new(Label::new(
-                    "Full implementation coming soon.",
-                )));
+                children.push(Box::new(Header::new("Key Generation Complete")));
                 children.push(Box::new(Label::new("")));
                 children.push(Box::new(Label::new("Press Enter or Esc to close.")));
             }
@@ -872,11 +873,28 @@ impl Widget for KeyGenWizardScreen {
                     }
                 }
                 KeyGenStep::Confirm => {
-                    // Transition to Result step (no modal — avoids Esc double-pop).
-                    // Full PIN+keygen flow is a TODO.
-                    w.step = KeyGenStep::Result;
+                    // Collect params and push Admin PIN screen for key generation
+                    let algorithm = match w.algorithm_index {
+                        0 => crate::model::key_operations::KeyAlgorithm::Ed25519,
+                        1 => crate::model::key_operations::KeyAlgorithm::Rsa2048,
+                        _ => crate::model::key_operations::KeyAlgorithm::Rsa4096,
+                    };
+                    let expiry_options = ["1y", "2y", "5y", "10y", "0"];
+                    let expire_date = if w.expiry_index < expiry_options.len() {
+                        expiry_options[w.expiry_index].to_string()
+                    } else {
+                        w.custom_expiry.clone()
+                    };
+                    let params = crate::model::key_operations::KeyGenParams {
+                        algorithm,
+                        expire_date,
+                        name: w.name.clone(),
+                        email: w.email.clone(),
+                        backup: w.backup,
+                        backup_path: if w.backup { Some(w.backup_path.clone()) } else { None },
+                    };
                     drop(w);
-                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+                    ctx.push_screen_deferred(Box::new(KeyGenPinScreen::new(params)));
                     return;
                 }
                 KeyGenStep::Result | KeyGenStep::Running => {
@@ -994,6 +1012,7 @@ pub struct ImportKeyScreen {
     yubikey_state: Option<YubiKeyState>,
     available_keys: Vec<String>,
     selected_index: RefCell<usize>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl ImportKeyScreen {
@@ -1002,7 +1021,11 @@ impl ImportKeyScreen {
             yubikey_state,
             available_keys: Vec::new(),
             selected_index: RefCell::new(0),
+            own_id: Cell::new(None),
         }
+    }
+    fn recompose(&self, ctx: &AppContext) {
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
     }
 }
 
@@ -1010,6 +1033,9 @@ impl Widget for ImportKeyScreen {
     fn widget_type_name(&self) -> &'static str {
         "ImportKeyScreen"
     }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
 
     fn can_focus(&self) -> bool {
         true
@@ -1127,7 +1153,7 @@ impl Widget for KeyDetailScreen {
         children.push(Box::new(Header::new(&self.title)));
         children.extend(lines);
         children.push(Box::new(Label::new("")));
-        children.push(Box::new(Button::new("Execute")));
+        children.push(Box::new(Button::new("Execute").with_action("execute")));
         children.push(Box::new(Footer));
         children
     }
@@ -1321,17 +1347,20 @@ static TOUCH_POLICY_VALUE_BINDINGS: &[KeyBinding] = &[
     },
 ];
 
-const TOUCH_POLICY_VALUES: &[(&str, &str)] = &[
-    ("Off",          "No touch required"),
-    ("On",           "Touch required for every operation"),
-    ("Fixed",        "Touch required; cannot be changed without admin PIN"),
-    ("Cached",       "Touch required; cached for 15 seconds"),
-    ("CachedFixed",  "Cached touch; cannot be changed without admin PIN"),
+use crate::model::touch_policy::TouchPolicy;
+
+const TOUCH_POLICY_VALUES: &[(&str, &str, TouchPolicy)] = &[
+    ("Off",          "No touch required",                              TouchPolicy::Off),
+    ("On",           "Touch required for every operation",             TouchPolicy::On),
+    ("Fixed",        "Touch required; cannot be changed later",        TouchPolicy::Fixed),
+    ("Cached",       "Touch required; cached for 15 seconds",         TouchPolicy::Cached),
+    ("CachedFixed",  "Cached touch; cannot be changed later",         TouchPolicy::CachedFixed),
 ];
 
 pub struct TouchPolicyValueScreen {
     slot_index: usize,
     value_index: RefCell<usize>,
+    own_id: Cell<Option<WidgetId>>,
 }
 
 impl TouchPolicyValueScreen {
@@ -1339,7 +1368,11 @@ impl TouchPolicyValueScreen {
         Self {
             slot_index,
             value_index: RefCell::new(1), // default to "On"
+            own_id: Cell::new(None),
         }
+    }
+    fn recompose(&self, ctx: &AppContext) {
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
     }
 }
 
@@ -1347,6 +1380,9 @@ impl Widget for TouchPolicyValueScreen {
     fn widget_type_name(&self) -> &'static str {
         "TouchPolicyValueScreen"
     }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let slot_names = ["Signature", "Encryption", "Authentication", "Attestation"];
@@ -1360,7 +1396,7 @@ impl Widget for TouchPolicyValueScreen {
         ];
 
         let sel = *self.value_index.borrow();
-        for (i, (name, desc)) in TOUCH_POLICY_VALUES.iter().enumerate() {
+        for (i, (name, desc, _)) in TOUCH_POLICY_VALUES.iter().enumerate() {
             let marker = if i == sel { "> " } else { "  " };
             children.push(Box::new(Label::new(format!("{}{:<14}  {}", marker, name, desc))));
         }
@@ -1378,20 +1414,281 @@ impl Widget for TouchPolicyValueScreen {
             "value_up" => {
                 let mut idx = self.value_index.borrow_mut();
                 if *idx > 0 { *idx -= 1; }
+                drop(idx);
+                self.recompose(ctx);
             }
             "value_down" => {
                 let mut idx = self.value_index.borrow_mut();
                 if *idx < TOUCH_POLICY_VALUES.len() - 1 { *idx += 1; }
+                drop(idx);
+                self.recompose(ctx);
             }
             "select_value" => {
-                use crate::tui::widgets::pin_input::PinInputWidget;
-                let slot_names = ["Signature", "Encryption", "Authentication", "Attestation"];
-                let slot = slot_names.get(self.slot_index).copied().unwrap_or("Unknown");
-                let (value_name, _) = TOUCH_POLICY_VALUES[*self.value_index.borrow()];
-                let title = format!("Set Touch Policy — {} → {} — Admin PIN", slot, value_name);
-                ctx.push_screen_deferred(Box::new(PinInputWidget::new(&title, &["Admin PIN"])));
+                let slot_strs = ["sig", "enc", "aut", "att"];
+                let slot_str = slot_strs.get(self.slot_index).copied().unwrap_or("sig");
+                let (_, _, ref policy) = TOUCH_POLICY_VALUES[*self.value_index.borrow()];
+                ctx.push_screen_deferred(Box::new(
+                    TouchPolicyPinScreen::new(slot_str.to_string(), policy.clone())
+                ));
             }
             "back" => ctx.pop_screen_deferred(),
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ── KeyGenPinScreen — collect Admin PIN and execute key generation ─────────────
+
+pub struct KeyGenPinScreen {
+    params: crate::model::key_operations::KeyGenParams,
+    pin_input: RefCell<String>,
+    error_message: RefCell<Option<String>>,
+    own_id: Cell<Option<WidgetId>>,
+}
+
+impl KeyGenPinScreen {
+    pub fn new(params: crate::model::key_operations::KeyGenParams) -> Self {
+        Self {
+            params,
+            pin_input: RefCell::new(String::new()),
+            error_message: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+    fn recompose(&self, ctx: &AppContext) {
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+    }
+}
+
+impl Widget for KeyGenPinScreen {
+    fn widget_type_name(&self) -> &'static str { "KeyGenPinScreen" }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let masked = "●".repeat(self.pin_input.borrow().len());
+        let error = self.error_message.borrow().clone();
+
+        let mut widgets: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new("Generate Key — Admin PIN")),
+            Box::new(Label::new("")),
+            Box::new(Label::new(format!("Algorithm: {}", self.params.algorithm))),
+            Box::new(Label::new(format!("Name:      {}", self.params.name))),
+            Box::new(Label::new(format!("Email:     {}", self.params.email))),
+            Box::new(Label::new("")),
+            Box::new(Label::new("Enter Admin PIN to generate keys on card:")),
+            Box::new(Label::new(format!("> {}_", masked))),
+        ];
+
+        if let Some(err) = error {
+            widgets.push(Box::new(Label::new("")));
+            widgets.push(Box::new(Label::new(format!("Error: {}", err))));
+        }
+
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Footer));
+        widgets
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        &[
+            KeyBinding { key: KeyCode::Esc, modifiers: KeyModifiers::NONE, action: "back", description: "Esc Cancel", show: true },
+            KeyBinding { key: KeyCode::Enter, modifiers: KeyModifiers::NONE, action: "submit", description: "Enter Generate", show: true },
+        ]
+    }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> textual_rs::widget::EventPropagation {
+        use textual_rs::widget::EventPropagation;
+        if let Some(key) = event.downcast_ref::<crossterm::event::KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => { ctx.pop_screen_deferred(); return EventPropagation::Stop; }
+                KeyCode::Backspace => {
+                    self.pin_input.borrow_mut().pop();
+                    self.recompose(ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Enter => { self.on_action("submit", ctx); return EventPropagation::Stop; }
+                KeyCode::Char(c) => {
+                    self.pin_input.borrow_mut().push(c);
+                    self.recompose(ctx);
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        textual_rs::widget::EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "back" => ctx.pop_screen_deferred(),
+            "submit" => {
+                let pin = self.pin_input.borrow().clone();
+                if pin.is_empty() {
+                    *self.error_message.borrow_mut() = Some("Admin PIN cannot be empty".to_string());
+                    self.recompose(ctx);
+                    return;
+                }
+                match crate::model::key_operations::generate_key_batch(&self.params, &pin) {
+                    Ok(result) => {
+                        let msg = if result.success {
+                            let fp = result.fingerprint.as_deref().unwrap_or("(unknown)");
+                            format!("Keys generated successfully.\nFingerprint: {}", fp)
+                        } else {
+                            format!("Key generation failed:\n{}", result.messages.join("\n"))
+                        };
+                        // Pop KeyGenPinScreen and KeyGenWizardScreen
+                        ctx.pop_screen_deferred();
+                        ctx.pop_screen_deferred();
+                        ctx.push_screen_deferred(Box::new(
+                            crate::tui::widgets::popup::PopupScreen::new("Key Generation", msg),
+                        ));
+                    }
+                    Err(e) => {
+                        *self.error_message.borrow_mut() = Some(e.to_string());
+                        self.pin_input.borrow_mut().clear();
+                        self.recompose(ctx);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ── TouchPolicyPinScreen — collect Admin PIN and execute set_touch_policy ──────
+
+pub struct TouchPolicyPinScreen {
+    slot: String,
+    policy: TouchPolicy,
+    pin_input: RefCell<String>,
+    error_message: RefCell<Option<String>>,
+    own_id: Cell<Option<WidgetId>>,
+}
+
+impl TouchPolicyPinScreen {
+    pub fn new(slot: String, policy: TouchPolicy) -> Self {
+        Self {
+            slot,
+            policy,
+            pin_input: RefCell::new(String::new()),
+            error_message: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+    fn recompose(&self, ctx: &AppContext) {
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+    }
+}
+
+impl Widget for TouchPolicyPinScreen {
+    fn widget_type_name(&self) -> &'static str { "TouchPolicyPinScreen" }
+
+    fn on_mount(&self, id: WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: WidgetId) { self.own_id.set(None); }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let masked = "●".repeat(self.pin_input.borrow().len());
+        let error = self.error_message.borrow().clone();
+
+        let mut widgets: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new("Set Touch Policy — Admin PIN")),
+            Box::new(Label::new("")),
+            Box::new(Label::new(format!(
+                "Setting {} touch policy on {} slot",
+                self.policy, self.slot
+            ))),
+            Box::new(Label::new("")),
+            Box::new(Label::new("Enter Admin PIN:")),
+            Box::new(Label::new(format!("> {}_", masked))),
+        ];
+
+        if let Some(err) = error {
+            widgets.push(Box::new(Label::new("")));
+            widgets.push(Box::new(Label::new(format!("Error: {}", err))));
+        }
+
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Footer));
+        widgets
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        &[
+            KeyBinding { key: KeyCode::Esc, modifiers: KeyModifiers::NONE, action: "back", description: "Esc Cancel", show: true },
+            KeyBinding { key: KeyCode::Enter, modifiers: KeyModifiers::NONE, action: "submit", description: "Enter Submit", show: true },
+        ]
+    }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> textual_rs::widget::EventPropagation {
+        use textual_rs::widget::EventPropagation;
+        if let Some(key) = event.downcast_ref::<crossterm::event::KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => {
+                    ctx.pop_screen_deferred();
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Backspace => {
+                    self.pin_input.borrow_mut().pop();
+                    self.recompose(ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Enter => {
+                    self.on_action("submit", ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Char(c) => {
+                    self.pin_input.borrow_mut().push(c);
+                    self.recompose(ctx);
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        textual_rs::widget::EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "back" => ctx.pop_screen_deferred(),
+            "submit" => {
+                let pin = self.pin_input.borrow().clone();
+                if pin.is_empty() {
+                    *self.error_message.borrow_mut() = Some("Admin PIN cannot be empty".to_string());
+                    self.recompose(ctx);
+                    return;
+                }
+                match crate::model::touch_policy::set_touch_policy(
+                    &self.slot,
+                    &self.policy,
+                    None,
+                    &pin,
+                ) {
+                    Ok(msg) => {
+                        // Pop this screen, pop TouchPolicyValueScreen, pop TouchPolicyScreen
+                        ctx.pop_screen_deferred();
+                        ctx.pop_screen_deferred();
+                        ctx.pop_screen_deferred();
+                        ctx.push_screen_deferred(Box::new(
+                            crate::tui::widgets::popup::PopupScreen::new("Touch Policy Set", msg),
+                        ));
+                    }
+                    Err(e) => {
+                        *self.error_message.borrow_mut() = Some(e.to_string());
+                        self.pin_input.borrow_mut().clear();
+                        self.recompose(ctx);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -1571,7 +1868,7 @@ impl Widget for PinThenDeleteScreen {
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let error = self.error_message.borrow().clone();
-        let masked = "*".repeat(self.pin_input.borrow().len());
+        let masked = "●".repeat(self.pin_input.borrow().len());
 
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new(
@@ -1640,6 +1937,7 @@ impl Widget for PinThenDeleteScreen {
                 let pin = self.pin_input.borrow().clone();
                 if pin.is_empty() {
                     *self.error_message.borrow_mut() = Some("Admin PIN cannot be empty".to_string());
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                     return;
                 }
                 ctx.pop_screen_deferred();
@@ -1666,14 +1964,14 @@ mod tests {
     async fn keys_default_state() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeysScreen::new(yk)));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || Box::new(KeysScreen::new(yk)));
         app.pilot().settle().await;
         insta::assert_snapshot!(app.backend());
     }
 
     #[tokio::test]
     async fn keys_no_yubikey() {
-        let mut app = TestApp::new_styled(80, 24, "", || Box::new(KeysScreen::new(None)));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || Box::new(KeysScreen::new(None)));
         app.pilot().settle().await;
         insta::assert_snapshot!(app.backend());
     }
@@ -1682,7 +1980,7 @@ mod tests {
     async fn keys_import_screen() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeysScreen::new(yk)));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || Box::new(KeysScreen::new(yk)));
         let mut pilot = app.pilot();
         pilot.press(KeyCode::Char('i')).await;
         pilot.settle().await;
@@ -1693,7 +1991,7 @@ mod tests {
     #[tokio::test]
     async fn keygen_wizard_renders() {
         let wizard = KeyGenWizard::new("2026-01-01");
-        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeyGenWizardScreen::new(wizard)));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || Box::new(KeyGenWizardScreen::new(wizard)));
         app.pilot().settle().await;
         // Check that the wizard actually rendered content (header/footer text visible)
         let buf = app.buffer();
@@ -1707,7 +2005,7 @@ mod tests {
         wizard.step = KeyGenStep::Confirm;
         wizard.name = "Test User".to_string();
         wizard.email = "test@example.com".to_string();
-        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeyGenWizardScreen::new(wizard)));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || Box::new(KeyGenWizardScreen::new(wizard)));
         {
             let mut pilot = app.pilot();
             pilot.settle().await;
@@ -1728,7 +2026,7 @@ mod tests {
     async fn keys_help_popup_opens_and_closes() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeysScreen::new(yk)));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || Box::new(KeysScreen::new(yk)));
         // Open help popup
         {
             let mut pilot = app.pilot();
@@ -1752,7 +2050,7 @@ mod tests {
         // Navigate: KeysScreen → t (TouchPolicyScreen) → Enter (TouchPolicyValueScreen)
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || Box::new(KeysScreen::new(yk)));
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || Box::new(KeysScreen::new(yk)));
         let mut pilot = app.pilot();
         pilot.press(KeyCode::Char('t')).await;
         pilot.settle().await;

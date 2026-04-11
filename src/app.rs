@@ -5,6 +5,9 @@ use crate::model::{AppState, YubiKeyState};
 use crate::diagnostics::Diagnostics;
 use crate::tui::theme::load_theme_from_config;
 
+/// App-level CSS design system. Shared by the real app and tests.
+pub const SCREEN_CSS: &str = include_str!("app_css.css");
+
 pub fn run(mock: bool) -> Result<()> {
     let diagnostics = if mock {
         Diagnostics::default()
@@ -31,30 +34,6 @@ pub fn run(mock: bool) -> Result<()> {
         .yubikey_state()
         .filter(|yk| crate::model::onboarding::is_factory_default(yk))
         .cloned();
-
-    // textual-rs 0.3.8 renders all screens bottom-to-top for modal layering.
-    // Screens without an explicit background let the Dashboard bleed through.
-    // This CSS rule gives every pushed screen a solid background.
-    const SCREEN_CSS: &str = "
-DashboardScreen, OnboardingScreen,
-KeysScreen, KeyGenWizardScreen, ImportKeyScreen, KeyDetailScreen, TouchPolicyScreen,
-DiagnosticsScreen, PinManagementScreen, UnblockWizardScreen, FactoryResetScreen,
-SshWizardScreen, PivScreen, HelpScreen, GlossaryScreen,
-OathScreen, AddAccountScreen, ImportUriScreen, DeleteConfirmScreen,
-OathUnlockScreen, OathPasswordMgmtScreen,
-OathSetPasswordScreen, OathChangePasswordScreen, OathRemovePasswordScreen,
-Fido2Screen, PinSetScreen, PinChangeScreen, PinAuthScreen,
-DeleteCredentialScreen, ResetGuidanceScreen, ResetConfirmScreen,
-OtpScreen, PopupScreen, ConfirmScreen,
-ChangeMgmtKeyScreen, NewMgmtKeyScreen,
-WizardMenuScreen, InitialSetupWizardScreen, SshTouchPolicyWizardScreen
-{ background: $background; }
-
-HelpScreen Markdown { flex-grow: 1; }
-GlossaryScreen Markdown { flex-grow: 1; }
-
-Button { min-height: 3; }
-";
 
     let mut app = App::new(move || {
         if let Some(ref yk) = onboarding_yk {

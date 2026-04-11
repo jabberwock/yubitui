@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Label, Button, ButtonVariant, Footer};
+use textual_rs::{Widget, Label, Button, ButtonVariant, Footer, Vertical, Horizontal};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -206,32 +206,44 @@ impl Widget for PinManagementScreen {
                 "DANGER" => format!("Admin PIN: Warning — only {}/3 attempts remaining", pin.admin_pin_retries),
                 _ => format!("Admin PIN: Working ({}/3 attempts remaining)", pin.admin_pin_retries),
             };
-            children.push(Box::new(Label::new(user_label)));
-            children.push(Box::new(Label::new(admin_label)));
-            children.push(Box::new(Label::new(format!(
-                "Reset Code: {}",
-                reset_status
-            ))));
+            let card_class = if pin.user_pin_blocked || pin.admin_pin_blocked {
+                "status-card-error"
+            } else if pin.user_pin_retries <= 1 || pin.admin_pin_retries <= 1 {
+                "status-card-warn"
+            } else {
+                "status-card"
+            };
+            children.push(Box::new(Vertical::with_children(vec![
+                Box::new(Label::new(user_label)),
+                Box::new(Label::new(admin_label)),
+                Box::new(Label::new(format!("Reset Code: {}", reset_status))),
+            ]).with_class(card_class)));
         } else {
-            children.push(Box::new(Label::new("No YubiKey detected.")));
+            children.push(Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("No YubiKey detected.")),
+                Box::new(Label::new("Insert your YubiKey and press R to refresh.")),
+            ]).with_class("status-card-error")));
         }
 
         // Status message (operation result)
         {
             let state = self.state.borrow();
             if let Some(msg) = &state.message {
-                children.push(Box::new(Label::new("")));
                 children.push(Box::new(Label::new(format!("Status: {}", msg))));
             }
         }
 
         children.push(Box::new(Label::new("")));
 
-        // Action buttons — label includes keyboard shortcut for discoverability
-        children.push(Box::new(Button::new("Change User PIN")));
-        children.push(Box::new(Button::new("Change Admin PIN")));
-        children.push(Box::new(Button::new("Set Reset Code")));
-        children.push(Box::new(Button::new("Unblock PIN (Wizard)")));
+        // Action buttons in two rows
+        children.push(Box::new(Horizontal::with_children(vec![
+            Box::new(Button::new("Change User PIN").with_action("change_user_pin")),
+            Box::new(Button::new("Change Admin PIN").with_action("change_admin_pin")),
+        ]).with_class("button-bar")));
+        children.push(Box::new(Horizontal::with_children(vec![
+            Box::new(Button::new("Set Reset Code").with_action("set_reset_code")),
+            Box::new(Button::new("Unblock PIN (Wizard)").with_action("unblock_pin")),
+        ]).with_class("button-bar")));
 
         children.push(Box::new(Footer));
         children
@@ -354,11 +366,12 @@ impl Widget for UnblockWizardScreen {
             if pin.reset_code_retries > 0 {
                 children.push(Box::new(
                     Button::new("[1] Unblock with Reset Code (recommended)")
-                        .with_variant(ButtonVariant::Success),
+                        .with_variant(ButtonVariant::Success)
+                        .with_action("unblock_with_reset"),
                 ));
             }
             if pin.admin_pin_retries > 0 {
-                children.push(Box::new(Button::new("[2] Unblock with Admin PIN")));
+                children.push(Box::new(Button::new("[2] Unblock with Admin PIN").with_action("unblock_with_admin")));
             }
             if pin.admin_pin_retries == 0 {
                 if pin.reset_code_retries == 0 {
@@ -372,7 +385,8 @@ impl Widget for UnblockWizardScreen {
                 }
                 children.push(Box::new(
                     Button::new("[3] Factory Reset (DESTROYS ALL KEYS)")
-                        .with_variant(ButtonVariant::Error),
+                        .with_variant(ButtonVariant::Error)
+                        .with_action("factory_reset"),
                 ));
             }
         } else {
@@ -492,9 +506,10 @@ impl Widget for FactoryResetScreen {
             Box::new(Label::new("")),
             Box::new(
                 Button::new("Confirm Factory Reset — Press Y to execute")
-                    .with_variant(ButtonVariant::Error),
+                    .with_variant(ButtonVariant::Error)
+                    .with_action("confirm_reset"),
             ),
-            Box::new(Button::new("Cancel")),
+            Box::new(Button::new("Cancel").with_action("cancel")),
             Box::new(Footer),
         ]
     }
@@ -544,7 +559,7 @@ mod tests {
     async fn pin_default_state() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(PinManagementScreen::new(yk))
         });
         app.pilot().settle().await;
@@ -553,7 +568,7 @@ mod tests {
 
     #[tokio::test]
     async fn pin_no_yubikey() {
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(PinManagementScreen::new(None))
         });
         app.pilot().settle().await;
@@ -564,7 +579,7 @@ mod tests {
     async fn pin_unblock_wizard() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(PinManagementScreen::new(yk))
         });
         let mut pilot = app.pilot();
@@ -578,7 +593,7 @@ mod tests {
     async fn pin_change_user_pin_form() {
         let yubikey_states = crate::model::mock::mock_yubikey_states();
         let yk = yubikey_states.into_iter().next();
-        let mut app = TestApp::new_styled(80, 24, "", move || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, move || {
             Box::new(PinManagementScreen::new(yk))
         });
         let mut pilot = app.pilot();

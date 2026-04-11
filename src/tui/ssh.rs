@@ -1,4 +1,4 @@
-use textual_rs::{Widget, Footer, Header, Label, Button};
+use textual_rs::{Widget, Footer, Header, Label, Button, Vertical, Horizontal};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use textual_rs::reactive::Reactive;
@@ -83,12 +83,14 @@ impl Default for SshState {
 /// rendered inline based on state.screen, preserving all original sub-screen content.
 pub struct SshWizardScreen {
     pub state: Reactive<SshState>,
+    own_id: std::cell::Cell<Option<textual_rs::WidgetId>>,
 }
 
 impl SshWizardScreen {
     pub fn new(initial_state: SshState) -> Self {
         SshWizardScreen {
             state: Reactive::new(initial_state),
+            own_id: std::cell::Cell::new(None),
         }
     }
 }
@@ -96,6 +98,14 @@ impl SshWizardScreen {
 impl Widget for SshWizardScreen {
     fn widget_type_name(&self) -> &'static str {
         "SshWizardScreen"
+    }
+
+    fn on_mount(&self, id: textual_rs::WidgetId) {
+        self.own_id.set(Some(id));
+    }
+
+    fn on_unmount(&self, _id: textual_rs::WidgetId) {
+        self.own_id.set(None);
     }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
@@ -107,162 +117,118 @@ impl Widget for SshWizardScreen {
 
         match state.screen {
             SshScreen::Main => {
-                // Status sidebar area (agent status summary)
-                widgets.push(Box::new(Label::new("Setup Progress:")));
-                widgets.push(Box::new(Label::new("")));
-
+                // Setup progress card
                 let ssh_status = if state.ssh_enabled {
-                    "✓ SSH support enabled in gpg-agent.conf".to_string()
+                    "✓ SSH support enabled in gpg-agent.conf"
                 } else {
-                    "○ SSH support in gpg-agent.conf".to_string()
+                    "○ SSH support in gpg-agent.conf"
                 };
-                widgets.push(Box::new(Label::new(ssh_status)));
-
                 let shell_status = if state.shell_configured {
-                    "✓ SSH_AUTH_SOCK configured in shell".to_string()
+                    "✓ SSH_AUTH_SOCK configured in shell"
                 } else {
-                    "○ SSH_AUTH_SOCK configured in shell".to_string()
+                    "○ SSH_AUTH_SOCK configured in shell"
                 };
-                widgets.push(Box::new(Label::new(shell_status)));
-
                 let agent_status = if state.agent_running {
-                    "✓ GPG agent active".to_string()
+                    "✓ GPG agent active"
                 } else {
-                    "⚠ GPG agent not running".to_string()
+                    "⚠ GPG agent not running"
                 };
-                widgets.push(Box::new(Label::new(agent_status)));
+
+                widgets.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new("Setup Progress").with_class("section-title")),
+                    Box::new(Label::new(ssh_status)),
+                    Box::new(Label::new(shell_status)),
+                    Box::new(Label::new(agent_status)),
+                ]).with_class("status-card")));
 
                 if let Some(ref msg) = state.message {
-                    widgets.push(Box::new(Label::new("")));
                     widgets.push(Box::new(Label::new(format!("Status: {}", msg))));
                 }
 
                 widgets.push(Box::new(Label::new("")));
 
-                // Main action area
-                widgets.push(Box::new(Label::new("Actions:")));
-                widgets.push(Box::new(Button::new("Enable SSH Support in gpg-agent.conf")));
-                widgets.push(Box::new(Button::new("Configure SSH_AUTH_SOCK in Shell")));
-                widgets.push(Box::new(Button::new("Restart GPG Agent")));
-                widgets.push(Box::new(Button::new("Export SSH Public Key")));
-                widgets.push(Box::new(Button::new("Test SSH Connection")));
+                // Action buttons in two rows
+                widgets.push(Box::new(Horizontal::with_children(vec![
+                    Box::new(Button::new("Enable SSH Support").with_action("step_1")),
+                    Box::new(Button::new("Configure Shell").with_action("step_2")),
+                    Box::new(Button::new("Restart Agent").with_action("step_3")),
+                ]).with_class("button-bar")));
+                widgets.push(Box::new(Horizontal::with_children(vec![
+                    Box::new(Button::new("Export SSH Key").with_action("step_4")),
+                    Box::new(Button::new("Test Connection").with_action("step_5")),
+                ]).with_class("button-bar")));
             }
 
             SshScreen::EnableSSH => {
-                widgets.push(Box::new(Label::new("Enable SSH Support")));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Add 'enable-ssh-support' to ~/.gnupg/gpg-agent.conf",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "This tells GPG agent to handle SSH authentication.",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Press Enter to enable or Esc to cancel.",
-                )));
+                widgets.push(Box::new(Label::new("Enable SSH Support").with_class("section-title")));
+                widgets.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new("Add 'enable-ssh-support' to ~/.gnupg/gpg-agent.conf")),
+                    Box::new(Label::new("")),
+                    Box::new(Label::new("This tells GPG agent to handle SSH authentication.")),
+                    Box::new(Label::new("Press Enter to enable or Esc to cancel.")),
+                ]).with_class("status-card")));
                 if let Some(ref msg) = state.message {
-                    widgets.push(Box::new(Label::new("")));
                     widgets.push(Box::new(Label::new(msg.clone())));
                 }
             }
 
             SshScreen::ConfigureShell => {
-                widgets.push(Box::new(Label::new("Configure Shell")));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Add SSH_AUTH_SOCK export to your shell configuration.",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("This will:")));
-                widgets.push(Box::new(Label::new("  1. Detect your shell (bash/zsh)")));
-                widgets.push(Box::new(Label::new(
-                    "  2. Add export to ~/.bashrc or ~/.zshrc",
-                )));
-                widgets.push(Box::new(Label::new(
-                    "  3. Configure SSH to use GPG agent",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "After this, restart your shell or source the config.",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Press Enter to configure or Esc to cancel.",
-                )));
+                widgets.push(Box::new(Label::new("Configure Shell").with_class("section-title")));
+                widgets.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new("Add SSH_AUTH_SOCK export to your shell configuration.")),
+                    Box::new(Label::new("")),
+                    Box::new(Label::new("This will:")),
+                    Box::new(Label::new("  1. Detect your shell (bash/zsh)")),
+                    Box::new(Label::new("  2. Add export to ~/.bashrc or ~/.zshrc")),
+                    Box::new(Label::new("  3. Configure SSH to use GPG agent")),
+                    Box::new(Label::new("")),
+                    Box::new(Label::new("After this, restart your shell or source the config.")),
+                    Box::new(Label::new("Press Enter to configure or Esc to cancel.")),
+                ]).with_class("status-card")));
                 if let Some(ref msg) = state.message {
-                    widgets.push(Box::new(Label::new("")));
                     widgets.push(Box::new(Label::new(msg.clone())));
                 }
             }
 
             SshScreen::RestartAgent => {
-                widgets.push(Box::new(Label::new("Restart GPG Agent")));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Restart GPG agent to apply configuration changes.",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "This will kill the current agent and start a new one.",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Press Enter to restart or Esc to cancel.",
-                )));
+                widgets.push(Box::new(Label::new("Restart GPG Agent").with_class("section-title")));
+                widgets.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new("Restart GPG agent to apply configuration changes.")),
+                    Box::new(Label::new("")),
+                    Box::new(Label::new("This will kill the current agent and start a new one.")),
+                    Box::new(Label::new("Press Enter to restart or Esc to cancel.")),
+                ]).with_class("status-card")));
                 if let Some(ref msg) = state.message {
-                    widgets.push(Box::new(Label::new("")));
                     widgets.push(Box::new(Label::new(msg.clone())));
                 }
             }
 
             SshScreen::ExportKey => {
-                widgets.push(Box::new(Label::new("Export SSH Public Key")));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Export your YubiKey's authentication key as SSH public key.",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("The key will be displayed on screen.")));
-                widgets.push(Box::new(Label::new("You can copy it to:")));
-                widgets.push(Box::new(Label::new(
-                    "  - Remote servers (~/.ssh/authorized_keys)",
-                )));
-                widgets.push(Box::new(Label::new("  - GitHub/GitLab SSH keys")));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Press Enter to export or Esc to cancel.",
-                )));
+                widgets.push(Box::new(Label::new("Export SSH Public Key").with_class("section-title")));
+                widgets.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new("Export your YubiKey's authentication key as SSH public key.")),
+                    Box::new(Label::new("")),
+                    Box::new(Label::new("The key will be displayed on screen. Copy it to:")),
+                    Box::new(Label::new("  - Remote servers (~/.ssh/authorized_keys)")),
+                    Box::new(Label::new("  - GitHub/GitLab SSH keys")),
+                    Box::new(Label::new("")),
+                    Box::new(Label::new("Press Enter to export or Esc to cancel.")),
+                ]).with_class("status-card")));
                 if let Some(ref msg) = state.message {
-                    widgets.push(Box::new(Label::new("")));
                     widgets.push(Box::new(Label::new(msg.clone())));
                 }
             }
 
             SshScreen::TestConnection => {
-                widgets.push(Box::new(Label::new("Test SSH Connection")));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(format!(
-                    "Username: {}",
-                    state.test_conn_user
-                ))));
-                widgets.push(Box::new(Label::new(format!(
-                    "Hostname: {}",
-                    state.test_conn_host
-                ))));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Type username and hostname, then press Enter to test.",
-                )));
-                widgets.push(Box::new(Label::new(
-                    "Tab switches between fields. Esc cancels.",
-                )));
-                widgets.push(Box::new(Label::new(
-                    "Uses BatchMode=yes (no password prompts, YubiKey auth only).",
-                )));
+                widgets.push(Box::new(Label::new("Test SSH Connection").with_class("section-title")));
+                widgets.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new(format!("Username: {}", state.test_conn_user))),
+                    Box::new(Label::new(format!("Hostname: {}", state.test_conn_host))),
+                    Box::new(Label::new("")),
+                    Box::new(Label::new("Type username and hostname, then press Enter to test.")),
+                    Box::new(Label::new("Tab switches between fields. Esc cancels.")),
+                ]).with_class("status-card")));
                 if let Some(ref msg) = state.message {
-                    widgets.push(Box::new(Label::new("")));
                     widgets.push(Box::new(Label::new(format!("Result: {}", msg))));
                 }
             }
@@ -365,40 +331,73 @@ impl Widget for SshWizardScreen {
                         s.screen = SshScreen::Main;
                         s.message = None;
                     });
+                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
                 }
             }
             "step_1" => {
-                self.state.update(|s| {
-                    s.screen = SshScreen::EnableSSH;
-                });
+                self.state.update(|s| { s.screen = SshScreen::EnableSSH; });
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
             }
             "step_2" => {
-                self.state.update(|s| {
-                    s.screen = SshScreen::ConfigureShell;
-                });
+                self.state.update(|s| { s.screen = SshScreen::ConfigureShell; });
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
             }
             "step_3" => {
-                self.state.update(|s| {
-                    s.screen = SshScreen::RestartAgent;
-                });
+                self.state.update(|s| { s.screen = SshScreen::RestartAgent; });
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
             }
             "step_4" => {
-                self.state.update(|s| {
-                    s.screen = SshScreen::ExportKey;
-                });
+                self.state.update(|s| { s.screen = SshScreen::ExportKey; });
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
             }
             "step_5" => {
-                self.state.update(|s| {
-                    s.screen = SshScreen::TestConnection;
-                });
+                self.state.update(|s| { s.screen = SshScreen::TestConnection; });
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
             }
             "add_to_agent" | "execute" => {
-                // SSH operations are executed by app.rs runner — defer via pop+action.
-                // Full wiring happens in subsequent plans.
-                ctx.pop_screen_deferred();
+                let current = self.state.get_untracked().screen;
+                match current {
+                    SshScreen::EnableSSH => {
+                        match crate::model::ssh_operations::enable_ssh_support() {
+                            Ok(msg) => self.state.update(|s| { s.ssh_enabled = true; s.message = Some(msg); s.screen = SshScreen::Main; }),
+                            Err(e) => self.state.update(|s| { s.message = Some(format!("Error: {}", e)); s.screen = SshScreen::Main; }),
+                        }
+                    }
+                    SshScreen::ConfigureShell => {
+                        match crate::model::ssh_operations::configure_shell_ssh() {
+                            Ok(msg) => self.state.update(|s| { s.shell_configured = true; s.message = Some(msg); s.screen = SshScreen::Main; }),
+                            Err(e) => self.state.update(|s| { s.message = Some(format!("Error: {}", e)); s.screen = SshScreen::Main; }),
+                        }
+                    }
+                    SshScreen::RestartAgent => {
+                        match crate::model::ssh_operations::restart_gpg_agent() {
+                            Ok(msg) => self.state.update(|s| { s.agent_running = true; s.message = Some(msg); s.screen = SshScreen::Main; }),
+                            Err(e) => self.state.update(|s| { s.message = Some(format!("Error: {}", e)); s.screen = SshScreen::Main; }),
+                        }
+                    }
+                    SshScreen::ExportKey => {
+                        match crate::model::ssh::export_ssh_key() {
+                            Ok(key) => self.state.update(|s| { s.message = Some(key); s.screen = SshScreen::Main; }),
+                            Err(e) => self.state.update(|s| { s.message = Some(format!("Error: {}", e)); s.screen = SshScreen::Main; }),
+                        }
+                    }
+                    SshScreen::TestConnection => {
+                        let user = self.state.get_untracked().test_conn_user.clone();
+                        let host = self.state.get_untracked().test_conn_host.clone();
+                        if user.is_empty() || host.is_empty() {
+                            self.state.update(|s| { s.message = Some("Enter both username and hostname".to_string()); });
+                        } else {
+                            match crate::model::ssh_operations::test_ssh_connection(&user, &host) {
+                                Ok(msg) => self.state.update(|s| { s.message = Some(msg); s.screen = SshScreen::Main; }),
+                                Err(e) => self.state.update(|s| { s.message = Some(format!("Error: {}", e)); s.screen = SshScreen::Main; }),
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
             }
             "refresh" => {
-                // Refresh SSH status — wired in subsequent plans.
                 ctx.pop_screen_deferred();
             }
             "help" => {
@@ -423,7 +422,7 @@ mod tests {
 
     #[tokio::test]
     async fn ssh_main_screen() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(SshWizardScreen::new(SshState::default()))
         });
         app.pilot().settle().await;
@@ -432,7 +431,7 @@ mod tests {
 
     #[tokio::test]
     async fn ssh_enable_screen() {
-        let mut app = TestApp::new_styled(80, 24, "", || {
+        let mut app = TestApp::new_styled(80, 24, crate::app::SCREEN_CSS, || {
             Box::new(SshWizardScreen::new(SshState::default()))
         });
         let mut pilot = app.pilot();

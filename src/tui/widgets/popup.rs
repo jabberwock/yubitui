@@ -144,9 +144,9 @@ impl Widget for ConfirmScreen {
         };
 
         let confirm_button = if self.destructive {
-            Button::new("Confirm").with_variant(ButtonVariant::Error)
+            Button::new("Confirm").with_variant(ButtonVariant::Error).with_action("confirm")
         } else {
-            Button::new("Confirm")
+            Button::new("Confirm").with_action("confirm")
         };
 
         let mut children: Vec<Box<dyn Widget>> = vec![
@@ -157,7 +157,7 @@ impl Widget for ConfirmScreen {
             children.push(Box::new(Label::new(line)));
         }
         // Cancel first — it is the default safe option (focused first by Tab order).
-        children.push(Box::new(Button::new("Cancel")));
+        children.push(Box::new(Button::new("Cancel").with_action("cancel")));
         children.push(Box::new(confirm_button));
         children.push(Box::new(Footer));
         children
