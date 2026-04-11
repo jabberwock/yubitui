@@ -57,7 +57,14 @@ static WIZARD_MENU_BINDINGS: &[KeyBinding] = &[
         key: KeyCode::Char('2'),
         modifiers: KeyModifiers::NONE,
         action: "ssh_wizard",
-        description: "2 SSH Setup",
+        description: "2 New SSH Key",
+        show: true,
+    },
+    KeyBinding {
+        key: KeyCode::Char('3'),
+        modifiers: KeyModifiers::NONE,
+        action: "touch_policy",
+        description: "3 Touch Policy",
         show: true,
     },
 ];
@@ -77,10 +84,13 @@ impl Widget for WizardMenuScreen {
             Box::new(Label::new("Choose a guided setup flow:")),
             Box::new(Label::new("")),
             Box::new(Button::new("[1] Initial YubiKey Setup").with_action("initial_setup")),
-            Box::new(Label::new("    Set FIDO2 PIN, add first OATH account, configure PIV/SSH key.")),
+            Box::new(Label::new("    Set FIDO2 PIN, add first OATH account, configure PIV/SSH.")),
             Box::new(Label::new("")),
-            Box::new(Button::new("[2] SSH Key with Touch Policy").with_action("ssh_wizard")),
-            Box::new(Label::new("    Choose touch policy, generate OpenPGP key, export SSH public key.")),
+            Box::new(Button::new("[2] Generate New SSH Key").with_action("ssh_wizard")),
+            Box::new(Label::new("    Generate a NEW key with touch policy — REPLACES existing key.")),
+            Box::new(Label::new("")),
+            Box::new(Button::new("[3] Set Touch Policy (Existing Key)").with_action("touch_policy")),
+            Box::new(Label::new("    Change touch policy on a key that's already on the card.")),
             Box::new(Label::new("")),
             Box::new(Footer),
         ]
@@ -110,6 +120,9 @@ impl Widget for WizardMenuScreen {
             )),
             "ssh_wizard" => ctx.push_screen_deferred(Box::new(
                 SshTouchPolicyWizardScreen::new(self.yubikey_state.clone()),
+            )),
+            "touch_policy" => ctx.push_screen_deferred(Box::new(
+                crate::tui::keys::TouchPolicyScreen::new(self.yubikey_state.clone()),
             )),
             _ => {}
         }
@@ -607,31 +620,27 @@ impl Widget for SshTouchPolicyWizardScreen {
         match step {
             // Step 0: Touch policy selection (WIZARD-03)
             0 => {
-                widgets.push(Box::new(Label::new(
-                    "Step 1: Choose Touch Policy",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Select the touch behaviour for your SSH key (use K/J or Up/Down to move):",
-                )));
+                widgets.push(Box::new(Label::new("Step 1: Choose Touch Policy").with_class("section-title")));
                 widgets.push(Box::new(Label::new("")));
 
+                let mut policy_labels: Vec<Box<dyn Widget>> = Vec::new();
                 for (i, &policy) in TOUCH_POLICIES.iter().enumerate() {
                     let cursor = if i == policy_idx { ">" } else { " " };
-                    widgets.push(Box::new(Label::new(format!(
-                        "{} [{}] {}",
-                        cursor,
-                        i + 1,
-                        policy.label()
+                    policy_labels.push(Box::new(Label::new(format!(
+                        "{} [{}] {}", cursor, i + 1, policy.label()
                     ))));
                 }
+                widgets.push(Box::new(textual_rs::Vertical::with_children(policy_labels).with_class("status-card")));
 
                 widgets.push(Box::new(Label::new("")));
                 let selected = TOUCH_POLICIES[policy_idx];
-                widgets.push(Box::new(Label::new("About this choice:")));
+                let mut desc_lines: Vec<Box<dyn Widget>> = vec![
+                    Box::new(Label::new("About this choice:").with_class("section-title")),
+                ];
                 for line in selected.description().lines() {
-                    widgets.push(Box::new(Label::new(format!("  {}", line))));
+                    desc_lines.push(Box::new(Label::new(format!("  {}", line))));
                 }
+                widgets.push(Box::new(textual_rs::Vertical::with_children(desc_lines).with_class("status-card")));
 
                 widgets.push(Box::new(Label::new("")));
                 widgets.push(Box::new(Label::new("Press Enter to confirm and continue.")));
@@ -640,72 +649,68 @@ impl Widget for SshTouchPolicyWizardScreen {
             // Step 1: Slot overview (WIZARD-05)
             1 => {
                 let policy = TOUCH_POLICIES[policy_idx];
-                widgets.push(Box::new(Label::new("Step 2: Current Slot State")));
+                widgets.push(Box::new(Label::new("Step 2: Current Slot State").with_class("section-title")));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(format!(
-                    "Selected touch policy: {}",
-                    policy.label()
-                ))));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("PIV slot 9a (Authentication) — current state:")));
 
                 let slot_9a_info = yk
                     .and_then(|y| y.piv.as_ref())
                     .and_then(|piv| piv.slots.iter().find(|s| s.slot == "9a"))
                     .cloned();
 
+                let slot_occupied = slot_9a_info.is_some();
+                let mut slot_lines: Vec<Box<dyn Widget>> = vec![
+                    Box::new(Label::new(format!("Selected touch policy: {}", policy.label()))),
+                    Box::new(Label::new("")),
+                    Box::new(Label::new("PIV slot 9a (Authentication):")),
+                ];
+
                 match slot_9a_info {
                     None => {
-                        widgets.push(Box::new(Label::new("  Status:    EMPTY (no key present)")));
-                        widgets.push(Box::new(Label::new("  Generating a new key will fill this slot.")));
+                        slot_lines.push(Box::new(Label::new("  Status: EMPTY (no key present)")));
+                        slot_lines.push(Box::new(Label::new("  A new key will be generated in this slot.")));
                     }
                     Some(info) => {
-                        widgets.push(Box::new(Label::new("  Status:    OCCUPIED")));
+                        slot_lines.push(Box::new(Label::new("  Status: OCCUPIED")));
                         if let Some(subj) = &info.subject {
-                            widgets.push(Box::new(Label::new(format!("  Subject:   {}", subj))));
+                            slot_lines.push(Box::new(Label::new(format!("  Subject:   {}", subj))));
                         }
                         if let Some(alg) = &info.algorithm {
-                            widgets.push(Box::new(Label::new(format!("  Algorithm: {}", alg))));
+                            slot_lines.push(Box::new(Label::new(format!("  Algorithm: {}", alg))));
                         }
-                        widgets.push(Box::new(Label::new("")));
-                        widgets.push(Box::new(Label::new(
-                            "  [!] Generating a new key will REPLACE the existing key.",
-                        )));
-                        widgets.push(Box::new(Label::new(
-                            "      Make sure the existing key is backed up before continuing.",
-                        )));
                     }
+                }
+                widgets.push(Box::new(textual_rs::Vertical::with_children(slot_lines).with_class("status-card")));
+
+                if slot_occupied {
+                    widgets.push(Box::new(textual_rs::Vertical::with_children(vec![
+                        Box::new(Label::new("WARNING: Generating a new key will REPLACE the existing key.")),
+                        Box::new(Label::new("Make sure the existing key is backed up before continuing.")),
+                    ]).with_class("status-card-warn")));
                 }
 
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("Press Enter to continue to key generation.")));
-                widgets.push(Box::new(Label::new("Press B to go back and change touch policy.")));
+                widgets.push(Box::new(Label::new("Enter to continue, B to go back.")));
             }
 
             // Step 2: Launch key generation
             _ => {
                 let policy = TOUCH_POLICIES[policy_idx];
-                widgets.push(Box::new(Label::new("Step 3: Generate SSH Key")));
+                widgets.push(Box::new(Label::new("Step 3: Generate SSH Key").with_class("section-title")));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(format!(
-                    "Touch policy: {}",
-                    policy.label()
-                ))));
-                widgets.push(Box::new(Label::new("Slot:         PIV 9a (Authentication)")));
+
+                widgets.push(Box::new(textual_rs::Vertical::with_children(vec![
+                    Box::new(Label::new(format!("Touch policy: {}", policy.label()))),
+                    Box::new(Label::new("Slot:         PIV 9a (Authentication)")),
+                ]).with_class("status-card")));
+
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "Press Enter to open the OpenPGP Key Generation wizard.",
-                )));
-                widgets.push(Box::new(Label::new(
-                    "The touch policy you selected will be applied when uploading to the key.",
-                )));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(
-                    "After key generation, export the SSH public key from the Keys screen.",
-                )));
-                widgets.push(Box::new(Label::new(
-                    "Add it to ~/.ssh/authorized_keys on servers you want to access.",
-                )));
+                widgets.push(Box::new(textual_rs::Vertical::with_children(vec![
+                    Box::new(Label::new("Press Enter to open the Key Generation wizard.")),
+                    Box::new(Label::new("The touch policy will be applied to the generated key.")),
+                    Box::new(Label::new("")),
+                    Box::new(Label::new("After generation, export the SSH public key from Keys screen.")),
+                    Box::new(Label::new("Add it to ~/.ssh/authorized_keys on your servers.")),
+                ]).with_class("status-card")));
             }
         }
 

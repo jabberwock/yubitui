@@ -39,6 +39,7 @@ pub struct DiagnosticsScreen {
     pub diagnostics: Diagnostics,
     #[allow(dead_code)]
     pub state: Reactive<DiagnosticsTuiState>,
+    #[allow(dead_code)]
     own_id: std::cell::Cell<Option<textual_rs::WidgetId>>,
 }
 

@@ -191,6 +191,7 @@ impl OtpConfig {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_touch(mut self, require: bool) -> Self {
         self.require_touch = require;
         self
@@ -334,6 +335,7 @@ pub fn program_otp_slot(config: &OtpConfig) -> Result<()> {
 }
 
 /// Delete (erase) an OTP slot configuration.
+#[allow(dead_code)]
 pub fn delete_otp_slot(slot: u8) -> Result<()> {
     if slot != 1 && slot != 2 {
         anyhow::bail!("Invalid OTP slot: {} (must be 1 or 2)", slot);
@@ -392,7 +394,7 @@ pub fn delete_otp_slot(slot: u8) -> Result<()> {
 /// Simple hex string decoder (no external crate needed).
 fn hex_decode(s: &str) -> Result<Vec<u8>> {
     let s = s.trim();
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         anyhow::bail!("Hex string has odd length");
     }
     (0..s.len())

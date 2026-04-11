@@ -342,7 +342,7 @@ impl Widget for OtpConfigScreen {
                         ctx.push_screen_deferred(Box::new(
                             crate::tui::widgets::popup::PopupScreen::new(
                                 "Slot Configured",
-                                &format!("OTP Slot {} programmed with {}.", self.slot, cred_type),
+                                format!("OTP Slot {} programmed with {}.", self.slot, cred_type),
                             ),
                         ));
                     }
@@ -351,7 +351,7 @@ impl Widget for OtpConfigScreen {
                         ctx.push_screen_deferred(Box::new(
                             crate::tui::widgets::popup::PopupScreen::new(
                                 "Configuration Failed",
-                                &format!("Failed to program slot {}: {}", self.slot, e),
+                                format!("Failed to program slot {}: {}", self.slot, e),
                             ),
                         ));
                     }

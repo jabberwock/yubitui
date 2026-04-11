@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, WidgetId, Header, Label, Button, ButtonVariant, DataTable, ColumnDef, Footer, Markdown};
+use textual_rs::{Widget, WidgetId, Header, Label, Button, ButtonVariant, DataTable, ColumnDef, Footer, Markdown, Vertical};
 use textual_rs::widget::context::AppContext;
 use textual_rs::event::keybinding::KeyBinding;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -339,6 +339,7 @@ impl KeysScreen {
             own_id: Cell::new(None),
         }
     }
+    #[allow(dead_code)]
     fn recompose(&self, ctx: &AppContext) {
         if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
     }
@@ -693,107 +694,110 @@ impl Widget for KeyGenWizardScreen {
         match w.step {
             KeyGenStep::Algorithm => {
                 children.push(Box::new(Header::new("Generate Key — Step 1/5: Algorithm")));
-                children.push(Box::new(Label::new("Select key algorithm:")));
+                children.push(Box::new(Label::new("Select key algorithm:").with_class("section-title")));
                 children.push(Box::new(Label::new("")));
                 let algorithms = [
-                    ("Ed25519/Cv25519", "Modern elliptic curve — recommended for new keys"),
+                    ("Ed25519/Cv25519", "Modern elliptic curve — recommended"),
                     ("RSA 2048", "Classic RSA — widely compatible"),
-                    ("RSA 4096", "Classic RSA — widest compatibility, slowest"),
+                    ("RSA 4096", "Classic RSA — widest compat, slowest"),
                 ];
+                let mut algo_items: Vec<Box<dyn Widget>> = Vec::new();
                 for (i, (name, desc)) in algorithms.iter().enumerate() {
-                    let marker = if i == w.algorithm_index { "> " } else { "  " };
-                    children.push(Box::new(Label::new(format!("{}{}", marker, name))));
-                    if i == w.algorithm_index {
-                        children.push(Box::new(Label::new(format!("    {}", desc))));
-                    }
+                    let marker = if i == w.algorithm_index { ">" } else { " " };
+                    algo_items.push(Box::new(Label::new(format!(" {} {:<16} {}", marker, name, desc))));
                 }
+                children.push(Box::new(Vertical::with_children(algo_items).with_class("status-card")));
             }
             KeyGenStep::Expiry => {
                 children.push(Box::new(Header::new("Generate Key — Step 2/5: Expiry")));
-                children.push(Box::new(Label::new("Select key expiry:")));
+                children.push(Box::new(Label::new("Select key expiry:").with_class("section-title")));
                 children.push(Box::new(Label::new("")));
                 let options = ["No expiry", "1 year", "2 years", "Custom date"];
+                let mut expiry_items: Vec<Box<dyn Widget>> = Vec::new();
                 for (i, opt) in options.iter().enumerate() {
-                    let marker = if i == w.expiry_index { "> " } else { "  " };
-                    children.push(Box::new(Label::new(format!("{}{}", marker, opt))));
+                    let marker = if i == w.expiry_index { ">" } else { " " };
+                    expiry_items.push(Box::new(Label::new(format!(" {} {}", marker, opt))));
                 }
+                children.push(Box::new(Vertical::with_children(expiry_items).with_class("status-card")));
                 if w.expiry_index == 3 {
                     children.push(Box::new(Label::new("")));
                     children.push(Box::new(Label::new("Enter date (YYYY-MM-DD):")));
                     let display = if w.editing_custom_expiry {
-                        format!("{}_", w.custom_expiry)
+                        format!("> {}_", w.custom_expiry)
                     } else {
-                        w.custom_expiry.clone()
+                        format!("  {}", w.custom_expiry)
                     };
                     children.push(Box::new(Label::new(display)));
                 }
             }
             KeyGenStep::Identity => {
                 children.push(Box::new(Header::new("Generate Key — Step 3/5: Identity")));
-                children.push(Box::new(Label::new("Enter your name and email:")));
+                children.push(Box::new(Label::new("Enter your name and email:").with_class("section-title")));
                 children.push(Box::new(Label::new("")));
-                let name_label = if w.active_field == 0 { "Name: [editing]" } else { "Name:" };
-                children.push(Box::new(Label::new(name_label)));
-                children.push(Box::new(Label::new(format!("  {}", w.name))));
+                let name_marker = if w.active_field == 0 { ">" } else { " " };
+                let email_marker = if w.active_field == 1 { ">" } else { " " };
+                children.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new(format!(" {} Name:  {}_", name_marker, w.name))),
+                    Box::new(Label::new(format!(" {} Email: {}_", email_marker, w.email))),
+                ]).with_class("status-card")));
                 children.push(Box::new(Label::new("")));
-                let email_label = if w.active_field == 1 { "Email: [editing]" } else { "Email:" };
-                children.push(Box::new(Label::new(email_label)));
-                children.push(Box::new(Label::new(format!("  {}", w.email))));
-                children.push(Box::new(Label::new("")));
-                children.push(Box::new(Label::new("[Tab] Switch field  [Enter] Next")));
+                children.push(Box::new(Label::new("Tab to switch fields, Enter to continue.")));
             }
             KeyGenStep::Backup => {
                 children.push(Box::new(Header::new("Generate Key — Step 4/5: Backup")));
-                children.push(Box::new(Label::new(
-                    "Create a backup copy before moving key to card?",
-                )));
+                children.push(Box::new(Label::new("Backup before moving key to card?").with_class("section-title")));
                 children.push(Box::new(Label::new("")));
-                children.push(Box::new(Label::new(if w.backup { "> [Y] Create backup" } else { "  [Y] Create backup" })));
-                children.push(Box::new(Label::new(if !w.backup { "> [N] Skip backup" } else { "  [N] Skip backup" })));
+                let y_marker = if w.backup { ">" } else { " " };
+                let n_marker = if !w.backup { ">" } else { " " };
+                children.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new(format!(" {} Create backup", y_marker))),
+                    Box::new(Label::new(format!(" {} Skip backup", n_marker))),
+                ]).with_class("status-card")));
                 if w.backup {
                     children.push(Box::new(Label::new("")));
-                    children.push(Box::new(Label::new("Backup path:")));
                     let path_display = if w.editing_path {
-                        format!("{}_", w.backup_path)
+                        format!("Path: {}_", w.backup_path)
                     } else {
-                        format!("{} [Enter to edit]", w.backup_path)
+                        format!("Path: {} (Enter to edit)", w.backup_path)
                     };
                     children.push(Box::new(Label::new(path_display)));
                 }
             }
             KeyGenStep::Confirm => {
                 children.push(Box::new(Header::new("Generate Key — Step 5/5: Confirm")));
-                children.push(Box::new(Label::new("Summary — press Enter to generate:")));
+                children.push(Box::new(Label::new("Review and press Enter to generate:").with_class("section-title")));
                 children.push(Box::new(Label::new("")));
                 let algo = match w.algorithm_index {
                     0 => "Ed25519/Cv25519",
                     1 => "RSA 2048",
                     _ => "RSA 4096",
                 };
-                children.push(Box::new(Label::new(format!("Algorithm: {}", algo))));
                 let expiry = match w.expiry_index {
                     0 => "No expiry".to_string(),
                     1 => "1 year".to_string(),
                     2 => "2 years".to_string(),
                     _ => format!("Custom: {}", w.custom_expiry),
                 };
-                children.push(Box::new(Label::new(format!("Expiry:    {}", expiry))));
-                children.push(Box::new(Label::new(format!("Name:      {}", w.name))));
-                children.push(Box::new(Label::new(format!("Email:     {}", w.email))));
-                children.push(Box::new(Label::new(format!(
-                    "Backup:    {}",
-                    if w.backup { format!("Yes ({})", w.backup_path) } else { "No".to_string() }
-                ))));
+                children.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new(format!("Algorithm: {}", algo))),
+                    Box::new(Label::new(format!("Expiry:    {}", expiry))),
+                    Box::new(Label::new(format!("Name:      {}", w.name))),
+                    Box::new(Label::new(format!("Email:     {}", w.email))),
+                    Box::new(Label::new(format!(
+                        "Backup:    {}",
+                        if w.backup { format!("Yes ({})", w.backup_path) } else { "No".to_string() }
+                    ))),
+                ]).with_class("status-card")));
                 children.push(Box::new(Label::new("")));
-                children.push(Box::new(Label::new("  Press Enter to continue.")));
+                children.push(Box::new(Label::new("Press Enter to proceed to Admin PIN entry.")));
             }
             KeyGenStep::Running => {
                 children.push(Box::new(Header::new("Generating Key...")));
                 children.push(Box::new(Label::new("")));
-                children.push(Box::new(Label::new("Key generation in progress.")));
-                children.push(Box::new(Label::new(
-                    "This may take up to 60 seconds for RSA 4096.",
-                )));
+                children.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new("Key generation in progress.")),
+                    Box::new(Label::new("This may take up to 60 seconds for RSA 4096.")),
+                ]).with_class("status-card")));
             }
             KeyGenStep::Result => {
                 children.push(Box::new(Header::new("Key Generation Complete")));
@@ -1024,6 +1028,7 @@ impl ImportKeyScreen {
             own_id: Cell::new(None),
         }
     }
+    #[allow(dead_code)]
     fn recompose(&self, ctx: &AppContext) {
         if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
     }
