@@ -32,18 +32,34 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Initialize tracing
+    // Initialize tracing — log to file when running TUI, stderr for CLI modes
     let log_level = if args.debug { "debug" } else { "info" };
+    let is_tui = !args.list && !args.check;
 
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| log_level.into()),
-        )
-        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
-        .init();
-
-    if args.list || args.check {
+    if is_tui {
+        // TUI mode: log to file to avoid corrupting the alternate screen
+        let log_dir = dirs::cache_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+            .join("yubitui");
+        let _ = std::fs::create_dir_all(&log_dir);
+        let log_file = std::fs::File::create(log_dir.join("yubitui.log"))
+            .unwrap_or_else(|_| std::fs::File::create("/dev/null").unwrap());
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| log_level.into()),
+            )
+            .with(tracing_subscriber::fmt::layer().with_writer(std::sync::Mutex::new(log_file)).with_ansi(false))
+            .init();
+    } else {
+        // CLI mode: log to stderr as normal
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| log_level.into()),
+            )
+            .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
+            .init();
         tracing::info!("YubiTUI starting...");
     }
 

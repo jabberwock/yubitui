@@ -521,15 +521,35 @@ impl Widget for KeysScreen {
                 )));
             }
             "export_ssh" => {
-                let pubkey = self.yubikey_state.as_ref()
-                    .and_then(|_yk| self.state.borrow().ssh_pubkey.clone());
-                let body = if let Some(ref key) = pubkey {
-                    format!(
-                        "{}\n\nAdd this key to:\n  - ~/.ssh/authorized_keys on remote servers\n  - GitHub > Settings > SSH Keys\n  - GitLab > Preferences > SSH Keys",
-                        key
-                    )
-                } else {
-                    "No authentication key found on card.\nImport or generate a key first.".to_string()
+                let output = std::process::Command::new("ssh-add")
+                    .arg("-L")
+                    .stdin(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::piped())
+                    .output();
+
+                let body = match output {
+                    Ok(o) if o.status.success() => {
+                        let keys = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                        if keys.is_empty() {
+                            "ssh-add -L returned no keys.\n\nThe agent is running but has no keys loaded.\nInsert your YubiKey and try again.".to_string()
+                        } else {
+                            format!(
+                                "{}\n\nAdd this key to:\n  - ~/.ssh/authorized_keys on remote servers\n  - GitHub > Settings > SSH Keys",
+                                keys
+                            )
+                        }
+                    }
+                    Ok(o) => {
+                        let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
+                        format!(
+                            "ssh-add -L failed (exit {}):\n{}\n\nMake sure gpg-agent is running with enable-ssh-support.",
+                            o.status.code().unwrap_or(-1),
+                            if stderr.is_empty() { "(no output)" } else { &stderr }
+                        )
+                    }
+                    Err(e) => {
+                        format!("Failed to run ssh-add: {}\n\nIs ssh-add installed?", e)
+                    }
                 };
                 ctx.push_screen_deferred(Box::new(PopupScreen::new("SSH Public Key", body)));
             }
@@ -1049,28 +1069,30 @@ impl Widget for ImportKeyScreen {
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         let mut children: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Import Key to YubiKey")),
-            Box::new(Label::new(
-                "This will import a GPG key from your keyring to the YubiKey.",
-            )),
-            Box::new(Label::new("Prerequisites:")),
-            Box::new(Label::new("  - You must have a GPG key already generated")),
-            Box::new(Label::new("  - The key must be in your GPG keyring")),
+            Box::new(Label::new("")),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("Import a GPG key from your keyring to the YubiKey.")),
+                Box::new(Label::new("")),
+                Box::new(Label::new("Prerequisites:")),
+                Box::new(Label::new("  - GPG key already generated")),
+                Box::new(Label::new("  - Key must be in your GPG keyring")),
+            ]).with_class("status-card")),
             Box::new(Label::new("")),
         ];
 
         if self.available_keys.is_empty() {
-            children.push(Box::new(Label::new(
-                "No GPG keys found in keyring.",
-            )));
-            children.push(Box::new(Label::new(
-                "Generate a key first, or import one with: gpg --import <file>",
-            )));
+            children.push(Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("No GPG keys found in keyring.")),
+                Box::new(Label::new("Generate a key first, or: gpg --import <file>")),
+            ]).with_class("status-card-warn")));
         } else {
             let idx = *self.selected_index.borrow();
+            let mut key_items: Vec<Box<dyn Widget>> = Vec::new();
             for (i, key) in self.available_keys.iter().enumerate() {
-                let marker = if i == idx { "> " } else { "  " };
-                children.push(Box::new(Label::new(format!("{}{}", marker, key))));
+                let marker = if i == idx { ">" } else { " " };
+                key_items.push(Box::new(Label::new(format!(" {} {}", marker, key))));
             }
+            children.push(Box::new(Vertical::with_children(key_items).with_class("status-card")));
         }
 
         if self.yubikey_state.is_none() {
@@ -1271,11 +1293,10 @@ impl Widget for TouchPolicyScreen {
             true, // attestation always present
         ];
 
-        let idx = *self.slot_index.borrow();
+        let actions = ["select_sig", "select_enc", "select_aut", "select_att"];
         for (i, slot) in slots.iter().enumerate() {
-            let marker = if i == idx { "> " } else { "  " };
             let key_status = if slot_has_key[i] { "[key]" } else { "[empty]" };
-            children.push(Box::new(Label::new(format!("{}{} {}", marker, slot, key_status))));
+            children.push(Box::new(Button::new(format!("{} {}", slot, key_status)).with_action(actions[i])));
         }
 
         children.push(Box::new(Footer));
@@ -1305,10 +1326,13 @@ impl Widget for TouchPolicyScreen {
                 }
             }
             "select_slot" => {
-                // Push value selection screen before the PIN screen
                 let slot_idx = *self.slot_index.borrow();
                 ctx.push_screen_deferred(Box::new(TouchPolicyValueScreen::new(slot_idx)));
             }
+            "select_sig" => { ctx.push_screen_deferred(Box::new(TouchPolicyValueScreen::new(0))); }
+            "select_enc" => { ctx.push_screen_deferred(Box::new(TouchPolicyValueScreen::new(1))); }
+            "select_aut" => { ctx.push_screen_deferred(Box::new(TouchPolicyValueScreen::new(2))); }
+            "select_att" => { ctx.push_screen_deferred(Box::new(TouchPolicyValueScreen::new(3))); }
             "back" => ctx.pop_screen_deferred(),
             _ => {}
         }
@@ -1400,10 +1424,9 @@ impl Widget for TouchPolicyValueScreen {
             Box::new(Label::new("")),
         ];
 
-        let sel = *self.value_index.borrow();
+        let actions = ["val_0", "val_1", "val_2", "val_3", "val_4"];
         for (i, (name, desc, _)) in TOUCH_POLICY_VALUES.iter().enumerate() {
-            let marker = if i == sel { "> " } else { "  " };
-            children.push(Box::new(Label::new(format!("{}{:<14}  {}", marker, name, desc))));
+            children.push(Box::new(Button::new(format!("{:<14}  {}", name, desc)).with_action(actions[i])));
         }
 
         children.push(Box::new(Footer));
@@ -1435,6 +1458,17 @@ impl Widget for TouchPolicyValueScreen {
                 ctx.push_screen_deferred(Box::new(
                     TouchPolicyPinScreen::new(slot_str.to_string(), policy.clone())
                 ));
+            }
+            "val_0" | "val_1" | "val_2" | "val_3" | "val_4" => {
+                let idx: usize = action[4..].parse().unwrap_or(0);
+                if idx < TOUCH_POLICY_VALUES.len() {
+                    let slot_strs = ["sig", "enc", "aut", "att"];
+                    let slot_str = slot_strs.get(self.slot_index).copied().unwrap_or("sig");
+                    let (_, _, ref policy) = TOUCH_POLICY_VALUES[idx];
+                    ctx.push_screen_deferred(Box::new(
+                        TouchPolicyPinScreen::new(slot_str.to_string(), policy.clone())
+                    ));
+                }
             }
             "back" => ctx.pop_screen_deferred(),
             _ => {}
@@ -1482,12 +1516,16 @@ impl Widget for KeyGenPinScreen {
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Generate Key — Admin PIN")),
             Box::new(Label::new("")),
-            Box::new(Label::new(format!("Algorithm: {}", self.params.algorithm))),
-            Box::new(Label::new(format!("Name:      {}", self.params.name))),
-            Box::new(Label::new(format!("Email:     {}", self.params.email))),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new(format!("Algorithm: {}", self.params.algorithm))),
+                Box::new(Label::new(format!("Name:      {}", self.params.name))),
+                Box::new(Label::new(format!("Email:     {}", self.params.email))),
+            ]).with_class("status-card")),
             Box::new(Label::new("")),
-            Box::new(Label::new("Enter Admin PIN to generate keys on card:")),
-            Box::new(Label::new(format!("> {}_", masked))),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("Enter Admin PIN to generate keys on card:")),
+                Box::new(Label::new(format!("> {}_", masked))),
+            ]).with_class("status-card")),
         ];
 
         if let Some(err) = error {
@@ -1608,13 +1646,14 @@ impl Widget for TouchPolicyPinScreen {
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Set Touch Policy — Admin PIN")),
             Box::new(Label::new("")),
-            Box::new(Label::new(format!(
-                "Setting {} touch policy on {} slot",
-                self.policy, self.slot
-            ))),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new(format!("Policy: {} on {} slot", self.policy, self.slot))),
+            ]).with_class("status-card")),
             Box::new(Label::new("")),
-            Box::new(Label::new("Enter Admin PIN:")),
-            Box::new(Label::new(format!("> {}_", masked))),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("Enter Admin PIN:")),
+                Box::new(Label::new(format!("> {}_", masked))),
+            ]).with_class("status-card")),
         ];
 
         if let Some(err) = error {
@@ -1875,16 +1914,16 @@ impl Widget for PinThenDeleteScreen {
         let error = self.error_message.borrow().clone();
         let masked = "●".repeat(self.pin_input.borrow().len());
 
+        let title = if self.slot.display_name() == "Signature" { "Delete Signature Key" }
+            else if self.slot.display_name() == "Encryption" { "Delete Encryption Key" }
+            else { "Delete Authentication Key" };
         let mut widgets: Vec<Box<dyn Widget>> = vec![
-            Box::new(Header::new(
-                format!("Delete {} Key — Enter Admin PIN", self.slot.display_name()).as_str()
-            )),
+            Box::new(Header::new(title)),
             Box::new(Label::new("")),
-            Box::new(Label::new(format!(
-                "Enter Admin PIN to delete the {} key:",
-                self.slot.display_name()
-            ))),
-            Box::new(Label::new(format!("> {}_", masked))),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new(format!("Enter Admin PIN to delete the {} key:", self.slot.display_name()))),
+                Box::new(Label::new(format!("> {}_", masked))),
+            ]).with_class("status-card-warn")),
         ];
 
         if let Some(ref err) = error {

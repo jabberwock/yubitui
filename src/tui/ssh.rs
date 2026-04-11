@@ -376,9 +376,27 @@ impl Widget for SshWizardScreen {
                         }
                     }
                     SshScreen::ExportKey => {
-                        match crate::model::ssh::export_ssh_key() {
-                            Ok(key) => self.state.update(|s| { s.message = Some(key); s.screen = SshScreen::Main; }),
-                            Err(e) => self.state.update(|s| { s.message = Some(format!("Error: {}", e)); s.screen = SshScreen::Main; }),
+                        let result = std::process::Command::new("ssh-add")
+                            .arg("-L")
+                            .stdin(std::process::Stdio::null())
+                            .stderr(std::process::Stdio::piped())
+                            .output();
+                        match result {
+                            Ok(o) if o.status.success() => {
+                                let keys = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                                if keys.is_empty() {
+                                    self.state.update(|s| { s.message = Some("ssh-add -L returned no keys. Insert YubiKey and try again.".to_string()); s.screen = SshScreen::Main; });
+                                } else {
+                                    self.state.update(|s| { s.message = Some(keys); s.screen = SshScreen::Main; });
+                                }
+                            }
+                            Ok(o) => {
+                                let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
+                                self.state.update(|s| { s.message = Some(format!("ssh-add -L failed (exit {}): {}", o.status.code().unwrap_or(-1), stderr)); s.screen = SshScreen::Main; });
+                            }
+                            Err(e) => {
+                                self.state.update(|s| { s.message = Some(format!("Failed to run ssh-add: {}", e)); s.screen = SshScreen::Main; });
+                            }
                         }
                     }
                     SshScreen::TestConnection => {

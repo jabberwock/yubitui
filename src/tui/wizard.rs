@@ -81,16 +81,20 @@ impl Widget for WizardMenuScreen {
         vec![
             Box::new(Header::new("Setup Wizards")),
             Box::new(Label::new("")),
-            Box::new(Label::new("Choose a guided setup flow:")),
+            Box::new(Label::new("Choose a guided setup flow:").with_class("section-title")),
             Box::new(Label::new("")),
-            Box::new(Button::new("[1] Initial YubiKey Setup").with_action("initial_setup")),
-            Box::new(Label::new("    Set FIDO2 PIN, add first OATH account, configure PIV/SSH.")),
-            Box::new(Label::new("")),
-            Box::new(Button::new("[2] Generate New SSH Key").with_action("ssh_wizard")),
-            Box::new(Label::new("    Generate a NEW key with touch policy — REPLACES existing key.")),
-            Box::new(Label::new("")),
-            Box::new(Button::new("[3] Set Touch Policy (Existing Key)").with_action("touch_policy")),
-            Box::new(Label::new("    Change touch policy on a key that's already on the card.")),
+            Box::new(textual_rs::Vertical::with_children(vec![
+                Box::new(Button::new("[1] Initial YubiKey Setup").with_action("initial_setup")),
+                Box::new(Label::new("    Set FIDO2 PIN, add first OATH account, configure PIV/SSH.")),
+            ]).with_class("status-card")),
+            Box::new(textual_rs::Vertical::with_children(vec![
+                Box::new(Button::new("[2] Generate New SSH Key").with_action("ssh_wizard")),
+                Box::new(Label::new("    Generate a NEW key with touch policy — REPLACES existing key.")),
+            ]).with_class("status-card")),
+            Box::new(textual_rs::Vertical::with_children(vec![
+                Box::new(Button::new("[3] Set Touch Policy (Existing Key)").with_action("touch_policy")),
+                Box::new(Label::new("    Change touch policy on a key already on the card.")),
+            ]).with_class("status-card")),
             Box::new(Label::new("")),
             Box::new(Footer),
         ]
@@ -235,170 +239,111 @@ impl Widget for InitialSetupWizardScreen {
         match step {
             // Step 0: Welcome
             0 => {
-                widgets.push(Box::new(Label::new("Welcome to the Initial YubiKey Setup Wizard.")));
-                widgets.push(Box::new(Label::new("")));
+                let mut info: Vec<Box<dyn Widget>> = vec![
+                    Box::new(Label::new("Welcome to the Initial YubiKey Setup Wizard.")),
+                ];
                 if let Some(yk) = yk {
-                    widgets.push(Box::new(Label::new(format!(
-                        "Device: {} (serial {})",
-                        yk.info.model,
-                        yk.info.serial
-                    ))));
-                    widgets.push(Box::new(Label::new(format!(
-                        "Firmware: {}.{}.{}",
-                        yk.info.version.major, yk.info.version.minor, yk.info.version.patch
-                    ))));
+                    info.push(Box::new(Label::new(format!("Device: {} (SN {})", yk.info.model, yk.info.serial))));
+                    info.push(Box::new(Label::new(format!("Firmware: {}.{}.{}", yk.info.version.major, yk.info.version.minor, yk.info.version.patch))));
                 } else {
-                    widgets.push(Box::new(Label::new("No YubiKey detected. Insert your key and restart.")));
+                    info.push(Box::new(Label::new("No YubiKey detected. Insert your key and restart.")));
                 }
+                widgets.push(Box::new(textual_rs::Vertical::with_children(info).with_class("status-card")));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("This wizard will guide you through:")));
-                widgets.push(Box::new(Label::new("  1. Setting a FIDO2 PIN")));
-                widgets.push(Box::new(Label::new("  2. Adding your first OATH (TOTP/HOTP) account")));
-                widgets.push(Box::new(Label::new("  3. Configuring a PIV or SSH key")));
+                widgets.push(Box::new(textual_rs::Vertical::with_children(vec![
+                    Box::new(Label::new("This wizard will guide you through:")),
+                    Box::new(Label::new("  1. Setting a FIDO2 PIN")),
+                    Box::new(Label::new("  2. Adding your first OATH account")),
+                    Box::new(Label::new("  3. Configuring a PIV or SSH key")),
+                ]).with_class("status-card")));
                 widgets.push(Box::new(Label::new("")));
                 widgets.push(Box::new(Label::new("Press Enter to begin, or Esc to exit.")));
             }
 
             // Step 1: FIDO2 PIN
             1 => {
-                widgets.push(Box::new(Label::new("Step 1: FIDO2 PIN")));
-                widgets.push(Box::new(Label::new("")));
-
+                widgets.push(Box::new(Label::new("Step 1: FIDO2 PIN").with_class("section-title")));
                 let pin_state = yk.and_then(|y| y.fido2.as_ref()).map(|f| f.pin_is_set);
+                let mut card: Vec<Box<dyn Widget>> = Vec::new();
                 match pin_state {
                     Some(true) => {
-                        widgets.push(Box::new(Label::new("Status: FIDO2 PIN is SET.")));
-                        widgets.push(Box::new(Label::new("Your key is protected against unauthorized use.")));
+                        card.push(Box::new(Label::new("✓ FIDO2 PIN is SET.")));
+                        card.push(Box::new(Label::new("Your key is protected.")));
                     }
                     Some(false) => {
-                        widgets.push(Box::new(Label::new("Status: FIDO2 PIN is NOT SET.")));
-                        widgets.push(Box::new(Label::new(
-                            "Without a PIN, anyone with physical access can use your FIDO2 key.",
-                        )));
-                        widgets.push(Box::new(Label::new("")));
-                        widgets.push(Box::new(Label::new("Press O to open the FIDO2 PIN screen and set a PIN.")));
+                        card.push(Box::new(Label::new("○ FIDO2 PIN is NOT SET.")));
+                        card.push(Box::new(Label::new("Anyone with physical access can use your key.")));
+                        card.push(Box::new(Label::new("Press O to set a PIN.")));
                     }
                     None => {
-                        widgets.push(Box::new(Label::new("Status: FIDO2 state unavailable.")));
-                        widgets.push(Box::new(Label::new("Press O to open the FIDO2 screen.")));
+                        card.push(Box::new(Label::new("? FIDO2 state unavailable.")));
+                        card.push(Box::new(Label::new("Press O to open the FIDO2 screen.")));
                     }
                 }
-
+                let cls = if pin_state == Some(true) { "status-card-ok" } else { "status-card-warn" };
+                widgets.push(Box::new(textual_rs::Vertical::with_children(card).with_class(cls)));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("Press Enter or S to continue to the next step.")));
+                widgets.push(Box::new(Label::new("Enter/S to continue.")));
             }
 
             // Step 2: OATH Account
             2 => {
-                widgets.push(Box::new(Label::new("Step 2: OATH Authenticator Account")));
-                widgets.push(Box::new(Label::new("")));
-
-                let cred_count = yk
-                    .and_then(|y| y.oath.as_ref())
-                    .map(|o| o.credentials.len())
-                    .unwrap_or(0);
-                let pass_req = yk
-                    .and_then(|y| y.oath.as_ref())
-                    .map(|o| o.password_required)
-                    .unwrap_or(false);
-
-                widgets.push(Box::new(Label::new(format!(
-                    "Status: {} OATH credential(s) stored on this YubiKey.",
-                    cred_count
-                ))));
-
-                if pass_req {
-                    widgets.push(Box::new(Label::new("Note: OATH applet is password-protected.")));
-                }
-
+                widgets.push(Box::new(Label::new("Step 2: OATH Authenticator").with_class("section-title")));
+                let cred_count = yk.and_then(|y| y.oath.as_ref()).map(|o| o.credentials.len()).unwrap_or(0);
+                let pass_req = yk.and_then(|y| y.oath.as_ref()).map(|o| o.password_required).unwrap_or(false);
+                let mut card: Vec<Box<dyn Widget>> = vec![
+                    Box::new(Label::new(format!("{} OATH credential(s) on this YubiKey.", cred_count))),
+                ];
+                if pass_req { card.push(Box::new(Label::new("Note: OATH applet is password-protected."))); }
                 if cred_count == 0 {
-                    widgets.push(Box::new(Label::new("")));
-                    widgets.push(Box::new(Label::new(
-                        "Add your first account to use your YubiKey as a TOTP authenticator.",
-                    )));
-                    widgets.push(Box::new(Label::new("Press O to open the OATH screen and add an account.")));
+                    card.push(Box::new(Label::new("Press O to add your first TOTP account.")));
                 } else {
-                    widgets.push(Box::new(Label::new("")));
-                    widgets.push(Box::new(Label::new("You already have OATH credentials configured.")));
-                    widgets.push(Box::new(Label::new("Press O to open the OATH screen, or Enter/S to continue.")));
+                    card.push(Box::new(Label::new("OATH credentials already configured.")));
                 }
-
+                let cls = if cred_count > 0 { "status-card-ok" } else { "status-card" };
+                widgets.push(Box::new(textual_rs::Vertical::with_children(card).with_class(cls)));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("Press Enter or S to continue to the next step.")));
+                widgets.push(Box::new(Label::new("Enter/S to continue.")));
             }
 
             // Step 3: PIV / SSH Key
             3 => {
-                widgets.push(Box::new(Label::new("Step 3: PIV / SSH Key")));
-                widgets.push(Box::new(Label::new("")));
-
-                let slot_9a_occupied = yk
-                    .and_then(|y| y.piv.as_ref())
-                    .map(|piv| piv.slots.iter().any(|s| s.slot == "9a"))
-                    .unwrap_or(false);
-
-                let mgmt_default = yk
-                    .and_then(|y| y.piv.as_ref())
-                    .map(|piv| piv.mgmt_key_is_default)
-                    .unwrap_or(false);
-
-                widgets.push(Box::new(Label::new(format!(
-                    "PIV slot 9a (Authentication): {}",
-                    if slot_9a_occupied { "OCCUPIED" } else { "EMPTY" }
-                ))));
-
+                widgets.push(Box::new(Label::new("Step 3: PIV / SSH Key").with_class("section-title")));
+                let slot_9a_occupied = yk.and_then(|y| y.piv.as_ref()).map(|piv| piv.slots.iter().any(|s| s.slot == "9a")).unwrap_or(false);
+                let mgmt_default = yk.and_then(|y| y.piv.as_ref()).map(|piv| piv.mgmt_key_is_default).unwrap_or(false);
+                let mut card: Vec<Box<dyn Widget>> = vec![
+                    Box::new(Label::new(format!("PIV slot 9a: {}", if slot_9a_occupied { "OCCUPIED" } else { "EMPTY" }))),
+                ];
                 if mgmt_default {
-                    widgets.push(Box::new(Label::new(
-                        "[!] PIV management key is factory default — change it for security.",
-                    )));
+                    card.push(Box::new(Label::new("⚠ Management key is factory default.")));
                 }
-
-                widgets.push(Box::new(Label::new("")));
-
                 if !slot_9a_occupied {
-                    widgets.push(Box::new(Label::new(
-                        "Generate an OpenPGP key to use your YubiKey for SSH authentication.",
-                    )));
-                    widgets.push(Box::new(Label::new("Press O to open the SSH Setup wizard.")));
+                    card.push(Box::new(Label::new("Press O to open the SSH Setup wizard.")));
                 } else {
-                    widgets.push(Box::new(Label::new("Your PIV/SSH key slot is already configured.")));
-                    widgets.push(Box::new(Label::new("Press O to open the PIV screen, or Enter/S to continue.")));
+                    card.push(Box::new(Label::new("PIV/SSH already configured. Press O for PIV screen.")));
                 }
-
+                let cls = if slot_9a_occupied { "status-card-ok" } else { "status-card" };
+                widgets.push(Box::new(textual_rs::Vertical::with_children(card).with_class(cls)));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("Press Enter or S to continue to the next step.")));
+                widgets.push(Box::new(Label::new("Enter/S to continue.")));
             }
 
             // Step 4: Done
             _ => {
-                widgets.push(Box::new(Label::new("Setup Complete!")));
+                widgets.push(Box::new(Label::new("Setup Complete!").with_class("section-title")));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("Your YubiKey is configured. Quick summary:")));
-                widgets.push(Box::new(Label::new("")));
-
+                let mut summary: Vec<Box<dyn Widget>> = vec![
+                    Box::new(Label::new("Your YubiKey is configured:")),
+                ];
                 if let Some(yk) = yk {
                     let pin_set = yk.fido2.as_ref().map(|f| f.pin_is_set).unwrap_or(false);
                     let cred_count = yk.oath.as_ref().map(|o| o.credentials.len()).unwrap_or(0);
-                    let slot_9a = yk
-                        .piv
-                        .as_ref()
-                        .map(|p| p.slots.iter().any(|s| s.slot == "9a"))
-                        .unwrap_or(false);
-
-                    widgets.push(Box::new(Label::new(format!(
-                        "  FIDO2 PIN:    {}",
-                        if pin_set { "Set" } else { "Not set" }
-                    ))));
-                    widgets.push(Box::new(Label::new(format!(
-                        "  OATH accounts: {}",
-                        cred_count
-                    ))));
-                    widgets.push(Box::new(Label::new(format!(
-                        "  PIV slot 9a:  {}",
-                        if slot_9a { "Configured" } else { "Empty" }
-                    ))));
+                    let slot_9a = yk.piv.as_ref().map(|p| p.slots.iter().any(|s| s.slot == "9a")).unwrap_or(false);
+                    summary.push(Box::new(Label::new(format!("  FIDO2 PIN:     {}", if pin_set { "Set" } else { "Not set" }))));
+                    summary.push(Box::new(Label::new(format!("  OATH accounts: {}", cred_count))));
+                    summary.push(Box::new(Label::new(format!("  PIV slot 9a:   {}", if slot_9a { "Configured" } else { "Empty" }))));
                 }
-
+                widgets.push(Box::new(textual_rs::Vertical::with_children(summary).with_class("status-card-ok")));
                 widgets.push(Box::new(Label::new("")));
                 widgets.push(Box::new(Label::new("Press Esc to return to the dashboard.")));
             }

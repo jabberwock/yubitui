@@ -232,7 +232,6 @@ impl Widget for OtpScreen {
 /// Screen for configuring an OTP slot with a specific credential type.
 pub struct OtpConfigScreen {
     slot: u8,
-    selected_type: Cell<usize>,
     own_id: Cell<Option<textual_rs::WidgetId>>,
 }
 
@@ -240,27 +239,34 @@ impl OtpConfigScreen {
     pub fn new(slot: u8) -> Self {
         Self {
             slot,
-            selected_type: Cell::new(0),
             own_id: Cell::new(None),
+        }
+    }
+
+    fn program_and_show_result(&self, config: &crate::model::otp::OtpConfig, cred_type: OtpCredentialType, ctx: &AppContext) {
+        match crate::model::otp::program_otp_slot(config) {
+            Ok(()) => {
+                ctx.pop_screen_deferred();
+                ctx.push_screen_deferred(Box::new(
+                    crate::tui::widgets::popup::PopupScreen::new(
+                        "Slot Configured",
+                        format!("OTP Slot {} programmed with {}.", self.slot, cred_type),
+                    ),
+                ));
+            }
+            Err(e) => {
+                ctx.pop_screen_deferred();
+                ctx.push_screen_deferred(Box::new(
+                    crate::tui::widgets::popup::PopupScreen::new(
+                        "Configuration Failed",
+                        format!("Failed to program slot {}: {}", self.slot, e),
+                    ),
+                ));
+            }
         }
     }
 }
 
-const CREDENTIAL_TYPES: &[OtpCredentialType] = &[
-    OtpCredentialType::ChallengeResponse,
-    OtpCredentialType::YubicoOtp,
-    OtpCredentialType::StaticPassword,
-];
-
-static OTP_CONFIG_BINDINGS: &[KeyBinding] = &[
-    KeyBinding { key: KeyCode::Esc, modifiers: KeyModifiers::NONE, action: "back", description: "Esc Cancel", show: true },
-    KeyBinding { key: KeyCode::Char('q'), modifiers: KeyModifiers::NONE, action: "back", description: "", show: false },
-    KeyBinding { key: KeyCode::Up, modifiers: KeyModifiers::NONE, action: "up", description: "", show: false },
-    KeyBinding { key: KeyCode::Down, modifiers: KeyModifiers::NONE, action: "down", description: "", show: false },
-    KeyBinding { key: KeyCode::Char('k'), modifiers: KeyModifiers::NONE, action: "up", description: "", show: false },
-    KeyBinding { key: KeyCode::Char('j'), modifiers: KeyModifiers::NONE, action: "down", description: "", show: false },
-    KeyBinding { key: KeyCode::Enter, modifiers: KeyModifiers::NONE, action: "confirm", description: "Enter Confirm", show: true },
-];
 
 impl Widget for OtpConfigScreen {
     fn widget_type_name(&self) -> &'static str { "OtpConfigScreen" }
@@ -269,47 +275,45 @@ impl Widget for OtpConfigScreen {
     fn on_unmount(&self, _id: textual_rs::WidgetId) { self.own_id.set(None); }
 
     fn compose(&self) -> Vec<Box<dyn Widget>> {
-        let selected = self.selected_type.get();
-        let mut widgets: Vec<Box<dyn Widget>> = vec![
+        let widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new(if self.slot == 1 { "Configure OTP Slot 1" } else { "Configure OTP Slot 2" })),
             Box::new(Label::new("")),
             Box::new(Label::new("Select credential type:").with_class("section-title")),
             Box::new(Label::new("")),
+            Box::new(Button::new("HMAC-SHA1 Challenge-Response").with_action("hmac")),
+            Box::new(Label::new("  For KeePassXC, offline 2FA")),
+            Box::new(Label::new("")),
+            Box::new(Button::new("Yubico OTP").with_action("yubico_otp")),
+            Box::new(Label::new("  Cloud-validated one-time passwords")),
+            Box::new(Label::new("")),
+            Box::new(Button::new("Static Password").with_action("static_pw")),
+            Box::new(Label::new("  Types a fixed string on touch")),
+            Box::new(Label::new("")),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("WARNING: This overwrites any existing slot configuration.")),
+            ]).with_class("status-card-warn")),
+            Box::new(Footer),
         ];
-
-        for (i, cred_type) in CREDENTIAL_TYPES.iter().enumerate() {
-            let marker = if i == selected { ">" } else { " " };
-            let description = match cred_type {
-                OtpCredentialType::ChallengeResponse => "HMAC-SHA1 — for KeePassXC, offline 2FA",
-                OtpCredentialType::YubicoOtp => "Yubico OTP — cloud-validated one-time passwords",
-                OtpCredentialType::StaticPassword => "Static Password — types a fixed string on touch",
-            };
-            widgets.push(Box::new(Label::new(format!(" {} {}", marker, description))));
-        }
-
-        widgets.push(Box::new(Label::new("")));
-        widgets.push(Box::new(Vertical::with_children(vec![
-            Box::new(Label::new("Use arrow keys to select, Enter to confirm.")),
-            Box::new(Label::new("The selected type will be programmed to the slot.")),
-            Box::new(Label::new("WARNING: This overwrites any existing configuration.")),
-        ]).with_class("status-card-warn")));
-
-        widgets.push(Box::new(Label::new("")));
-        widgets.push(Box::new(Button::new("Program Slot").with_action("confirm")));
-
-        widgets.push(Box::new(Footer));
         widgets
     }
 
-    fn key_bindings(&self) -> &[KeyBinding] { OTP_CONFIG_BINDINGS }
+    fn key_bindings(&self) -> &[KeyBinding] {
+        &[
+            KeyBinding { key: KeyCode::Esc, modifiers: KeyModifiers::NONE, action: "back", description: "Esc Cancel", show: true },
+            KeyBinding { key: KeyCode::Char('1'), modifiers: KeyModifiers::NONE, action: "hmac", description: "1 HMAC", show: true },
+            KeyBinding { key: KeyCode::Char('2'), modifiers: KeyModifiers::NONE, action: "yubico_otp", description: "2 Yubico", show: true },
+            KeyBinding { key: KeyCode::Char('3'), modifiers: KeyModifiers::NONE, action: "static_pw", description: "3 Static", show: true },
+        ]
+    }
 
     fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
         if let Some(key) = event.downcast_ref::<KeyEvent>() {
-            for binding in OTP_CONFIG_BINDINGS {
-                if binding.matches(key.code, key.modifiers) {
-                    self.on_action(binding.action, ctx);
-                    return EventPropagation::Stop;
-                }
+            match key.code {
+                KeyCode::Esc => { ctx.pop_screen_deferred(); return EventPropagation::Stop; }
+                KeyCode::Char('1') => { self.on_action("hmac", ctx); return EventPropagation::Stop; }
+                KeyCode::Char('2') => { self.on_action("yubico_otp", ctx); return EventPropagation::Stop; }
+                KeyCode::Char('3') => { self.on_action("static_pw", ctx); return EventPropagation::Stop; }
+                _ => {}
             }
         }
         EventPropagation::Continue
@@ -318,42 +322,135 @@ impl Widget for OtpConfigScreen {
     fn on_action(&self, action: &str, ctx: &AppContext) {
         match action {
             "back" => ctx.pop_screen_deferred(),
-            "up" => {
-                let cur = self.selected_type.get();
-                if cur > 0 {
-                    self.selected_type.set(cur - 1);
-                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
-                }
+            "hmac" => {
+                let config = crate::model::otp::OtpConfig::new(self.slot, OtpCredentialType::ChallengeResponse);
+                self.program_and_show_result(&config, OtpCredentialType::ChallengeResponse, ctx);
             }
-            "down" => {
-                let cur = self.selected_type.get();
-                if cur + 1 < CREDENTIAL_TYPES.len() {
-                    self.selected_type.set(cur + 1);
-                    if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
-                }
+            "yubico_otp" => {
+                let config = crate::model::otp::OtpConfig::new(self.slot, OtpCredentialType::YubicoOtp);
+                self.program_and_show_result(&config, OtpCredentialType::YubicoOtp, ctx);
             }
-            "confirm" => {
-                let selected = self.selected_type.get();
-                let cred_type = CREDENTIAL_TYPES[selected];
-                let config = crate::model::otp::OtpConfig::new(self.slot, cred_type);
+            "static_pw" => {
+                // Push a password input screen, then program
+                ctx.push_screen_deferred(Box::new(OtpStaticPwScreen::new(self.slot)));
+            }
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Static Password Input Screen
+// ---------------------------------------------------------------------------
+
+pub struct OtpStaticPwScreen {
+    slot: u8,
+    password: std::cell::RefCell<String>,
+    error: std::cell::RefCell<Option<String>>,
+    own_id: Cell<Option<textual_rs::WidgetId>>,
+}
+
+impl OtpStaticPwScreen {
+    pub fn new(slot: u8) -> Self {
+        Self {
+            slot,
+            password: std::cell::RefCell::new(String::new()),
+            error: std::cell::RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+    fn recompose(&self, ctx: &AppContext) {
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+    }
+}
+
+impl Widget for OtpStaticPwScreen {
+    fn widget_type_name(&self) -> &'static str { "OtpStaticPwScreen" }
+    fn on_mount(&self, id: textual_rs::WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: textual_rs::WidgetId) { self.own_id.set(None); }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let pw = self.password.borrow();
+        let err = self.error.borrow().clone();
+        let mut widgets: Vec<Box<dyn Widget>> = vec![
+            Box::new(Header::new(if self.slot == 1 { "Static Password — Slot 1" } else { "Static Password — Slot 2" })),
+            Box::new(Label::new("")),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("Enter the static password to program (max 38 chars):")),
+                Box::new(Label::new(format!("> {}_", *pw))),
+                Box::new(Label::new(format!("  ({}/38 chars)", pw.len()))),
+            ]).with_class("status-card")),
+        ];
+        if let Some(e) = err {
+            widgets.push(Box::new(Label::new(format!("Error: {}", e))));
+        }
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Button::new("Program Static Password").with_action("submit")));
+        widgets.push(Box::new(Footer));
+        widgets
+    }
+
+    fn key_bindings(&self) -> &[KeyBinding] {
+        &[
+            KeyBinding { key: KeyCode::Esc, modifiers: KeyModifiers::NONE, action: "back", description: "Esc Cancel", show: true },
+            KeyBinding { key: KeyCode::Enter, modifiers: KeyModifiers::NONE, action: "submit", description: "Enter Program", show: true },
+        ]
+    }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> EventPropagation {
+        if let Some(key) = event.downcast_ref::<KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => { ctx.pop_screen_deferred(); return EventPropagation::Stop; }
+                KeyCode::Backspace => {
+                    self.password.borrow_mut().pop();
+                    self.recompose(ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Enter => { self.on_action("submit", ctx); return EventPropagation::Stop; }
+                KeyCode::Char(c) => {
+                    if self.password.borrow().len() < 38 {
+                        self.password.borrow_mut().push(c);
+                        self.recompose(ctx);
+                    }
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "back" => ctx.pop_screen_deferred(),
+            "submit" => {
+                let pw = self.password.borrow().clone();
+                if pw.is_empty() {
+                    *self.error.borrow_mut() = Some("Password cannot be empty.".to_string());
+                    self.recompose(ctx);
+                    return;
+                }
+                let mut config = crate::model::otp::OtpConfig::new(self.slot, OtpCredentialType::StaticPassword);
+                config.static_password = Some(pw);
                 match crate::model::otp::program_otp_slot(&config) {
                     Ok(()) => {
-                        ctx.pop_screen_deferred();
+                        ctx.pop_screen_deferred(); // pop OtpStaticPwScreen
+                        ctx.pop_screen_deferred(); // pop OtpConfigScreen
                         ctx.push_screen_deferred(Box::new(
                             crate::tui::widgets::popup::PopupScreen::new(
                                 "Slot Configured",
-                                format!("OTP Slot {} programmed with {}.", self.slot, cred_type),
+                                format!("OTP Slot {} programmed with Static Password.", self.slot),
                             ),
                         ));
                     }
                     Err(e) => {
-                        ctx.pop_screen_deferred();
-                        ctx.push_screen_deferred(Box::new(
-                            crate::tui::widgets::popup::PopupScreen::new(
-                                "Configuration Failed",
-                                format!("Failed to program slot {}: {}", self.slot, e),
-                            ),
-                        ));
+                        *self.error.borrow_mut() = Some(e.to_string());
+                        self.password.borrow_mut().clear();
+                        self.recompose(ctx);
                     }
                 }
             }

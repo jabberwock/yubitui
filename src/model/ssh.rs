@@ -70,15 +70,22 @@ fn get_ssh_keys() -> Result<Vec<String>> {
 
 #[allow(dead_code)]
 pub fn export_ssh_key() -> Result<String> {
-    // Export the authentication key as SSH public key
-    let output = Command::new("gpg")
-        .args(["--export-ssh-key", ""])
+    let output = Command::new("ssh-add")
+        .arg("-L")
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
         .output()?;
 
     if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        let keys = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if keys.is_empty() {
+            anyhow::bail!("No SSH keys available from agent")
+        } else {
+            Ok(keys)
+        }
     } else {
-        anyhow::bail!("Failed to export SSH key")
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        anyhow::bail!("ssh-add -L failed: {}", if stderr.is_empty() { "unknown error".to_string() } else { stderr })
     }
 }
 

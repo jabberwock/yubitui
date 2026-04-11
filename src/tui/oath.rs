@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label, Button, ButtonVariant, DataTable, ColumnDef, ProgressBar, Markdown};
+use textual_rs::{Widget, Footer, Header, Label, Button, ButtonVariant, DataTable, ColumnDef, ProgressBar, Markdown, Vertical, Horizontal};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::{EventPropagation, WidgetId};
 use textual_rs::event::keybinding::KeyBinding;
@@ -604,30 +604,38 @@ impl Widget for AddAccountScreen {
 
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Add OATH Account")),
-            Box::new(Label::new(format!("Step {}/5: {}", step_num, step_name))),
+            Box::new(Label::new(format!("Step {}/5: {}", step_num, step_name)).with_class("section-title")),
             Box::new(Label::new("")),
         ];
 
         match state.step {
             AddAccountStep::Issuer => {
-                widgets.push(Box::new(Label::new("Enter issuer name (e.g., GitHub, Google):")));
-                widgets.push(Box::new(Label::new(format!("> {}_", *input))));
+                widgets.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new("Enter issuer name (e.g., GitHub, Google):")),
+                    Box::new(Label::new(format!("> {}_", *input))),
+                ]).with_class("status-card")));
             }
             AddAccountStep::AccountName => {
-                widgets.push(Box::new(Label::new("Enter account name (e.g., user@example.com):")));
-                widgets.push(Box::new(Label::new(format!("> {}_", *input))));
+                widgets.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new("Enter account name (e.g., user@example.com):")),
+                    Box::new(Label::new(format!("> {}_", *input))),
+                ]).with_class("status-card")));
             }
             AddAccountStep::Secret => {
-                widgets.push(Box::new(Label::new("Enter Base32 secret key:")));
                 let masked = "●".repeat(input.len());
-                widgets.push(Box::new(Label::new(format!("> {}_", masked))));
+                widgets.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new("Enter Base32 secret key:")),
+                    Box::new(Label::new(format!("> {}_", masked))),
+                ]).with_class("status-card")));
             }
             AddAccountStep::TypeSelect => {
                 let totp_marker = if state.oath_type == OathType::Totp { ">" } else { " " };
                 let hotp_marker = if state.oath_type == OathType::Hotp { ">" } else { " " };
-                widgets.push(Box::new(Label::new("Select type:")));
-                widgets.push(Box::new(Label::new(format!("{} [T] TOTP (time-based, default)", totp_marker))));
-                widgets.push(Box::new(Label::new(format!("{} [H] HOTP (counter-based)", hotp_marker))));
+                widgets.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new("Select type:")),
+                    Box::new(Label::new(format!(" {} TOTP (time-based, default)", totp_marker))),
+                    Box::new(Label::new(format!(" {} HOTP (counter-based)", hotp_marker))),
+                ]).with_class("status-card")));
                 widgets.push(Box::new(Label::new("")));
                 widgets.push(Box::new(Label::new("Press T or H to select, Enter to confirm.")));
             }
@@ -637,16 +645,14 @@ impl Widget for AddAccountScreen {
                 } else {
                     format!("{}:{}", state.issuer, state.account_name)
                 };
-                widgets.push(Box::new(Label::new("Review your new OATH credential:")));
+                widgets.push(Box::new(Vertical::with_children(vec![
+                    Box::new(Label::new("Review:")),
+                    Box::new(Label::new(format!("  Name:   {}", cred_name))),
+                    Box::new(Label::new(format!("  Type:   {}", state.oath_type))),
+                    Box::new(Label::new(format!("  Secret: {}", "●".repeat(state.secret_b32.len())))),
+                ]).with_class("status-card")));
                 widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new(format!("  Credential name: {}", cred_name))));
-                widgets.push(Box::new(Label::new(format!("  Type:            {}", state.oath_type))));
-                widgets.push(Box::new(Label::new(format!(
-                    "  Secret:          {}",
-                    "●".repeat(state.secret_b32.len())
-                ))));
-                widgets.push(Box::new(Label::new("")));
-                widgets.push(Box::new(Label::new("Press Enter to save, Esc to cancel.")));
+                widgets.push(Box::new(Label::new("Enter to save, Esc to cancel.")));
             }
         }
 
@@ -878,16 +884,15 @@ impl Widget for ImportUriScreen {
                 let mut widgets: Vec<Box<dyn Widget>> = vec![
                     Box::new(Header::new("Import OATH URI")),
                     Box::new(Label::new("")),
-                    Box::new(Label::new("Paste an otpauth:// URI from an authenticator app or QR")),
-                    Box::new(Label::new("code scanner, then press Enter to preview.")),
-                    Box::new(Label::new("")),
-                    Box::new(Label::new("Example:")),
-                    Box::new(Label::new("  otpauth://totp/GitHub:user@example.com?secret=BASE32SECRET")),
-                    Box::new(Label::new("")),
-                    Box::new(Label::new(format!("> {}_", input))),
+                    Box::new(Vertical::with_children(vec![
+                        Box::new(Label::new("Paste an otpauth:// URI then press Enter.")),
+                        Box::new(Label::new("")),
+                        Box::new(Label::new("Example: otpauth://totp/GitHub:user?secret=BASE32")),
+                        Box::new(Label::new("")),
+                        Box::new(Label::new(format!("> {}_", input))),
+                    ]).with_class("status-card")),
                 ];
                 if let Some(err) = error {
-                    widgets.push(Box::new(Label::new("")));
                     widgets.push(Box::new(Label::new(format!("Error: {}", err))));
                 }
                 widgets.push(Box::new(Label::new("")));
@@ -896,27 +901,24 @@ impl Widget for ImportUriScreen {
             }
             ImportUriStep::Confirm(ref parsed) => {
                 let masked = Self::mask_secret(&parsed.secret);
-                let issuer_display = if parsed.issuer.is_empty() {
-                    "(none)".to_string()
-                } else {
-                    parsed.issuer.clone()
-                };
+                let issuer_display = if parsed.issuer.is_empty() { "(none)" } else { &parsed.issuer };
                 let mut widgets: Vec<Box<dyn Widget>> = vec![
                     Box::new(Header::new("Import OATH URI — Confirm")),
                     Box::new(Label::new("")),
-                    Box::new(Label::new("Review the parsed credential before adding to YubiKey:")),
-                    Box::new(Label::new("")),
-                    Box::new(Label::new(format!("  Issuer    : {}", issuer_display))),
-                    Box::new(Label::new(format!("  Account   : {}", parsed.account))),
-                    Box::new(Label::new(format!("  Secret    : {}", masked))),
-                    Box::new(Label::new(format!("  Algorithm : {}", parsed.algorithm))),
-                    Box::new(Label::new(format!("  Type      : {}", parsed.oath_type))),
+                    Box::new(Vertical::with_children(vec![
+                        Box::new(Label::new("Review before adding to YubiKey:").with_class("section-title")),
+                        Box::new(Label::new(format!("  Issuer:    {}", issuer_display))),
+                        Box::new(Label::new(format!("  Account:   {}", parsed.account))),
+                        Box::new(Label::new(format!("  Secret:    {}", masked))),
+                        Box::new(Label::new(format!("  Algorithm: {}", parsed.algorithm))),
+                        Box::new(Label::new(format!("  Type:      {}", parsed.oath_type))),
+                    ]).with_class("status-card")),
                 ];
                 if let Some(err) = error {
-                    widgets.push(Box::new(Label::new("")));
                     widgets.push(Box::new(Label::new(format!("Error: {}", err))));
                 }
                 widgets.push(Box::new(Label::new("")));
+                widgets.push(Box::new(Label::new("Enter to save, Esc to edit.")));
                 widgets.push(Box::new(Footer));
                 widgets
             }
@@ -1264,12 +1266,12 @@ impl Widget for OathUnlockScreen {
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("OATH Password")),
             Box::new(Label::new("")),
-            Box::new(Label::new("Enter the OATH application password:")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(format!("> {}_", masked))),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("Enter the OATH application password:")),
+                Box::new(Label::new(format!("> {}_", masked))),
+            ]).with_class("status-card")),
         ];
         if let Some(err) = error {
-            widgets.push(Box::new(Label::new("")));
             widgets.push(Box::new(Label::new(format!("Error: {}", err))));
         }
         widgets.push(Box::new(Label::new("")));
@@ -1364,9 +1366,11 @@ impl Widget for OathPasswordMgmtScreen {
             Box::new(Label::new("")),
             Box::new(Label::new("Manage the OATH applet application password.")),
             Box::new(Label::new("")),
-            Box::new(Button::new("Set New Password").with_action("set_password")),
-            Box::new(Button::new("Change Password").with_action("change_password")),
-            Box::new(Button::new("Remove Password").with_variant(ButtonVariant::Warning).with_action("remove_password")),
+            Box::new(Horizontal::with_children(vec![
+                Box::new(Button::new("Set New Password").with_action("set_password")),
+                Box::new(Button::new("Change Password").with_action("change_password")),
+                Box::new(Button::new("Remove Password").with_variant(ButtonVariant::Warning).with_action("remove_password")),
+            ]).with_class("button-bar")),
             Box::new(Label::new("")),
             Box::new(Footer),
         ]
@@ -1455,14 +1459,19 @@ impl Widget for OathSetPasswordScreen {
         let m1 = "●".repeat(self.new_pw.borrow().len());
         let m2 = "●".repeat(self.confirm_pw.borrow().len());
         let err = self.error.borrow().clone();
+        let c1 = if f == 0 { "_" } else { "" };
+        let c2 = if f == 1 { "_" } else { "" };
+        let mk1 = if f == 0 { ">" } else { " " };
+        let mk2 = if f == 1 { ">" } else { " " };
         let mut w: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Set OATH Password")),
             Box::new(Label::new("")),
-            Box::new(Label::new(format!("{}New password:", if f == 0 { "> " } else { "  " }))),
-            Box::new(Label::new(format!("  {}_", m1))),
-            Box::new(Label::new("")),
-            Box::new(Label::new(format!("{}Confirm password:", if f == 1 { "> " } else { "  " }))),
-            Box::new(Label::new(format!("  {}_", m2))),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new(format!(" {} New password:", mk1))),
+                Box::new(Label::new(format!("   {}{}", m1, c1))),
+                Box::new(Label::new(format!(" {} Confirm password:", mk2))),
+                Box::new(Label::new(format!("   {}{}", m2, c2))),
+            ]).with_class("status-card")),
         ];
         if let Some(e) = err {
             w.push(Box::new(Label::new("")));
@@ -1604,16 +1613,18 @@ impl Widget for OathChangePasswordScreen {
         ];
         let err = self.error.borrow().clone();
 
+        let mut card_lines: Vec<Box<dyn Widget>> = Vec::new();
+        for (i, (label, value)) in labels.iter().zip(values.iter()).enumerate() {
+            let mk = if i as u8 == f { ">" } else { " " };
+            let cur = if i as u8 == f { "_" } else { "" };
+            card_lines.push(Box::new(Label::new(format!(" {} {}:", mk, label))));
+            card_lines.push(Box::new(Label::new(format!("   {}{}", value, cur))));
+        }
         let mut w: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Change OATH Password")),
             Box::new(Label::new("")),
+            Box::new(Vertical::with_children(card_lines).with_class("status-card")),
         ];
-        for (i, (label, value)) in labels.iter().zip(values.iter()).enumerate() {
-            let cursor = if i as u8 == f { "> " } else { "  " };
-            w.push(Box::new(Label::new(format!("{}{}", cursor, label))));
-            w.push(Box::new(Label::new(format!("  {}_", value))));
-            w.push(Box::new(Label::new("")));
-        }
         if let Some(e) = err {
             w.push(Box::new(Label::new(format!("Error: {}", e))));
             w.push(Box::new(Label::new("")));
@@ -1740,9 +1751,10 @@ impl Widget for OathRemovePasswordScreen {
         let mut w: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Remove OATH Password")),
             Box::new(Label::new("")),
-            Box::new(Label::new("Enter current password to confirm removal:")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(format!("> {}_", masked))),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("Enter current password to confirm removal:")),
+                Box::new(Label::new(format!("> {}_", masked))),
+            ]).with_class("status-card")),
         ];
         if let Some(e) = err {
             w.push(Box::new(Label::new("")));

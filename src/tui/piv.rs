@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use textual_rs::{Widget, Footer, Header, Label, Button, ButtonVariant, DataTable, ColumnDef, WidgetId, Markdown};
+use textual_rs::{Widget, Footer, Header, Label, Button, ButtonVariant, DataTable, ColumnDef, WidgetId, Markdown, Vertical};
 use textual_rs::widget::context::AppContext;
 use textual_rs::widget::EventPropagation;
 use textual_rs::event::keybinding::KeyBinding;
@@ -467,16 +467,16 @@ impl Widget for MgmtKeyThenDeleteScreen {
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("PIV Management Key")),
             Box::new(Label::new("")),
-            Box::new(Label::new(format!("Delete slot: {}", self.slot.display_name()))),
-            Box::new(Label::new("")),
-            Box::new(Label::new("Enter PIV Management Key (48 hex chars = 24 bytes):")),
-            Box::new(Label::new("Press Enter with empty input to use the default key.")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(format!("> {}_", input))),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new(format!("Delete slot: {}", self.slot.display_name()))),
+                Box::new(Label::new("")),
+                Box::new(Label::new("Enter PIV Management Key (48 hex chars):")),
+                Box::new(Label::new("Empty = default key.")),
+                Box::new(Label::new(format!("> {}_", input))),
+            ]).with_class("status-card")),
         ];
 
         if let Some(err) = error {
-            widgets.push(Box::new(Label::new("")));
             widgets.push(Box::new(Label::new(format!("Error: {}", err))));
         }
 
@@ -723,34 +723,23 @@ impl Widget for ChangeMgmtKeyScreen {
         let input = self.input.borrow().clone();
         let error = self.error.borrow().clone();
 
+        let desc = if self.is_default {
+            "Key is factory default. Press Enter with empty input to use it."
+        } else {
+            "Enter current management key (48 hex chars). Empty = try default."
+        };
+
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Change PIV Management Key (1/2)")),
             Box::new(Label::new("")),
-            Box::new(Label::new("Step 1: Enter your current management key.")),
-            Box::new(Label::new("")),
+            Box::new(Label::new("Step 1: Enter current management key").with_class("section-title")),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new(desc)),
+                Box::new(Label::new(format!("> {}_", input))),
+            ]).with_class("status-card")),
         ];
 
-        if self.is_default {
-            widgets.push(Box::new(Label::new(
-                "Your management key is currently the factory default.",
-            )));
-            widgets.push(Box::new(Label::new(
-                "Press Enter with empty input to use the default key.",
-            )));
-        } else {
-            widgets.push(Box::new(Label::new(
-                "Enter current management key (48 hex chars = 24 bytes):",
-            )));
-            widgets.push(Box::new(Label::new(
-                "Press Enter with empty input to try the default key.",
-            )));
-        }
-
-        widgets.push(Box::new(Label::new("")));
-        widgets.push(Box::new(Label::new(format!("> {}_", input))));
-
         if let Some(err) = error {
-            widgets.push(Box::new(Label::new("")));
             widgets.push(Box::new(Label::new(format!("Error: {}", err))));
         }
 
@@ -872,13 +861,12 @@ impl Widget for NewMgmtKeyScreen {
         let mut widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(Header::new("Change PIV Management Key (2/2)")),
             Box::new(Label::new("")),
-            Box::new(Label::new("Step 2: Enter your new management key (48 hex chars = 24 bytes).")),
-            Box::new(Label::new("")),
-            Box::new(Label::new("Use a random value — do not reuse the default key.")),
-            Box::new(Label::new("Store it in a password manager before confirming.")),
-            Box::new(Label::new("")),
-            Box::new(Label::new(format!("> {}_", input))),
-            Box::new(Label::new(format!("  ({}/48 chars entered)", input.len()))),
+            Box::new(Label::new("Step 2: Enter new management key").with_class("section-title")),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("Use a random 48-hex-char value. Store in a password manager.")),
+                Box::new(Label::new(format!("> {}_", input))),
+                Box::new(Label::new(format!("  ({}/48 chars entered)", input.len()))),
+            ]).with_class("status-card")),
         ];
 
         if let Some(err) = error {

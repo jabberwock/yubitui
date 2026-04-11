@@ -256,28 +256,13 @@ impl Widget for PinManagementScreen {
     fn on_action(&self, action: &str, ctx: &AppContext) {
         match action {
             "change_user_pin" => {
-                ctx.push_screen_deferred(Box::new(
-                    PinInputWidget::new(
-                        "Change User PIN",
-                        &["Current PIN", "New PIN", "Confirm New PIN"],
-                    ),
-                ));
+                ctx.push_screen_deferred(Box::new(PinOperationScreen::change_user_pin()));
             }
             "change_admin_pin" => {
-                ctx.push_screen_deferred(Box::new(
-                    PinInputWidget::new(
-                        "Change Admin PIN",
-                        &["Current Admin PIN", "New Admin PIN", "Confirm New Admin PIN"],
-                    ),
-                ));
+                ctx.push_screen_deferred(Box::new(PinOperationScreen::change_admin_pin()));
             }
             "set_reset_code" => {
-                ctx.push_screen_deferred(Box::new(
-                    PinInputWidget::new(
-                        "Set Reset Code",
-                        &["Admin PIN", "New Reset Code", "Confirm Reset Code"],
-                    ),
-                ));
+                ctx.push_screen_deferred(Box::new(PinOperationScreen::set_reset_code()));
             }
             "unblock_pin" => {
                 ctx.push_screen_deferred(Box::new(
@@ -347,21 +332,15 @@ impl Widget for UnblockWizardScreen {
         if let Some(yk) = &self.yubikey_state {
             let pin = &yk.pin_status;
 
-            children.push(Box::new(Label::new("Current PIN status:")));
-            children.push(Box::new(Label::new(format!(
-                "  User PIN retries:   {}/3",
-                pin.user_pin_retries
-            ))));
-            children.push(Box::new(Label::new(format!(
-                "  Admin PIN retries:  {}/3",
-                pin.admin_pin_retries
-            ))));
-            children.push(Box::new(Label::new(format!(
-                "  Reset Code retries: {}/3",
-                pin.reset_code_retries
-            ))));
             children.push(Box::new(Label::new("")));
-            children.push(Box::new(Label::new("Recovery options:")));
+            children.push(Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("Current PIN Status").with_class("section-title")),
+                Box::new(Label::new(format!("  User PIN retries:   {}/3", pin.user_pin_retries))),
+                Box::new(Label::new(format!("  Admin PIN retries:  {}/3", pin.admin_pin_retries))),
+                Box::new(Label::new(format!("  Reset Code retries: {}/3", pin.reset_code_retries))),
+            ]).with_class("status-card-warn")));
+            children.push(Box::new(Label::new("")));
+            children.push(Box::new(Label::new("Recovery options:").with_class("section-title")));
 
             if pin.reset_code_retries > 0 {
                 children.push(Box::new(
@@ -486,30 +465,26 @@ impl Widget for FactoryResetScreen {
     fn compose(&self) -> Vec<Box<dyn Widget>> {
         vec![
             Box::new(textual_rs::Header::new("Factory Reset")),
-            Box::new(Label::new("[WARNING] DESTRUCTIVE OPERATION")),
             Box::new(Label::new("")),
-            Box::new(Label::new(
-                "Both your Admin PIN and Reset Code are exhausted.",
-            )),
-            Box::new(Label::new(
-                "The only way to recover this YubiKey is a full factory reset.",
-            )),
+            Box::new(Vertical::with_children(vec![
+                Box::new(Label::new("Both your Admin PIN and Reset Code are exhausted.")),
+                Box::new(Label::new("The only way to recover this YubiKey is a full factory reset.")),
+                Box::new(Label::new("")),
+                Box::new(Label::new("THIS WILL PERMANENTLY DELETE:")),
+                Box::new(Label::new("  - All GPG keys stored on the card")),
+                Box::new(Label::new("  - All certificates")),
+                Box::new(Label::new("  - All cardholder data")),
+                Box::new(Label::new("")),
+                Box::new(Label::new("After reset, default PINs:")),
+                Box::new(Label::new("  User: 123456  Admin: 12345678")),
+            ]).with_class("status-card-error")),
             Box::new(Label::new("")),
-            Box::new(Label::new("THIS WILL PERMANENTLY DELETE:")),
-            Box::new(Label::new("  - All GPG keys stored on the card")),
-            Box::new(Label::new("  - All certificates")),
-            Box::new(Label::new("  - All cardholder data")),
-            Box::new(Label::new("")),
-            Box::new(Label::new("After reset, default PINs will be restored:")),
-            Box::new(Label::new("  - User PIN:  123456")),
-            Box::new(Label::new("  - Admin PIN: 12345678")),
-            Box::new(Label::new("")),
-            Box::new(
-                Button::new("Confirm Factory Reset — Press Y to execute")
+            Box::new(Horizontal::with_children(vec![
+                Box::new(Button::new("Cancel").with_action("cancel")),
+                Box::new(Button::new("Confirm Factory Reset")
                     .with_variant(ButtonVariant::Error)
-                    .with_action("confirm_reset"),
-            ),
-            Box::new(Button::new("Cancel").with_action("cancel")),
+                    .with_action("confirm_reset")),
+            ]).with_class("button-bar")),
             Box::new(Footer),
         ]
     }
@@ -536,13 +511,219 @@ impl Widget for FactoryResetScreen {
 }
 
 // ---------------------------------------------------------------------------
-// Result popup helper
+// Dedicated PIN operation screens
 // ---------------------------------------------------------------------------
 
-/// Push an operation result popup (success or failure message).
-#[allow(dead_code)]
-pub fn push_result_popup(ctx: &AppContext, title: &str, message: String) {
-    ctx.push_screen_deferred(Box::new(PopupScreen::new(title, message)));
+/// Which PIN operation this screen performs.
+#[derive(Clone)]
+enum PinOperation {
+    ChangeUserPin,
+    ChangeAdminPin,
+    SetResetCode,
+}
+
+/// Screen that collects PIN fields and executes a PIN operation on submit.
+pub struct PinOperationScreen {
+    operation: PinOperation,
+    fields: Vec<RefCell<String>>,
+    field_labels: Vec<&'static str>,
+    active_field: Cell<usize>,
+    error_message: RefCell<Option<String>>,
+    own_id: Cell<Option<textual_rs::WidgetId>>,
+}
+
+impl PinOperationScreen {
+    pub fn change_user_pin() -> Self {
+        Self {
+            operation: PinOperation::ChangeUserPin,
+            fields: vec![RefCell::new(String::new()), RefCell::new(String::new()), RefCell::new(String::new())],
+            field_labels: vec!["Current PIN", "New PIN", "Confirm New PIN"],
+            active_field: Cell::new(0),
+            error_message: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+    pub fn change_admin_pin() -> Self {
+        Self {
+            operation: PinOperation::ChangeAdminPin,
+            fields: vec![RefCell::new(String::new()), RefCell::new(String::new()), RefCell::new(String::new())],
+            field_labels: vec!["Current Admin PIN", "New Admin PIN", "Confirm Admin PIN"],
+            active_field: Cell::new(0),
+            error_message: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+    pub fn set_reset_code() -> Self {
+        Self {
+            operation: PinOperation::SetResetCode,
+            fields: vec![RefCell::new(String::new()), RefCell::new(String::new()), RefCell::new(String::new())],
+            field_labels: vec!["Admin PIN", "New Reset Code", "Confirm Reset Code"],
+            active_field: Cell::new(0),
+            error_message: RefCell::new(None),
+            own_id: Cell::new(None),
+        }
+    }
+    fn recompose(&self, ctx: &AppContext) {
+        if let Some(id) = self.own_id.get() { ctx.request_recompose(id); }
+    }
+    fn title(&self) -> &'static str {
+        match self.operation {
+            PinOperation::ChangeUserPin => "Change User PIN",
+            PinOperation::ChangeAdminPin => "Change Admin PIN",
+            PinOperation::SetResetCode => "Set Reset Code",
+        }
+    }
+}
+
+impl Widget for PinOperationScreen {
+    fn widget_type_name(&self) -> &'static str { "PinOperationScreen" }
+    fn on_mount(&self, id: textual_rs::WidgetId) { self.own_id.set(Some(id)); }
+    fn on_unmount(&self, _id: textual_rs::WidgetId) { self.own_id.set(None); }
+
+    fn compose(&self) -> Vec<Box<dyn Widget>> {
+        let active = self.active_field.get();
+        let error = self.error_message.borrow().clone();
+
+        let mut widgets: Vec<Box<dyn Widget>> = vec![
+            Box::new(textual_rs::Header::new(self.title())),
+            Box::new(Label::new("")),
+        ];
+
+        let mut card_lines: Vec<Box<dyn Widget>> = Vec::new();
+        for (i, label) in self.field_labels.iter().enumerate() {
+            let marker = if i == active { ">" } else { " " };
+            let masked = "●".repeat(self.fields[i].borrow().len());
+            let cursor = if i == active { "_" } else { "" };
+            card_lines.push(Box::new(Label::new(format!(" {} {}:", marker, label))));
+            card_lines.push(Box::new(Label::new(format!("   {}{}", masked, cursor))));
+        }
+        widgets.push(Box::new(Vertical::with_children(card_lines).with_class("status-card")));
+
+        if let Some(err) = error {
+            widgets.push(Box::new(Label::new("")));
+            widgets.push(Box::new(Label::new(format!("Error: {}", err))));
+        }
+
+        widgets.push(Box::new(Label::new("")));
+        widgets.push(Box::new(Label::new("Tab to switch fields, Enter to submit, Esc to cancel.")));
+        widgets.push(Box::new(Footer));
+        widgets
+    }
+
+    fn key_bindings(&self) -> &[textual_rs::event::keybinding::KeyBinding] {
+        &[
+            textual_rs::event::keybinding::KeyBinding { key: KeyCode::Esc, modifiers: KeyModifiers::NONE, action: "cancel", description: "Esc Cancel", show: true },
+            textual_rs::event::keybinding::KeyBinding { key: KeyCode::Tab, modifiers: KeyModifiers::NONE, action: "next_field", description: "Tab Next", show: true },
+            textual_rs::event::keybinding::KeyBinding { key: KeyCode::Enter, modifiers: KeyModifiers::NONE, action: "submit", description: "Enter Submit", show: true },
+        ]
+    }
+
+    fn on_event(&self, event: &dyn std::any::Any, ctx: &AppContext) -> textual_rs::widget::EventPropagation {
+        use textual_rs::widget::EventPropagation;
+        if let Some(key) = event.downcast_ref::<crossterm::event::KeyEvent>() {
+            match key.code {
+                KeyCode::Esc => { ctx.pop_screen_deferred(); return EventPropagation::Stop; }
+                KeyCode::Tab => {
+                    let next = (self.active_field.get() + 1) % self.fields.len();
+                    self.active_field.set(next);
+                    self.recompose(ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::BackTab => {
+                    let cur = self.active_field.get();
+                    let prev = if cur == 0 { self.fields.len() - 1 } else { cur - 1 };
+                    self.active_field.set(prev);
+                    self.recompose(ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Backspace => {
+                    self.fields[self.active_field.get()].borrow_mut().pop();
+                    self.recompose(ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Enter => {
+                    self.on_action("submit", ctx);
+                    return EventPropagation::Stop;
+                }
+                KeyCode::Char(c) => {
+                    self.fields[self.active_field.get()].borrow_mut().push(c);
+                    self.recompose(ctx);
+                    return EventPropagation::Stop;
+                }
+                _ => {}
+            }
+        }
+        textual_rs::widget::EventPropagation::Continue
+    }
+
+    fn on_action(&self, action: &str, ctx: &AppContext) {
+        match action {
+            "cancel" => ctx.pop_screen_deferred(),
+            "next_field" => {
+                let next = (self.active_field.get() + 1) % self.fields.len();
+                self.active_field.set(next);
+                self.recompose(ctx);
+            }
+            "submit" => {
+                let vals: Vec<String> = self.fields.iter().map(|f| f.borrow().clone()).collect();
+
+                // Validate: all fields must be non-empty
+                if vals.iter().any(|v| v.is_empty()) {
+                    *self.error_message.borrow_mut() = Some("All fields are required.".to_string());
+                    self.recompose(ctx);
+                    return;
+                }
+
+                // Validate: new == confirm (fields[1] == fields[2])
+                if vals[1] != vals[2] {
+                    *self.error_message.borrow_mut() = Some("New values do not match. Try again.".to_string());
+                    self.fields[2].borrow_mut().clear();
+                    self.recompose(ctx);
+                    return;
+                }
+
+                let result = match self.operation {
+                    PinOperation::ChangeUserPin => {
+                        crate::model::pin_operations::change_user_pin_programmatic(&vals[0], &vals[1])
+                    }
+                    PinOperation::ChangeAdminPin => {
+                        crate::model::pin_operations::change_admin_pin_programmatic(&vals[0], &vals[1])
+                    }
+                    PinOperation::SetResetCode => {
+                        crate::model::pin_operations::set_reset_code_programmatic(&vals[0], &vals[1])
+                    }
+                };
+
+                match result {
+                    Ok(result) => {
+                        if result.success {
+                            ctx.pop_screen_deferred();
+                            ctx.push_screen_deferred(Box::new(PopupScreen::new(
+                                "Success",
+                                result.messages.join("\n"),
+                            )));
+                        } else {
+                            *self.error_message.borrow_mut() = Some(result.messages.join("; "));
+                            for f in &self.fields { f.borrow_mut().clear(); }
+                            self.active_field.set(0);
+                            self.recompose(ctx);
+                        }
+                    }
+                    Err(e) => {
+                        *self.error_message.borrow_mut() = Some(e.to_string());
+                        for f in &self.fields { f.borrow_mut().clear(); }
+                        self.active_field.set(0);
+                        self.recompose(ctx);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn render(&self, ctx: &AppContext, area: Rect, buf: &mut Buffer) {
+        crate::tui::widgets::fill_screen_background(ctx, area, buf);
+    }
 }
 
 // ---------------------------------------------------------------------------
